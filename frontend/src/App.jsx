@@ -8,12 +8,9 @@ import ScorePage from './pages/ScorePage'
 import OrganizerDashboard from './pages/OrganizerDashboard'
 import RulesPage from './pages/RulesPage'
 import FAQPage from './pages/FAQPage'
+import GalleryPage from './pages/GalleryPage'
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
-
-// NOTE: /projects route is intentionally NOT handled here.
-// It is server-rendered by Express + EJS and proxied by Vite.
-// The run.py acceptance checker requires project titles in raw HTML.
 
 export default function App() {
   return (
@@ -25,6 +22,7 @@ export default function App() {
         <Route path="/faq" element={<FAQPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
+        <Route path="/projects" element={<GalleryPage />} />
         
         {/* Judge Routes */}
         <Route path="/judge/dashboard" element={<JudgeDashboard />} />

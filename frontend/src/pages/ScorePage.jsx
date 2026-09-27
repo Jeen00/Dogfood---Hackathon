@@ -1,97 +1,168 @@
-import { useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { CaretLeft, Star } from '@phosphor-icons/react'
+import { useState, useEffect } from 'react'
+import { useParams, useLocation, useNavigate } from 'react-router-dom'
+import { ArrowLeft, Check } from 'lucide-react'
+import { motion } from 'framer-motion'
 
 export default function ScorePage() {
   const { id } = useParams()
+  const location = useLocation()
   const navigate = useNavigate()
   
-  // Mock criteria matching the backend rubric
-  const criteria = [
-    { key: 'functionality', label: 'Functionality', weight: 0.5 },
-    { key: 'quality', label: 'Code Quality', weight: 0.3 },
-    { key: 'presentation', label: 'Presentation', weight: 0.2 }
-  ]
-
-  const [scores, setScores] = useState({ functionality: 0, quality: 0, presentation: 0 })
+  const [project, setProject] = useState(location.state?.project || null)
+  const [criteria, setCriteria] = useState([])
+  const [scores, setScores] = useState({})
   const [comment, setComment] = useState('')
+  const [loading, setLoading] = useState(!project)
+  const [submitting, setSubmitting] = useState(false)
 
-  const handleScore = (key, val) => setScores(s => ({ ...s, [key]: val }))
+  useEffect(() => {
+    fetch(`/api/judge/scores/${id}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.project && !project) setProject(data.project)
+        if (data.criteria) setCriteria(data.criteria)
+        if (data.existingScore) {
+          setScores(data.existingScore.scores)
+          setComment(data.existingScore.comment || '')
+        }
+        setLoading(false)
+      })
+      .catch(err => {
+        console.error(err)
+        setLoading(false)
+      })
+  }, [id, project])
 
-  const totalScore = (
-    scores.functionality * 0.5 + 
-    scores.quality * 0.3 + 
-    scores.presentation * 0.2
-  ).toFixed(2)
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setSubmitting(true)
+    try {
+      const res = await fetch(`/api/judge/scores/${id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scores, comment })
+      })
+      if (res.ok) {
+        navigate('/judge/dashboard')
+      } else {
+        alert('Failed to submit score')
+      }
+    } catch (err) {
+      alert('Error submitting score')
+    }
+    setSubmitting(false)
+  }
+
+  const allScored = criteria.every(c => scores[c.key])
+  const weightedScore = criteria.reduce((sum, c) => sum + (scores[c.key] || 0) * c.weight, 0).toFixed(2)
+
+  if (loading) return (
+    <div className="min-h-screen bg-[#0a0d12] flex items-center justify-center">
+      <div className="flex items-center gap-3 text-white/30 font-light uppercase tracking-widest text-xs">
+        <div className="w-3 h-3 rounded-full border border-white/20 border-t-white/80 animate-spin" />
+        Loading...
+      </div>
+    </div>
+  )
 
   return (
-    <div className="min-h-screen bg-black text-white font-sans p-6 md:p-12">
-      <div className="max-w-2xl mx-auto">
-        <button 
-          onClick={() => navigate('/judge/dashboard')}
-          className="text-white/50 hover:text-white text-sm mb-8 flex items-center gap-2 transition-colors cursor-pointer bg-transparent border-none"
-        >
-          <CaretLeft size={16} /> Back to Dashboard
-        </button>
+    <div className="min-h-screen bg-[#0a0d12] text-white font-sans selection:bg-white/30">
+      <header className="sticky top-0 z-50 bg-[#0a0d12]/80 backdrop-blur-2xl border-b border-white/5">
+        <div className="max-w-4xl mx-auto px-6 h-20 flex items-center justify-between">
+          <button 
+            onClick={() => navigate('/judge/dashboard')}
+            className="group flex items-center gap-3 text-[10px] tracking-[0.2em] uppercase text-white/50 hover:text-white transition-colors"
+          >
+            <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform" /> Back
+          </button>
+        </div>
+      </header>
 
-        <header className="mb-10 pb-10 border-b border-white/10">
-          <h1 className="text-3xl font-bold tracking-tight mb-2">Scoring: Project {id}</h1>
-          <p className="text-white/50">Please evaluate carefully based on the rubric.</p>
+      <main className="max-w-4xl mx-auto px-6 py-20">
+        <header className="mb-20 pb-12 border-b border-white/10">
+          <h1 className="text-4xl md:text-5xl font-light tracking-wide mb-4">{project.title}</h1>
+          <p className="text-white/40 font-mono text-xs uppercase tracking-widest">ID: {id}</p>
         </header>
 
-        <form className="space-y-10" onSubmit={e => { e.preventDefault(); navigate('/judge/dashboard') }}>
+        <form className="space-y-16" onSubmit={handleSubmit}>
           
-          {criteria.map((c) => (
-            <div key={c.key} className="space-y-4">
-              <div className="flex items-center justify-between">
-                <label className="text-lg font-medium">{c.label}</label>
-                <span className="text-sm font-medium text-white/40 bg-white/5 px-2 py-1 rounded-md">
-                  Weight: {c.weight * 100}%
-                </span>
-              </div>
-              <div className="flex gap-4">
-                {[1, 2, 3, 4, 5].map(val => (
-                  <button
-                    key={val}
-                    type="button"
-                    onClick={() => handleScore(c.key, val)}
-                    className={`flex-1 py-4 rounded-xl border flex flex-col items-center gap-2 transition-all cursor-pointer ${
-                      scores[c.key] === val 
-                        ? 'bg-white border-white text-black' 
-                        : 'bg-white/5 border-white/10 text-white/50 hover:border-white/30'
-                    }`}
-                  >
-                    <Star size={20} weight={scores[c.key] === val ? 'fill' : 'regular'} />
-                    <span className="font-semibold">{val}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
+          <div className="space-y-12">
+            {criteria.map((c, i) => (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.1, duration: 0.5 }}
+                key={c.key} 
+                className="space-y-6"
+              >
+                <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                  <label className="text-sm font-light tracking-widest uppercase text-white/80">{c.label}</label>
+                  <span className="text-[10px] font-medium tracking-[0.2em] text-white/30 uppercase">
+                    Weight {c.weight * 100}%
+                  </span>
+                </div>
+                <div className="flex gap-4">
+                  {[1, 2, 3, 4, 5].map(val => (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => setScores(s => ({ ...s, [c.key]: val }))}
+                      className={`flex-1 py-4 flex items-center justify-center transition-all cursor-pointer border-b-2 ${
+                        scores[c.key] === val 
+                          ? 'border-white text-white bg-white/5' 
+                          : 'border-transparent text-white/30 hover:bg-white/[0.02] hover:text-white/60'
+                      }`}
+                    >
+                      <span className="font-light text-xl">{val}</span>
+                    </button>
+                  ))}
+                </div>
+              </motion.div>
+            ))}
+          </div>
 
-          <div className="space-y-4">
-            <label className="text-lg font-medium block">Judge's Comment</label>
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.4, duration: 0.5 }}
+            className="space-y-6 pt-8 border-t border-white/10"
+          >
+            <label className="text-sm font-light tracking-widest uppercase text-white/80 block">Qualitative Feedback</label>
             <textarea 
               rows={4}
               value={comment}
               onChange={e => setComment(e.target.value)}
-              placeholder="Provide constructive feedback..."
-              className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white placeholder:text-white/30 focus:outline-none focus:border-white/30 transition-colors resize-none"
+              placeholder="Provide constructive feedback for the team..."
+              className="w-full bg-transparent border-b border-white/10 p-4 text-white placeholder:text-white/20 focus:outline-none focus:border-white/50 transition-colors resize-none font-light leading-relaxed"
             />
-          </div>
+          </motion.div>
 
-          <div className="p-6 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between">
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5, duration: 0.5 }}
+            className="flex flex-col sm:flex-row items-center justify-between gap-8 pt-12"
+          >
             <div>
-              <div className="text-sm text-white/50 font-medium mb-1">Weighted Score</div>
-              <div className="text-3xl font-bold">{totalScore} <span className="text-lg text-white/30">/ 5.00</span></div>
+              <div className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-medium mb-2">Final Weighted Score</div>
+              <div className="text-4xl font-light">{weightedScore} <span className="text-white/20 text-2xl">/ 5.00</span></div>
             </div>
-            <button type="submit" className="px-8 py-3 rounded-full bg-white text-black font-semibold hover:scale-105 transition-transform cursor-pointer">
-              Submit Score
-            </button>
-          </div>
 
+            <button 
+              type="submit"
+              disabled={!allScored || submitting}
+              className={`h-14 px-10 rounded-full text-xs font-medium uppercase tracking-[0.2em] transition-all flex items-center gap-3 ${
+                !allScored || submitting
+                  ? 'bg-white/5 text-white/20 cursor-not-allowed'
+                  : 'bg-white text-black hover:bg-white/90 shadow-[0_0_40px_rgba(255,255,255,0.2)]'
+              }`}
+            >
+              {submitting ? 'Submitting...' : 'Submit Evaluation'}
+              <Check size={16} />
+            </button>
+          </motion.div>
         </form>
-      </div>
+      </main>
     </div>
   )
 }

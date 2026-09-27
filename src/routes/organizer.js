@@ -33,11 +33,13 @@ router.get('/progress', requireRole('organizer', 'admin'), (req, res) => {
       SELECT
         p.id           AS project_id,
         p.title        AS project_title,
-        tr.name        AS track_name,
+          t.name         AS team_name,
+          tr.name        AS track_name,
         COUNT(ja.id)   AS reviews_needed,
         COUNT(s.id)    AS reviews_received
       FROM projects p
-      JOIN tracks tr ON tr.id = p.track_id
+        JOIN tracks tr ON tr.id = p.track_id
+        JOIN teams t ON t.id = p.team_id
       LEFT JOIN judge_assignments ja ON ja.project_id = p.id
       LEFT JOIN scores            s  ON s.project_id  = p.id AND s.judge_id = ja.judge_id
       WHERE p.status = 'submitted'
@@ -123,11 +125,13 @@ router.get('/dashboard', requireRole('organizer', 'admin'), (req, res) => {
       SELECT
         p.id           AS project_id,
         p.title        AS project_title,
-        tr.name        AS track_name,
+          t.name         AS team_name,
+          tr.name        AS track_name,
         COUNT(ja.id)   AS reviews_needed,
         COUNT(s.id)    AS reviews_received
       FROM projects p
-      JOIN tracks tr ON tr.id = p.track_id
+        JOIN tracks tr ON tr.id = p.track_id
+        JOIN teams t ON t.id = p.team_id
       LEFT JOIN judge_assignments ja ON ja.project_id = p.id
       LEFT JOIN scores            s  ON s.project_id  = p.id AND s.judge_id = ja.judge_id
       WHERE p.status = 'submitted'
@@ -257,3 +261,4 @@ router.get('/invite-judge', requireRole('organizer', 'admin'), (req, res) => {
 });
 
 module.exports = router;
+

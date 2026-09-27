@@ -65,6 +65,23 @@ router.get('/', (req, res) => {
   }
 });
 
+router.get('/api', (req, res) => {
+  try {
+    const db = getDb();
+    const projects = db.prepare(`
+      SELECT p.*, t.name AS team_name, tr.name AS track_name 
+      FROM projects p 
+      JOIN teams t ON t.id = p.team_id 
+      JOIN tracks tr ON tr.id = p.track_id 
+      WHERE p.status = 'submitted' 
+      ORDER BY p.submitted_at DESC
+    `).all();
+    return res.json({ projects });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to load projects' });
+  }
+});
+
 /**
  * GET /projects/:id
  * Individual project detail page.

@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowRight, InstagramLogo, TwitterLogo, Globe } from '@phosphor-icons/react'
 import { motion, useScroll, useTransform, useMotionTemplate, useMotionValue } from 'motion/react'
@@ -9,6 +9,18 @@ export default function HeroSection({ footerProgress }) {
   const frameRef = useRef(null)
   const fadingOutRef = useRef(false)
   const navigate = useNavigate()
+  const [userRole, setUserRole] = useState(null)
+
+  useEffect(() => {
+    fetch('/auth/me')
+      .then(res => res.json())
+      .then(data => {
+        if (data.loggedIn) {
+          setUserRole(data.role)
+        }
+      })
+      .catch(err => console.error('Failed to fetch auth', err))
+  }, [])
 
   // Framer motion scroll values
   const { scrollY } = useScroll()
@@ -244,24 +256,26 @@ export default function HeroSection({ footerProgress }) {
               The official open-source submission and evaluation portal for the 72-hour DOGFOOD 2026 Hackathon.
             </motion.p>
 
-            <motion.div 
-              className="flex items-center gap-3 pl-6 pr-2 py-2 rounded-full backdrop-blur-xl border shadow-sm w-full"
-              style={{ backgroundColor: glassBg, borderColor: borderColor }}
-            >
-              <motion.input
-                type="text"
-                placeholder="Enter your invite code"
-                className="flex-1 bg-transparent text-base outline-none border-none font-medium placeholder:opacity-50"
-                style={{ color: textColor }}
-              />
-              <motion.button 
-                className="p-3 px-6 font-semibold rounded-full flex items-center gap-2 transition-transform hover:scale-105 cursor-pointer shadow-sm group"
-                style={{ backgroundColor: buttonBg, color: buttonText }}
+            {userRole === 'participant' && (
+              <motion.div 
+                className="flex items-center gap-3 pl-6 pr-2 py-2 rounded-full backdrop-blur-xl border shadow-sm w-full"
+                style={{ backgroundColor: glassBg, borderColor: borderColor }}
               >
-                Join Team
-                <ArrowRight size={20} weight="bold" className="group-hover:translate-x-0.5 transition-transform" />
-              </motion.button>
-            </motion.div>
+                <motion.input
+                  type="text"
+                  placeholder="Enter your invite code"
+                  className="flex-1 bg-transparent text-base outline-none border-none font-medium placeholder:opacity-50"
+                  style={{ color: textColor }}
+                />
+                <motion.button 
+                  className="p-3 px-6 font-semibold rounded-full flex items-center gap-2 transition-transform hover:scale-105 cursor-pointer shadow-sm group"
+                  style={{ backgroundColor: buttonBg, color: buttonText }}
+                >
+                  Join Team
+                  <ArrowRight size={20} weight="bold" className="group-hover:translate-x-0.5 transition-transform" />
+                </motion.button>
+              </motion.div>
+            )}
           </motion.div>
         </div>
 

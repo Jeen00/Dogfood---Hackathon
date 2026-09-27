@@ -268,7 +268,10 @@ export default function LandingPage() {
                     <div className="h-1.5 w-1.5 rounded-full bg-white/60" /> View public gallery
                   </li>
                 </ul>
-                <button className="w-full py-3 rounded-full bg-white/20 hover:bg-white/30 transition-colors font-semibold">
+                <button 
+                  onClick={() => navigate('/signup')}
+                  className="w-full py-3 rounded-full bg-white/20 hover:bg-white/30 transition-colors font-semibold cursor-pointer"
+                >
                   Register Now
                 </button>
               </motion.div>
@@ -299,7 +302,7 @@ export default function LandingPage() {
                 </ul>
                 <button 
                   onClick={() => navigate('/login')}
-                  className="w-full py-3 rounded-full bg-black text-white hover:bg-black/90 transition-colors font-semibold cursor-pointer"
+                  className="w-full py-3 rounded-full bg-black/50 text-white hover:bg-black/60 transition-colors font-semibold cursor-pointer"
                 >
                   Staff Login
                 </button>

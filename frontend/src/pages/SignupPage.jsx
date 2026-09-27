@@ -50,7 +50,7 @@ function SocialButton({ children, label, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="flex items-center justify-center gap-3 h-12 w-full bg-white/[0.08] hover:bg-white/[0.14] backdrop-blur-xl border border-white/15 hover:border-white/30 rounded-2xl transition-all cursor-pointer text-xs font-medium tracking-wider uppercase text-white/80 hover:text-white shadow-sm"
+      className="flex items-center justify-center gap-3 h-12 w-full bg-white/[0.08] hover:bg-white/[0.14] backdrop-blur-xl border border-white/15 hover:border-white/30 rounded-[20px] transition-all cursor-pointer text-xs font-medium tracking-wider uppercase text-white/80 hover:text-white shadow-sm"
     >
       {children}
       {label}
@@ -74,12 +74,29 @@ export default function SignupPage() {
   const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [role, setRole] = useState('participant')
   const [showPassword, setShowPassword] = useState(false)
   const navigate = useNavigate()
 
-  const handleSignup = (e) => {
+  const handleSignup = async (e) => {
     e.preventDefault()
-    navigate('/login')
+    try {
+      const res = await fetch('/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ firstName, lastName, email, password, role })
+      })
+      if (res.ok) {
+        if (role === 'judge') navigate('/judge/dashboard')
+        else navigate('/projects')
+      } else {
+        const data = await res.json()
+        alert('Signup failed: ' + (data.error || 'Unknown error'))
+      }
+    } catch (err) {
+      console.error(err)
+      alert('Error during signup')
+    }
   }
 
   return (
@@ -137,12 +154,12 @@ export default function SignupPage() {
       </div>
 
       {/* ── Right Column (Form with Translucent Controls) ────────────────────── */}
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center py-10 lg:py-6 px-4 sm:px-10 lg:px-14 xl:px-20 overflow-y-auto lg:overflow-hidden">
+      <div className="relative z-10 flex-1 flex flex-col items-center px-4 sm:px-10 lg:px-14 xl:px-20 overflow-y-auto py-10"><div className="flex-1 min-h-[2rem]"></div>
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: 'easeOut' }}
-          className="w-full max-w-md p-8 sm:p-10 rounded-3xl bg-black/45 backdrop-blur-2xl border border-white/15 shadow-2xl space-y-7"
+          className="w-full max-w-md p-8 sm:p-10 rounded-[40px] bg-black/45 backdrop-blur-2xl border border-white/15 shadow-2xl space-y-7 shrink-0"
         >
           {/* Header */}
           <div className="space-y-2">
@@ -176,6 +193,23 @@ export default function SignupPage() {
           {/* Form */}
           <form onSubmit={handleSignup} className="space-y-4">
 
+            {/* Role Selector */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[11px] font-medium text-white/70 tracking-[0.15em] uppercase">Account Type</label>
+                                              <div className="flex p-1 bg-white/[0.05] border border-white/10 rounded-[24px]">
+                  <button 
+                    type="button"
+                    onClick={() => setRole('participant')}
+                    className={`flex-1 py-2 text-xs font-medium uppercase tracking-wider rounded-[20px] transition-all ${role === 'participant' ? 'bg-white text-black shadow-md' : 'text-white/60 hover:text-white'}`}
+                  >Participant</button>
+                  <button 
+                    type="button"
+                    onClick={() => setRole('judge')}
+                    className={`flex-1 py-2 text-xs font-medium uppercase tracking-wider rounded-[20px] transition-all ${role === 'judge' ? 'bg-white text-black shadow-md' : 'text-white/60 hover:text-white'}`}
+                  >Judge</button>
+                </div>
+            </div>
+
             {/* First & Last Name */}
             <div className="grid grid-cols-2 gap-3.5">
               <div className="flex flex-col gap-1.5">
@@ -185,7 +219,7 @@ export default function SignupPage() {
                   placeholder="Priya"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
-                  className="w-full bg-white/[0.08] backdrop-blur-xl border border-white/15 rounded-2xl h-12 px-4 text-white placeholder:text-white/35 focus:outline-none focus:ring-1 focus:ring-white/40 focus:border-white/40 focus:bg-white/[0.14] transition-all text-sm font-light tracking-wide shadow-inner"
+                  className="w-full bg-white/[0.08] backdrop-blur-xl border border-white/15 rounded-[20px] h-12 px-4 text-white placeholder:text-white/35 focus:outline-none focus:ring-1 focus:ring-white/40 focus:border-white/40 focus:bg-white/[0.14] transition-all text-sm font-light tracking-wide shadow-inner"
                 />
               </div>
               <div className="flex flex-col gap-1.5">
@@ -195,7 +229,7 @@ export default function SignupPage() {
                   placeholder="Sharma"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
-                  className="w-full bg-white/[0.08] backdrop-blur-xl border border-white/15 rounded-2xl h-12 px-4 text-white placeholder:text-white/35 focus:outline-none focus:ring-1 focus:ring-white/40 focus:border-white/40 focus:bg-white/[0.14] transition-all text-sm font-light tracking-wide shadow-inner"
+                  className="w-full bg-white/[0.08] backdrop-blur-xl border border-white/15 rounded-[20px] h-12 px-4 text-white placeholder:text-white/35 focus:outline-none focus:ring-1 focus:ring-white/40 focus:border-white/40 focus:bg-white/[0.14] transition-all text-sm font-light tracking-wide shadow-inner"
                 />
               </div>
             </div>
@@ -208,7 +242,7 @@ export default function SignupPage() {
                 placeholder="you@example.org"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-white/[0.08] backdrop-blur-xl border border-white/15 rounded-2xl h-12 px-4 text-white placeholder:text-white/35 focus:outline-none focus:ring-1 focus:ring-white/40 focus:border-white/40 focus:bg-white/[0.14] transition-all text-sm font-light tracking-wide shadow-inner"
+                className="w-full bg-white/[0.08] backdrop-blur-xl border border-white/15 rounded-[20px] h-12 px-4 text-white placeholder:text-white/35 focus:outline-none focus:ring-1 focus:ring-white/40 focus:border-white/40 focus:bg-white/[0.14] transition-all text-sm font-light tracking-wide shadow-inner"
               />
             </div>
 
@@ -221,7 +255,7 @@ export default function SignupPage() {
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-white/[0.08] backdrop-blur-xl border border-white/15 rounded-2xl h-12 px-4 pr-12 text-white placeholder:text-white/35 focus:outline-none focus:ring-1 focus:ring-white/40 focus:border-white/40 focus:bg-white/[0.14] transition-all text-sm font-light tracking-wide shadow-inner"
+                  className="w-full bg-white/[0.08] backdrop-blur-xl border border-white/15 rounded-[20px] h-12 px-4 pr-12 text-white placeholder:text-white/35 focus:outline-none focus:ring-1 focus:ring-white/40 focus:border-white/40 focus:bg-white/[0.14] transition-all text-sm font-light tracking-wide shadow-inner"
                 />
                 <button
                   type="button"
@@ -251,7 +285,16 @@ export default function SignupPage() {
           </p>
 
         </motion.div>
-      </div>
-    </main>
+<div className="flex-1 min-h-[2rem]"></div>
+</div>
+</main>
   )
 }
+
+
+
+
+
+
+
+

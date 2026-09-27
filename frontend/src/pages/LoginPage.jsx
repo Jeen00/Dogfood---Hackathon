@@ -51,7 +51,7 @@ function SocialButton({ children, label, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className="flex items-center justify-center gap-3 h-12 w-full bg-white/[0.08] hover:bg-white/[0.14] backdrop-blur-xl border border-white/15 hover:border-white/30 rounded-2xl transition-all cursor-pointer text-xs font-medium tracking-wider uppercase text-white/80 hover:text-white shadow-sm"
+      className="flex items-center justify-center gap-3 h-12 w-full bg-white/[0.08] hover:bg-white/[0.14] backdrop-blur-xl border border-white/15 hover:border-white/30 rounded-[20px] transition-all cursor-pointer text-xs font-medium tracking-wider uppercase text-white/80 hover:text-white shadow-sm"
     >
       {children}
       {label}
@@ -59,17 +59,18 @@ function SocialButton({ children, label, onClick }) {
   )
 }
 
-function InputGroup({ label, placeholder, type = 'text', value, onChange, children }) {
+function InputGroup({ label, placeholder, type = 'text', value, onChange, children, name }) {
   return (
     <div className="flex flex-col gap-1.5">
       <label className="text-[11px] font-medium text-white/70 tracking-[0.15em] uppercase">{label}</label>
       <div className="relative">
         <input
+          name={name}
           type={type}
           placeholder={placeholder}
           value={value}
           onChange={onChange}
-          className="w-full bg-white/[0.08] backdrop-blur-xl border border-white/15 rounded-2xl h-12 px-4 text-white placeholder:text-white/35 focus:outline-none focus:ring-1 focus:ring-white/40 focus:border-white/40 focus:bg-white/[0.14] transition-all text-sm font-light tracking-wide shadow-inner"
+          className="w-full bg-white/[0.08] backdrop-blur-xl border border-white/15 rounded-[20px] h-12 px-4 text-white placeholder:text-white/35 focus:outline-none focus:ring-1 focus:ring-white/40 focus:border-white/40 focus:bg-white/[0.14] transition-all text-sm font-light tracking-wide shadow-inner"
         />
         {children}
       </div>
@@ -93,15 +94,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const navigate = useNavigate()
-
-  const handleLogin = (e) => {
-    e.preventDefault()
-    if (email.includes('organizer')) {
-      navigate('/organizer/dashboard')
-    } else {
-      navigate('/judge/dashboard')
-    }
-  }
 
   const googleLogin = useGoogleLogin({
     onSuccess: () => navigate('/judge/dashboard'),
@@ -170,12 +162,12 @@ export default function LoginPage() {
       </div>
 
       {/* ── Right Column (Form with Translucent Controls) ────────────────────── */}
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center py-10 lg:py-6 px-4 sm:px-10 lg:px-14 xl:px-20 overflow-y-auto lg:overflow-hidden">
+      <div className="relative z-10 flex-1 flex flex-col items-center px-4 sm:px-10 lg:px-14 xl:px-20 overflow-y-auto py-10"><div className="flex-1 min-h-[2rem]"></div>
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: 'easeOut' }}
-          className="w-full max-w-md p-8 sm:p-10 rounded-3xl bg-black/45 backdrop-blur-2xl border border-white/15 shadow-2xl space-y-7"
+          className="w-full max-w-md p-8 sm:p-10 rounded-[40px] bg-black/45 backdrop-blur-2xl border border-white/15 shadow-2xl space-y-7 shrink-0"
         >
           {/* Header */}
           <div className="space-y-2">
@@ -207,8 +199,9 @@ export default function LoginPage() {
           </div>
 
           {/* Form */}
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form action="/auth/login" method="POST" className="space-y-4">
             <InputGroup
+              name="email"
               label="Email Address"
               placeholder="organizer@example.org"
               type="email"
@@ -220,11 +213,12 @@ export default function LoginPage() {
               <label className="text-[11px] font-medium text-white/70 tracking-[0.15em] uppercase">Password</label>
               <div className="relative">
                 <input
+                  name="password"
                   type={showPassword ? 'text' : 'password'}
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-white/[0.08] backdrop-blur-xl border border-white/15 rounded-2xl h-12 px-4 pr-12 text-white placeholder:text-white/35 focus:outline-none focus:ring-1 focus:ring-white/40 focus:border-white/40 focus:bg-white/[0.14] transition-all text-sm font-light tracking-wide shadow-inner"
+                  className="w-full bg-white/[0.08] backdrop-blur-xl border border-white/15 rounded-[20px] h-12 px-4 pr-12 text-white placeholder:text-white/35 focus:outline-none focus:ring-1 focus:ring-white/40 focus:border-white/40 focus:bg-white/[0.14] transition-all text-sm font-light tracking-wide shadow-inner"
                 />
                 <button
                   type="button"
@@ -246,12 +240,12 @@ export default function LoginPage() {
           </form>
 
           {/* Quick-Fill Demo Accounts */}
-          <div className="p-4 rounded-2xl bg-white/[0.05] backdrop-blur-md border border-white/10 text-xs text-white/50 space-y-2">
+          <div className="p-4 rounded-[24px] bg-white/[0.05] backdrop-blur-md border border-white/10 text-xs text-white/50 space-y-2">
             <div className="flex items-center justify-between">
               <p className="font-semibold text-white/75 uppercase tracking-[0.2em] text-[10px]">Demo Accounts</p>
               <span className="text-[9px] uppercase tracking-wider text-white/40">Click to autofill</span>
             </div>
-            <div className="grid grid-cols-2 gap-2 text-[11px] font-light">
+            <div className="grid grid-cols-3 gap-2 text-[11px] font-light">
               <button
                 type="button"
                 onClick={() => fillDemo('tomas.varga@example.org')}
@@ -268,6 +262,14 @@ export default function LoginPage() {
                 <div className="text-white/50 text-[10px] uppercase font-medium">Organizer</div>
                 <div className="text-white/90 font-mono truncate">organizer</div>
               </button>
+              <button
+                type="button"
+                onClick={() => fillDemo('priya1@example.org')}
+                className="p-2 rounded-[16px] bg-white/[0.05] hover:bg-white/[0.12] border border-white/10 transition-colors text-left cursor-pointer"
+              >
+                <div className="text-white/50 text-[10px] uppercase font-medium">Participant</div>
+                <div className="text-white/90 font-mono truncate">priya1</div>
+              </button>
             </div>
           </div>
 
@@ -280,7 +282,13 @@ export default function LoginPage() {
           </p>
 
         </motion.div>
-      </div>
-    </main>
+<div className="flex-1 min-h-[2rem]"></div>
+</div>
+</main>
   )
 }
+
+
+
+
+

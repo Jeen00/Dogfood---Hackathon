@@ -90,4 +90,58 @@ router.get('/logout', (req, res) => {
   return res.redirect('/login');
 });
 
+
+
+router.get('/me', (req, res) => {
+  if (req.session) {
+    return res.json({ loggedIn: true, role: req.session.role });
+  }
+  return res.json({ loggedIn: false });
+});
+
+
+/**
+ * POST /auth/signup
+ * Registers a new participant and logs them in.
+ */
+router.post('/signup', (req, res) => {
+  try {
+    const db = getDb();
+    const { firstName, lastName, email, password, role = 'participant' } = req.body;
+    
+    if (!email || !password || !firstName) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    const name = (firstName + ' ' + (lastName || '')).trim();
+    
+    // Check if user exists
+    const existing = db.prepare('SELECT * FROM users WHERE LOWER(email) = ?').get(email.toLowerCase());
+    if (existing) {
+      return res.status(400).json({ error: 'Email already registered' });
+    }
+
+    // Insert user
+    const userId = 'usr_' + Date.now();
+    db.prepare('INSERT INTO users (id, name, email, role) VALUES (?, ?, ?, ?)').run(userId, name, email.toLowerCase(), role);
+
+    // Create session
+    const sessionId = 'sess_' + Date.now();
+    db.prepare('INSERT INTO sessions (id, user_id, role) VALUES (?, ?, ?)').run(sessionId, userId, role);
+
+    res.cookie('session', sessionId, {
+      httpOnly: true,
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    });
+
+    return res.json({ success: true, role });
+  } catch (err) {
+    console.error('[auth:signup] Error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
 module.exports = router;
+
+
+

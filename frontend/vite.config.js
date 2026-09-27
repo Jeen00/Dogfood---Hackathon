@@ -13,9 +13,8 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      // Forward /projects to Express so the EJS gallery is served (required by run.py)
-      "/projects": "http://localhost:8080",
-      // Forward all API calls to Express backend
+      // Forward API calls to Express backend
+      "/projects/api": "http://localhost:8080",
       "/api": "http://localhost:8080",
       "/auth": "http://localhost:8080",
     },
