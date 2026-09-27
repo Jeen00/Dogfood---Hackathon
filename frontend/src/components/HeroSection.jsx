@@ -2,6 +2,7 @@ import { useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowRight, InstagramLogo, TwitterLogo, Globe } from '@phosphor-icons/react'
 import { motion, useScroll, useTransform, useMotionTemplate, useMotionValue } from 'motion/react'
+import DinoIcon from './DinoIcon'
 
 export default function HeroSection({ footerProgress }) {
   const videoRef = useRef(null)
@@ -162,25 +163,42 @@ export default function HeroSection({ footerProgress }) {
           {/* Logo */}
           <div className="w-1/3 flex justify-start">
             <motion.div 
-              className="flex items-center gap-3 group cursor-pointer" 
+              className="flex items-center gap-4 group cursor-pointer" 
               onClick={() => navigate('/')}
               style={{ color: textColor }}
             >
-              <Globe size={22} weight="regular" />
-              <span className="font-medium tracking-[0.2em] text-xs md:text-sm uppercase">DOGFOOD</span>
+              <div className="relative flex flex-col items-center">
+                <DinoIcon className="w-10 h-8 -ml-1 transition-transform group-hover:-translate-y-0.5 duration-300" style={{ fill: 'currentColor' }} />
+                <div className="w-8 h-[2px] mt-0.5" style={{ backgroundColor: 'currentColor' }} />
+              </div>
+              <div className="h-6 w-px opacity-20" style={{ backgroundColor: 'currentColor' }} />
+              <span className="font-bold tracking-[0.1em] text-lg md:text-xl uppercase flex items-start gap-1">
+                DOGFOOD<span className="text-[10px] md:text-xs mt-0.5 opacity-60">®</span>
+              </span>
             </motion.div>
           </div>
           
           {/* Centered Links */}
-          <div className="w-1/3 hidden md:flex items-center justify-center gap-12">
-            {['Tracks', 'Judges'].map((label) => (
+          <div className="w-1/3 hidden md:flex items-center justify-center gap-8 lg:gap-12">
+            {[
+              { label: 'Gallery', path: '/projects', external: true },
+              { label: 'Tracks', path: '/#tracks' },
+              { label: 'Rules', path: '/rules' },
+              { label: 'FAQ', path: '/faq' }
+            ].map((link) => (
               <motion.a 
-                key={label} 
-                href="#" 
+                key={link.label} 
+                href={link.path}
+                onClick={(e) => {
+                  if (!link.external && link.path.startsWith('/')) {
+                    e.preventDefault();
+                    navigate(link.path);
+                  }
+                }}
                 className="text-sm font-medium tracking-wide transition-opacity hover:opacity-70"
                 style={{ color: textColor }}
               >
-                {label}
+                {link.label}
               </motion.a>
             ))}
           </div>

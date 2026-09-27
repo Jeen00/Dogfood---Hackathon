@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { motion } from 'motion/react'
 import { Eye, EyeOff } from 'lucide-react'
-import { useGoogleLogin } from '@react-oauth/google'
 import DinoIcon from '../components/DinoIcon'
 
 // ─── Reusable Components ──────────────────────────────────────────────────────
@@ -59,24 +58,6 @@ function SocialButton({ children, label, onClick }) {
   )
 }
 
-function InputGroup({ label, placeholder, type = 'text', value, onChange, children }) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <label className="text-[11px] font-medium text-white/70 tracking-[0.15em] uppercase">{label}</label>
-      <div className="relative">
-        <input
-          type={type}
-          placeholder={placeholder}
-          value={value}
-          onChange={onChange}
-          className="w-full bg-white/[0.08] backdrop-blur-xl border border-white/15 rounded-2xl h-12 px-4 text-white placeholder:text-white/35 focus:outline-none focus:ring-1 focus:ring-white/40 focus:border-white/40 focus:bg-white/[0.14] transition-all text-sm font-light tracking-wide shadow-inner"
-        />
-        {children}
-      </div>
-    </div>
-  )
-}
-
 // ─── Stagger variants ─────────────────────────────────────────────────────────
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -88,35 +69,23 @@ const itemVariants = {
 }
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
-export default function LoginPage() {
+export default function SignupPage() {
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const navigate = useNavigate()
 
-  const handleLogin = (e) => {
+  const handleSignup = (e) => {
     e.preventDefault()
-    if (email.includes('organizer')) {
-      navigate('/organizer/dashboard')
-    } else {
-      navigate('/judge/dashboard')
-    }
-  }
-
-  const googleLogin = useGoogleLogin({
-    onSuccess: () => navigate('/judge/dashboard'),
-    onError: () => alert('Google login failed. Make sure localhost:5173 is in your authorised origins.'),
-  })
-
-  const fillDemo = (demoEmail) => {
-    setEmail(demoEmail)
-    setPassword('demo-session-2026')
+    navigate('/login')
   }
 
   return (
     <main className="relative flex min-h-screen w-full bg-[#0a0d12] text-white font-sans selection:bg-white/30 p-3 lg:h-screen lg:overflow-hidden lg:p-6 transition-all duration-500">
 
-      {/* ── Background Video covering the entire viewport ── */}
+      {/* ── Background Video covering full viewport ── */}
       <video
         className="fixed inset-0 w-full h-full object-cover z-0 pointer-events-none"
         autoPlay
@@ -152,19 +121,17 @@ export default function LoginPage() {
 
           {/* Heading */}
           <motion.div variants={itemVariants} className="space-y-3">
-            <h1 className="text-3xl sm:text-4xl font-light tracking-[0.1em] uppercase text-white">
-              Portal Access
-            </h1>
+            <h1 className="text-3xl sm:text-4xl font-light tracking-[0.1em] uppercase text-white">Join DOGFOOD</h1>
             <p className="text-white/70 text-sm font-light leading-relaxed">
-              Access your role-based dashboard to manage submissions, judge projects, or monitor live Z-score normalization.
+              Follow these 3 quick phases to activate your team and begin submitting projects to the hackathon.
             </p>
           </motion.div>
 
           {/* Steps */}
           <motion.div variants={itemVariants} className="space-y-3">
-            <StepItem number="1" text="Authenticate your identity" active />
-            <StepItem number="2" text="Access role dashboard" />
-            <StepItem number="3" text="Manage event & scores" />
+            <StepItem number="1" text="Register your identity" active />
+            <StepItem number="2" text="Join or create a team" />
+            <StepItem number="3" text="Submit your project" />
           </motion.div>
         </motion.div>
       </div>
@@ -185,13 +152,13 @@ export default function LoginPage() {
             >
               <span className="transition-transform group-hover:-translate-x-1">←</span> Back to Home
             </button>
-            <h2 className="text-2xl sm:text-3xl font-light tracking-[0.15em] uppercase text-white">Welcome Back</h2>
-            <p className="text-white/60 text-xs sm:text-sm font-light tracking-wide">Sign in to access the DOGFOOD hackathon portal.</p>
+            <h2 className="text-2xl sm:text-3xl font-light tracking-[0.15em] uppercase text-white">Create Profile</h2>
+            <p className="text-white/60 text-xs sm:text-sm font-light tracking-wide">Input your basic details to begin the journey.</p>
           </div>
 
           {/* Social Buttons */}
           <div className="grid grid-cols-2 gap-3.5">
-            <SocialButton label="Google" onClick={() => googleLogin()}>
+            <SocialButton label="Google" onClick={() => navigate('/login')}>
               <GoogleLogo />
             </SocialButton>
             <SocialButton label="GitHub" onClick={() => window.location.href = 'http://localhost:8080/auth/github'}>
@@ -207,15 +174,45 @@ export default function LoginPage() {
           </div>
 
           {/* Form */}
-          <form onSubmit={handleLogin} className="space-y-4">
-            <InputGroup
-              label="Email Address"
-              placeholder="organizer@example.org"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
+          <form onSubmit={handleSignup} className="space-y-4">
 
+            {/* First & Last Name */}
+            <div className="grid grid-cols-2 gap-3.5">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-medium text-white/70 tracking-[0.15em] uppercase">First Name</label>
+                <input
+                  type="text"
+                  placeholder="Priya"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  className="w-full bg-white/[0.08] backdrop-blur-xl border border-white/15 rounded-2xl h-12 px-4 text-white placeholder:text-white/35 focus:outline-none focus:ring-1 focus:ring-white/40 focus:border-white/40 focus:bg-white/[0.14] transition-all text-sm font-light tracking-wide shadow-inner"
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[11px] font-medium text-white/70 tracking-[0.15em] uppercase">Last Name</label>
+                <input
+                  type="text"
+                  placeholder="Sharma"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  className="w-full bg-white/[0.08] backdrop-blur-xl border border-white/15 rounded-2xl h-12 px-4 text-white placeholder:text-white/35 focus:outline-none focus:ring-1 focus:ring-white/40 focus:border-white/40 focus:bg-white/[0.14] transition-all text-sm font-light tracking-wide shadow-inner"
+                />
+              </div>
+            </div>
+
+            {/* Email */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[11px] font-medium text-white/70 tracking-[0.15em] uppercase">Email Address</label>
+              <input
+                type="email"
+                placeholder="you@example.org"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full bg-white/[0.08] backdrop-blur-xl border border-white/15 rounded-2xl h-12 px-4 text-white placeholder:text-white/35 focus:outline-none focus:ring-1 focus:ring-white/40 focus:border-white/40 focus:bg-white/[0.14] transition-all text-sm font-light tracking-wide shadow-inner"
+              />
+            </div>
+
+            {/* Password */}
             <div className="flex flex-col gap-1.5">
               <label className="text-[11px] font-medium text-white/70 tracking-[0.15em] uppercase">Password</label>
               <div className="relative">
@@ -241,41 +238,15 @@ export default function LoginPage() {
               type="submit"
               className="w-full py-3.5 bg-white text-black font-medium tracking-[0.15em] uppercase text-xs rounded-full hover:bg-white/90 active:scale-[0.98] transition-all cursor-pointer shadow-lg mt-3"
             >
-              Sign In to Portal
+              Create Account
             </button>
           </form>
 
-          {/* Quick-Fill Demo Accounts */}
-          <div className="p-4 rounded-2xl bg-white/[0.05] backdrop-blur-md border border-white/10 text-xs text-white/50 space-y-2">
-            <div className="flex items-center justify-between">
-              <p className="font-semibold text-white/75 uppercase tracking-[0.2em] text-[10px]">Demo Accounts</p>
-              <span className="text-[9px] uppercase tracking-wider text-white/40">Click to autofill</span>
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-[11px] font-light">
-              <button
-                type="button"
-                onClick={() => fillDemo('tomas.varga@example.org')}
-                className="p-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.12] border border-white/10 transition-colors text-left cursor-pointer"
-              >
-                <div className="text-white/50 text-[10px] uppercase font-medium">Judge</div>
-                <div className="text-white/90 font-mono truncate">tomas.varga</div>
-              </button>
-              <button
-                type="button"
-                onClick={() => fillDemo('organizer@example.org')}
-                className="p-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.12] border border-white/10 transition-colors text-left cursor-pointer"
-              >
-                <div className="text-white/50 text-[10px] uppercase font-medium">Organizer</div>
-                <div className="text-white/90 font-mono truncate">organizer</div>
-              </button>
-            </div>
-          </div>
-
           {/* Footer */}
           <p className="text-center text-xs text-white/40 font-light tracking-wide">
-            New to DOGFOOD?{' '}
-            <Link to="/signup" className="text-white/80 hover:text-white underline underline-offset-4 transition-colors font-normal">
-              Create an account
+            Member of the team?{' '}
+            <Link to="/login" className="text-white/80 hover:text-white underline underline-offset-4 transition-colors font-normal">
+              Log in
             </Link>
           </p>
 

@@ -1,4 +1,5 @@
 'use strict';
+require('dotenv').config();
 const express      = require('express');
 const cookieParser = require('cookie-parser');
 const path         = require('path');
@@ -16,6 +17,7 @@ const judgeRouter         = require('./routes/judge');
 const organizerRouter     = require('./routes/organizer');
 const exportRouter        = require('./routes/export');
 const normalizationRouter = require('./routes/normalization');
+const githubRouter        = require('./routes/github');
 
 const app  = express();
 const PORT = process.env.PORT || 8080;
@@ -146,6 +148,7 @@ app.use('/organizer',             organizerRouter);
 app.use('/api/organizer',         organizerRouter);
 app.use('/api/export.csv',        exportRouter);
 app.use('/api/normalization',     normalizationRouter);
+app.use('/',                      githubRouter);
 
 // Login convenience routes
 app.get('/login', authRouter);
