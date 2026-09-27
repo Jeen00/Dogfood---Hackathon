@@ -12,7 +12,7 @@ const router = express.Router();
 router.get('/login', (req, res) => {
   if (req.session) {
     if (req.session.role === 'judge') return res.redirect('/judge/dashboard');
-    if (req.session.role === 'organizer') return res.redirect('/organizer/dashboard');
+    if (req.session.role === 'organizer') return res.redirect('/organizer/events');
     if (req.session.role === 'participant') return res.redirect('/team');
     return res.redirect('/projects');
 
@@ -66,7 +66,7 @@ router.post('/login', (req, res) => {
     });
 
     if (user.role === 'judge')     return res.redirect('/judge/dashboard');
-    if (user.role === 'organizer') return res.redirect('/organizer/dashboard');
+    if (user.role === 'organizer') return res.redirect('/organizer/events');
     if (user.role === 'participant') return res.redirect('/team');
     return res.redirect('/projects');
 

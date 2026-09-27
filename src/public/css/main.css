@@ -283,3 +283,51 @@ ul {
 li {
   margin-bottom: 4px;
 }
+
+/* ─── Status Badges ──────────────────────────────────────────────────── */
+.status-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  font-size: 0.78rem;
+  font-weight: bold;
+  letter-spacing: 0.04em;
+  border: 1px solid #1A1A1A;
+}
+
+.badge-running {
+  background: #E6F4EA;
+  color: #137333;
+  border-color: #34A853;
+}
+
+.badge-completed {
+  background: #E8E8E4;
+  color: #444444;
+  border-color: #888888;
+}
+
+.badge-upcoming {
+  background: #E8F0FE;
+  color: #1A73E8;
+  border-color: #4285F4;
+}
+
+.event-card {
+  background: #FFFFFF;
+  border: 2px solid #1A1A1A;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.btn-secondary {
+  display: inline-block;
+  background: #E8E8E4;
+  color: #1A1A1A;
+  border: 1px solid #1A1A1A;
+  padding: 8px 16px;
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: bold;
+  cursor: pointer;
+}
+

@@ -79,24 +79,62 @@ function seedDb() {
 
   // ─── Event ────────────────────────────────────────────────────────────────
   const evt = fixtures.event;
-  db.prepare(
+  const insertEvent = db.prepare(
     'INSERT INTO events (id, name, submissions_open, submissions_close, voting_open, voting_close, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)'
-  ).run(evt.id, evt.name, evt.submissions_open, evt.submissions_close, evt.voting_open, evt.voting_close, evt.created_by);
-  console.log('[seed] Event seeded:', evt.name);
+  );
+  insertEvent.run(evt.id, evt.name, evt.submissions_open, evt.submissions_close, evt.voting_open, evt.voting_close, evt.created_by);
+  
+  // Running demonstration event (ends Sept 29, 2026)
+  insertEvent.run(
+    'evt_dogfood_2026',
+    'DOGFOOD Hackathon 2026',
+    '2026-09-26T18:00:00Z',
+    '2026-09-29T18:00:00Z',
+    '2026-09-29T18:00:00Z',
+    '2026-09-30T18:00:00Z',
+    'usr_organizer'
+  );
+
+  // Upcoming demonstration event (starts Nov 15, 2026)
+  insertEvent.run(
+    'evt_winter_2026',
+    'Winter AI Sprint 2026',
+    '2026-11-15T00:00:00Z',
+    '2026-11-20T23:59:59Z',
+    '2026-11-21T00:00:00Z',
+    '2026-11-22T23:59:59Z',
+    'usr_organizer'
+  );
+  console.log('[seed] Events seeded (Completed, Running, Upcoming).');
 
   // ─── Tracks ───────────────────────────────────────────────────────────────
   const insertTrack = db.prepare('INSERT INTO tracks (id, event_id, name) VALUES (?, ?, ?)');
   for (const t of fixtures.tracks) {
     insertTrack.run(t.id, t.event_id, t.name);
   }
-  console.log('[seed] Tracks seeded:', fixtures.tracks.length);
+  // Tracks for running event
+  insertTrack.run('trk_df_01', 'evt_dogfood_2026', 'AI & Autonomous Agents');
+  insertTrack.run('trk_df_02', 'evt_dogfood_2026', 'Developer Tools & Cloud');
+  insertTrack.run('trk_df_03', 'evt_dogfood_2026', 'Open Hardware & IoT');
+
+  // Tracks for upcoming event
+  insertTrack.run('trk_w_01', 'evt_winter_2026', 'Foundational Models');
+  insertTrack.run('trk_w_02', 'evt_winter_2026', 'Bio & Life Sciences');
+  console.log('[seed] Tracks seeded across events.');
 
   // ─── Rubric criteria ──────────────────────────────────────────────────────
   const insertCrit = db.prepare('INSERT INTO rubric_criteria (id, event_id, name, weight) VALUES (?, ?, ?, ?)');
   for (const c of RUBRIC_CRITERIA) {
     insertCrit.run(c.id, c.event_id, c.name, c.weight);
   }
-  console.log('[seed] Rubric criteria seeded:', RUBRIC_CRITERIA.length);
+  insertCrit.run('crit_df_01', 'evt_dogfood_2026', 'functionality', 0.5);
+  insertCrit.run('crit_df_02', 'evt_dogfood_2026', 'quality', 0.3);
+  insertCrit.run('crit_df_03', 'evt_dogfood_2026', 'presentation', 0.2);
+  insertCrit.run('crit_w_01', 'evt_winter_2026', 'functionality', 0.5);
+  insertCrit.run('crit_w_02', 'evt_winter_2026', 'quality', 0.3);
+  insertCrit.run('crit_w_03', 'evt_winter_2026', 'presentation', 0.2);
+  console.log('[seed] Rubric criteria seeded across events.');
+
 
   // ─── Judges ───────────────────────────────────────────────────────────────
   // Build a map of judgeId -> track array for assignment later
@@ -141,7 +179,9 @@ function seedDb() {
       }
     }
   }
-  console.log('[seed] Teams seeded:', fixtures.teams.length);
+  insertTeam.run('team_df_01', 'evt_dogfood_2026', 'CyberPioneers', 'code_df_1');
+  insertTeam.run('team_df_02', 'evt_dogfood_2026', 'NeuralSync Labs', 'code_df_2');
+  console.log('[seed] Teams seeded:', fixtures.teams.length + 2);
 
   // ─── Projects ─────────────────────────────────────────────────────────────
   const insertProject = db.prepare(
@@ -173,7 +213,19 @@ function seedDb() {
       projectsSkipped++;
     }
   }
-  console.log(`[seed] Projects seeded: ${projectsSeeded}, skipped (duplicates): ${projectsSkipped}`);
+  insertProject.run(
+    'proj_df_01', 'evt_dogfood_2026', 'team_df_01', 'trk_df_01',
+    'Autonomous Multi-Agent Orchestrator', 'Next-gen agent workflows with local models',
+    'https://github.com/cyberpioneers/agent-orch', 'submitted',
+    '2026-09-27T10:00:00Z', '2026-09-27T10:00:00Z'
+  );
+  insertProject.run(
+    'proj_df_02', 'evt_dogfood_2026', 'team_df_02', 'trk_df_02',
+    'Edge Cloud Devbox', 'Zero-config local cloud developer platform',
+    'https://github.com/neuralsync/edge-devbox', 'submitted',
+    '2026-09-27T11:30:00Z', '2026-09-27T11:30:00Z'
+  );
+  console.log(`[seed] Projects seeded: ${projectsSeeded + 2}, skipped (duplicates): ${projectsSkipped}`);
 
   // ─── Judge Assignments ───────────────────────────────────────────────────
   // Strategy: for each project, assign judges whose track list includes the project's track_id.

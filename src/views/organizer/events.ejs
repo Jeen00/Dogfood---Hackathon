@@ -1,0 +1,60 @@
+<%- include('../layouts/header', { title: 'All Hackathons', session }) %>
+
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+  <div>
+    <h1 style="margin: 0 0 8px 0; border: none; padding: 0;">All Hackathons</h1>
+    <p style="color: #666; margin: 0;">Select a hackathon to manage its dashboard, judge assignments, rubric, and results.</p>
+  </div>
+  <div>
+    <a href="/events/new" class="btn-action" style="margin: 0;">+ Create New Hackathon</a>
+  </div>
+</div>
+
+<hr style="margin-bottom: 28px;">
+
+<% if (!events || events.length === 0) { %>
+  <p>No hackathons found.</p>
+  <p><a href="/events/new">Create your first hackathon</a></p>
+<% } else { %>
+  <div style="display: flex; flex-direction: column; gap: 20px;">
+    <% for (const evt of events) { %>
+      <div class="event-card" style="border-left: 6px solid <%= evt.statusInfo.status === 'running' ? '#34a853' : (evt.statusInfo.status === 'upcoming' ? '#4285f4' : '#888888') %>;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; margin-bottom: 12px;">
+          <div>
+            <h2 style="margin: 0 0 6px 0; border: none; padding: 0; font-size: 1.4rem;">
+              <%= evt.name %>
+            </h2>
+            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+              <span class="status-badge <%= evt.statusInfo.badgeClass %>"><%= evt.statusInfo.label %></span>
+              <span style="font-weight: bold; font-size: 0.9rem; color: <%= evt.statusInfo.status === 'running' ? '#137333' : '#555' %>;">
+                ⏱ <%= evt.statusInfo.timeText %>
+              </span>
+            </div>
+          </div>
+          <div>
+            <a href="/organizer/dashboard?event_id=<%= evt.id %>" class="btn-action" style="font-size: 0.95rem; padding: 10px 20px;">
+              Manage Hackathon &rarr;
+            </a>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 24px; flex-wrap: wrap; margin-top: 16px; padding-top: 14px; border-top: 1px solid #eee; font-size: 0.9rem; color: #444;">
+          <div>
+            <strong>Projects:</strong> <%= evt.project_count %> submitted
+          </div>
+          <div>
+            <strong>Tracks:</strong> <%= evt.track_count %> tracks
+          </div>
+          <div>
+            <strong>Close Date:</strong> <%= evt.submissions_close ? new Date(evt.submissions_close).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : 'No deadline' %>
+          </div>
+          <div>
+            <strong>Event ID:</strong> <code><%= evt.id %></code>
+          </div>
+        </div>
+      </div>
+    <% } %>
+  </div>
+<% } %>
+
+<%- include('../layouts/footer') %>

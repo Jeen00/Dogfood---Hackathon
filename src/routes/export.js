@@ -16,7 +16,8 @@ router.get('/', requireRole('organizer', 'admin'), (req, res) => {
   try {
     const db = getDb();
 
-    const rows = db.prepare(`
+    const eventId = req.query.event_id;
+    let query = `
       SELECT
         p.id          AS project_id,
         p.title       AS project_title,
@@ -30,10 +31,16 @@ router.get('/', requireRole('organizer', 'admin'), (req, res) => {
       JOIN teams    t  ON t.id  = p.team_id
       JOIN tracks   tr ON tr.id = p.track_id
       JOIN users    u  ON u.id  = s.judge_id
-      ORDER BY p.id, u.name
-    `).all();
+    `;
+    const params = [];
+    if (eventId) {
+      query += ' WHERE p.event_id = ? ';
+      params.push(eventId);
+    }
+    query += ' ORDER BY p.id, u.name ';
 
-    const rubric = getRubric(db);
+    const rows = db.prepare(query).all(...params);
+    const rubric = getRubric(db, eventId || undefined);
 
     // CSV header — always contains commas to satisfy the checker
     const header = 'project_id,project_title,team,track,judge,functionality,quality,presentation,weighted_score,comment';

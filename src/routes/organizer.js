@@ -4,10 +4,74 @@ const { getDb } = require('../db/db');
 const requireRole = require('../middleware/requireRole');
 const { ACTIVE_EVENT_ID } = require('../lib/config');
 const { getRubric } = require('../lib/rubric');
+const { getEventStatus } = require('../lib/event-status');
 
 const router = express.Router();
 
+/**
+ * Helper to resolve the currently active hackathon context for organizer
+ */
+function resolveSelectedEvent(db, req) {
+  const eventId = req.query.event_id || req.session?.selectedEventId || ACTIVE_EVENT_ID;
+  const event = db.prepare('SELECT * FROM events WHERE id = ?').get(eventId) ||
+                db.prepare('SELECT * FROM events ORDER BY id ASC LIMIT 1').get();
+  if (req.session && event) {
+    req.session.selectedEventId = event.id;
+  }
+  return event;
+}
 
+/**
+ * GET /organizer
+ * Redirect to events overview.
+ */
+router.get('/', requireRole('organizer', 'admin'), (req, res) => {
+  return res.redirect('/organizer/events');
+});
+
+/**
+ * GET /organizer/events & GET /api/organizer/events
+ * Shows all hackathons overview page.
+ * Clears active selected hackathon context so navbar shows All Hackathons and Gallery.
+ */
+router.get('/events', requireRole('organizer', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    if (req.session) {
+      req.session.selectedEventId = null;
+    }
+    res.locals.selectedEvent = null;
+
+    const rawEvents = db.prepare('SELECT * FROM events ORDER BY submissions_open DESC').all();
+    const events = rawEvents.map(evt => {
+      const statusInfo = getEventStatus(evt);
+      const projectCount = db.prepare("SELECT COUNT(*) AS c FROM projects WHERE event_id = ? AND status = 'submitted'").get(evt.id)?.c || 0;
+      const trackCount = db.prepare("SELECT COUNT(*) AS c FROM tracks WHERE event_id = ?").get(evt.id)?.c || 0;
+      return {
+        ...evt,
+        statusInfo,
+        project_count: projectCount,
+        track_count: trackCount
+      };
+    });
+
+    if (req.baseUrl.startsWith('/api') || (!req.accepts('html') && req.accepts('json'))) {
+      return res.json({ events });
+    }
+
+    return res.render('organizer/events', {
+      events,
+      session: req.session,
+      selectedEvent: null
+    });
+  } catch (err) {
+    console.error('[organizer:events] Error:', err.message);
+    return res.status(500).render('error', {
+      message: 'Failed to load hackathons.',
+      session: req.session
+    });
+  }
+});
 /**
  * GET /api/organizer/progress
  * Returns judge progress (assigned vs completed) and project coverage.
@@ -129,11 +193,14 @@ router.post('/assignments/auto', requireRole('organizer', 'admin'), (req, res) =
 
 /**
  * GET /organizer/dashboard
- * Render the organizer dashboard page.
+ * Render the organizer dashboard page for the selected hackathon.
  */
 router.get('/dashboard', requireRole('organizer', 'admin'), (req, res) => {
   try {
     const db = getDb();
+    const selectedEvent = resolveSelectedEvent(db, req);
+    res.locals.selectedEvent = selectedEvent;
+    const statusInfo = getEventStatus(selectedEvent);
 
     const judgeProgress = db.prepare(`
       SELECT
@@ -143,11 +210,12 @@ router.get('/dashboard', requireRole('organizer', 'admin'), (req, res) => {
         COUNT(s.id)  AS completed
       FROM users u
       LEFT JOIN judge_assignments ja ON ja.judge_id = u.id
+      LEFT JOIN projects          p  ON p.id = ja.project_id AND p.event_id = ?
       LEFT JOIN scores            s  ON s.judge_id  = u.id AND s.project_id = ja.project_id
       WHERE u.role = 'judge'
       GROUP BY u.id
       ORDER BY u.name
-    `).all();
+    `).all(selectedEvent.id);
 
     const projectCoverage = db.prepare(`
       SELECT
@@ -160,14 +228,16 @@ router.get('/dashboard', requireRole('organizer', 'admin'), (req, res) => {
       JOIN tracks tr ON tr.id = p.track_id
       LEFT JOIN judge_assignments ja ON ja.project_id = p.id
       LEFT JOIN scores            s  ON s.project_id  = p.id AND s.judge_id = ja.judge_id
-      WHERE p.status = 'submitted'
+      WHERE p.status = 'submitted' AND p.event_id = ?
       GROUP BY p.id
       ORDER BY reviews_received ASC
-    `).all();
+    `).all(selectedEvent.id);
 
     return res.render('organizer/dashboard', {
       judgeProgress,
       projectCoverage,
+      selectedEvent,
+      statusInfo,
       session: req.session
     });
   } catch (err) {
@@ -186,6 +256,9 @@ router.get('/dashboard', requireRole('organizer', 'admin'), (req, res) => {
 router.get('/normalization', requireRole('organizer', 'admin'), (req, res) => {
   try {
     const db = getDb();
+    const selectedEvent = resolveSelectedEvent(db, req);
+    res.locals.selectedEvent = selectedEvent;
+
     const results = db.prepare(`
       SELECT
         ns.judge_id,
@@ -199,11 +272,13 @@ router.get('/normalization', requireRole('organizer', 'admin'), (req, res) => {
       FROM normalized_scores ns
       JOIN users    u ON u.id = ns.judge_id
       JOIN projects p ON p.id = ns.project_id
+      WHERE p.event_id = ?
       ORDER BY ns.normalized_score DESC
-    `).all();
+    `).all(selectedEvent.id);
 
     return res.render('organizer/normalization', {
       results,
+      selectedEvent,
       session: req.session
     });
   } catch (err) {
@@ -233,7 +308,9 @@ router.get('/event/new', requireRole('organizer', 'admin'), (req, res) => {
 router.get('/rubric', requireRole('organizer', 'admin'), (req, res) => {
   try {
     const db = getDb();
-    const criteria = getRubric(db, ACTIVE_EVENT_ID);
+    const selectedEvent = resolveSelectedEvent(db, req);
+    res.locals.selectedEvent = selectedEvent;
+    const criteria = getRubric(db, selectedEvent.id);
 
     if (req.baseUrl.startsWith('/api') || (!req.accepts('html') && req.accepts('json'))) {
       return res.json({ criteria });
@@ -241,6 +318,7 @@ router.get('/rubric', requireRole('organizer', 'admin'), (req, res) => {
 
     return res.render('organizer/rubric', {
       criteria,
+      selectedEvent,
       session: req.session
     });
   } catch (err) {
@@ -321,14 +399,18 @@ router.delete('/assignments/:id', requireRole('organizer', 'admin'), (req, res) 
 router.get('/assignments', requireRole('organizer', 'admin'), (req, res) => {
   try {
     const db = getDb();
+    const selectedEvent = resolveSelectedEvent(db, req);
+    res.locals.selectedEvent = selectedEvent;
+
     const assignments = db.prepare(`
       SELECT ja.id, u.name AS judge_name, p.title AS project_title, tr.name AS track_name
       FROM judge_assignments ja
       JOIN users u    ON u.id  = ja.judge_id
       JOIN projects p ON p.id  = ja.project_id
       JOIN tracks tr  ON tr.id = p.track_id
+      WHERE p.event_id = ?
       ORDER BY u.name, p.title
-    `).all();
+    `).all(selectedEvent.id);
 
     if (req.baseUrl.startsWith('/api') || (!req.accepts('html') && req.accepts('json'))) {
       return res.json({ assignments });
@@ -336,6 +418,7 @@ router.get('/assignments', requireRole('organizer', 'admin'), (req, res) => {
 
     return res.render('organizer/assignments', {
       assignments,
+      selectedEvent,
       session: req.session
     });
   } catch (err) {
@@ -436,14 +519,15 @@ router.post('/rubric', requireRole('organizer', 'admin'), (req, res) => {
       return res.status(400).json({ error: `Weights must sum to 1.0 (got ${total.toFixed(4)})` });
     }
 
+    const selectedEvent = resolveSelectedEvent(db, req);
     const update = db.prepare('UPDATE rubric_criteria SET weight = ? WHERE id = ? AND event_id = ?');
     for (const c of criteria) {
-      update.run(parseFloat(c.weight), c.id, ACTIVE_EVENT_ID);
+      update.run(parseFloat(c.weight), c.id, selectedEvent.id);
     }
 
     const now = new Date().toISOString();
     db.prepare('INSERT INTO audit_log (id, actor_id, action, target_id, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)')
-      .run(`al_${Date.now()}`, req.session.userId, 'rubric_updated', ACTIVE_EVENT_ID, JSON.stringify(criteria), now);
+      .run(`al_${Date.now()}`, req.session.userId, 'rubric_updated', selectedEvent.id, JSON.stringify(criteria), now);
 
 
     return res.json({ message: 'Rubric updated successfully' });
@@ -460,6 +544,8 @@ router.post('/rubric', requireRole('organizer', 'admin'), (req, res) => {
 router.get('/results', requireRole('organizer', 'admin'), (req, res) => {
   try {
     const db = getDb();
+    const selectedEvent = resolveSelectedEvent(db, req);
+    res.locals.selectedEvent = selectedEvent;
 
     // Query aggregated normalized scores per project
     const results = db.prepare(`
@@ -476,10 +562,10 @@ router.get('/results', requireRole('organizer', 'admin'), (req, res) => {
       JOIN teams t ON t.id = p.team_id
       JOIN tracks tr ON tr.id = p.track_id
       LEFT JOIN normalized_scores ns ON ns.project_id = p.id
-      WHERE p.status = 'submitted'
+      WHERE p.status = 'submitted' AND p.event_id = ?
       GROUP BY p.id
       ORDER BY final_normalized_score DESC, avg_raw_score DESC
-    `).all();
+    `).all(selectedEvent.id);
 
     // Assign sequential ranks (1, 2, 3...)
     const leaderboard = results.map((item, index) => ({
@@ -493,6 +579,7 @@ router.get('/results', requireRole('organizer', 'admin'), (req, res) => {
 
     return res.render('organizer/results', {
       leaderboard,
+      selectedEvent,
       session: req.session
     });
   } catch (err) {

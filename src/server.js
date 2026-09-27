@@ -61,7 +61,7 @@ app.use('/',                      githubRouter);
 app.get('/login', (req, res) => {
   if (req.session) {
     if (req.session.role === 'judge')     return res.redirect('/judge/dashboard');
-    if (req.session.role === 'organizer') return res.redirect('/organizer/dashboard');
+    if (req.session.role === 'organizer') return res.redirect('/organizer/events');
     if (req.session.role === 'participant') return res.redirect('/team');
     return res.redirect('/projects');
 
