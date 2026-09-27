@@ -21,11 +21,15 @@ router.get('/new', requireRole('organizer', 'admin'), (req, res) => {
  * Create a new event.
  */
 router.post('/', requireRole('organizer', 'admin'), (req, res) => {
+  const isHtml = req.headers['content-type']?.includes('application/x-www-form-urlencoded') || (!req.is('json') && req.accepts('html'));
   try {
     const db = getDb();
     const { name, submissions_open, submissions_close, voting_open, voting_close } = req.body;
 
     if (!name) {
+      if (isHtml) {
+        return res.render('organizer/event-create', { session: req.session, error: 'Event name is required.' });
+      }
       return res.status(400).json({ error: 'name is required' });
     }
 
@@ -40,12 +44,20 @@ router.post('/', requireRole('organizer', 'admin'), (req, res) => {
     db.prepare('INSERT INTO audit_log (id, actor_id, action, target_id, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)')
       .run(`al_${Date.now()}`, req.session.userId, 'event_created', id, name, now);
 
+    if (isHtml) {
+      return res.redirect('/organizer/dashboard');
+    }
+
     return res.status(201).json({ message: 'Event created', id });
   } catch (err) {
     console.error('[events POST] Error:', err.message);
+    if (isHtml) {
+      return res.render('organizer/event-create', { session: req.session, error: 'Failed to create event. Please try again.' });
+    }
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 /**
  * GET /api/events

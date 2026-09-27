@@ -7,13 +7,15 @@ const { v4: uuidv4 } = require('uuid');
 const DATA_DIR    = path.join(__dirname, '../../data');
 const DB_PATH     = path.join(DATA_DIR, 'hackathon.sqlite');
 const FIXTURES    = path.join(__dirname, '../../fixtures.json');
+const { ACTIVE_EVENT_ID } = require('../lib/config');
 
-// Rubric criteria for evt_01
+// Rubric criteria for active event
 const RUBRIC_CRITERIA = [
-  { id: 'crit_01', event_id: 'evt_01', name: 'functionality', weight: 0.5 },
-  { id: 'crit_02', event_id: 'evt_01', name: 'quality',       weight: 0.3 },
-  { id: 'crit_03', event_id: 'evt_01', name: 'presentation',  weight: 0.2 }
+  { id: 'crit_01', event_id: ACTIVE_EVENT_ID, name: 'functionality', weight: 0.5 },
+  { id: 'crit_02', event_id: ACTIVE_EVENT_ID, name: 'quality',       weight: 0.3 },
+  { id: 'crit_03', event_id: ACTIVE_EVENT_ID, name: 'presentation',  weight: 0.2 }
 ];
+
 
 function computeWeightedScore(criteriaScores) {
   let total = 0;

@@ -2,8 +2,11 @@
 const express = require('express');
 const { getDb } = require('../db/db');
 const requireRole = require('../middleware/requireRole');
+const { ACTIVE_EVENT_ID } = require('../lib/config');
+const { getRubric } = require('../lib/rubric');
 
 const router = express.Router();
+
 
 /**
  * GET /api/organizer/progress
@@ -204,11 +207,12 @@ router.get('/event/new', requireRole('organizer', 'admin'), (req, res) => {
 router.get('/rubric', requireRole('organizer', 'admin'), (req, res) => {
   try {
     const db = getDb();
-    const criteria = db.prepare('SELECT * FROM rubric_criteria WHERE event_id = ?').all('evt_01');
+    const criteria = getRubric(db, ACTIVE_EVENT_ID);
     return res.render('organizer/rubric', {
       criteria,
       session: req.session
     });
+
   } catch (err) {
     return res.status(500).render('error', {
       message: 'Failed to load rubric.',
@@ -336,12 +340,13 @@ router.post('/rubric', requireRole('organizer', 'admin'), (req, res) => {
 
     const update = db.prepare('UPDATE rubric_criteria SET weight = ? WHERE id = ? AND event_id = ?');
     for (const c of criteria) {
-      update.run(parseFloat(c.weight), c.id, 'evt_01');
+      update.run(parseFloat(c.weight), c.id, ACTIVE_EVENT_ID);
     }
 
     const now = new Date().toISOString();
     db.prepare('INSERT INTO audit_log (id, actor_id, action, target_id, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)')
-      .run(`al_${Date.now()}`, req.session.userId, 'rubric_updated', 'evt_01', JSON.stringify(criteria), now);
+      .run(`al_${Date.now()}`, req.session.userId, 'rubric_updated', ACTIVE_EVENT_ID, JSON.stringify(criteria), now);
+
 
     return res.json({ message: 'Rubric updated successfully' });
   } catch (err) {

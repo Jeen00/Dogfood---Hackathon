@@ -2,6 +2,7 @@
 const express = require('express');
 const { getDb } = require('../db/db');
 const requireRole = require('../middleware/requireRole');
+const { getRubric, computeWeightedScore } = require('../lib/rubric');
 
 const router = express.Router();
 
@@ -32,11 +33,7 @@ router.get('/', requireRole('organizer', 'admin'), (req, res) => {
       ORDER BY p.id, u.name
     `).all();
 
-    const rubric = [
-      { name: 'functionality', weight: 0.5 },
-      { name: 'quality',       weight: 0.3 },
-      { name: 'presentation',  weight: 0.2 }
-    ];
+    const rubric = getRubric(db);
 
     // CSV header — always contains commas to satisfy the checker
     const header = 'project_id,project_title,team,track,judge,functionality,quality,presentation,weighted_score,comment';
@@ -49,11 +46,7 @@ router.get('/', requireRole('organizer', 'admin'), (req, res) => {
       const quality       = cs.quality       || 0;
       const presentation  = cs.presentation  || 0;
 
-      const weighted = (
-        functionality * 0.5 +
-        quality       * 0.3 +
-        presentation  * 0.2
-      ).toFixed(4);
+      const weighted = computeWeightedScore(cs, rubric).toFixed(4);
 
       // Escape fields that may contain commas or quotes
       const escape = (v) => {

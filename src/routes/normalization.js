@@ -2,24 +2,9 @@
 const express = require('express');
 const { getDb } = require('../db/db');
 const requireRole = require('../middleware/requireRole');
+const { getRubric, computeWeightedScore } = require('../lib/rubric');
 
 const router = express.Router();
-
-/**
- * Fetch rubric criteria for the given event from the DB.
- * Falls back to sensible defaults if the table is empty.
- */
-function getRubric(db, eventId) {
-  const rows = db.prepare('SELECT name, weight FROM rubric_criteria WHERE event_id = ?').all(eventId);
-  if (rows.length > 0) return rows;
-  // Fallback in case the table is empty (should not happen after seeding)
-  return [
-    { name: 'functionality', weight: 0.5 },
-    { name: 'quality',       weight: 0.3 },
-    { name: 'presentation',  weight: 0.2 }
-  ];
-}
-
 
 /**
  * POST /api/normalization/run
@@ -29,7 +14,7 @@ function getRubric(db, eventId) {
 router.post('/run', requireRole('organizer', 'admin'), (req, res) => {
   try {
     const db     = getDb();
-    const rubric = getRubric(db, 'evt_01');
+    const rubric = getRubric(db);
 
     // Load all scores
     const allScores = db.prepare('SELECT * FROM scores').all();
@@ -38,18 +23,15 @@ router.post('/run', requireRole('organizer', 'admin'), (req, res) => {
       return res.status(400).json({ error: 'No scores to normalize' });
     }
 
-    // Compute weighted score from DB-backed rubric
-    const weightedScore = (criteriaScores) =>
-      rubric.reduce((sum, c) => sum + (criteriaScores[c.name] || 0) * c.weight, 0);
-
     // Group scores by judge
     const byJudge = {};
     for (const s of allScores) {
       const cs = JSON.parse(s.criteria_scores);
-      const ws = weightedScore(cs);
+      const ws = computeWeightedScore(cs, rubric);
       if (!byJudge[s.judge_id]) byJudge[s.judge_id] = [];
       byJudge[s.judge_id].push({ project_id: s.project_id, ws });
     }
+
 
     const now     = new Date().toISOString();
     const results = [];
