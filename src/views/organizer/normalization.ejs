@@ -1,0 +1,47 @@
+<%- include('../layouts/header', { title: 'Normalization Results', session }) %>
+
+<h1>Z-Score Normalization</h1>
+
+<p>
+  Cross-judge normalization using Z-score. For each judge, we compute the mean and standard deviation
+  of their weighted scores. Each score is normalized as <code>z = (weighted - mean) / stddev</code>.
+  If stddev is 0 (judge gave identical scores), z is set to 0.
+</p>
+
+<div style="margin-bottom: 16px;">
+  <form method="POST" action="/api/normalization/run">
+    <button type="submit">Run Normalization Now</button>
+  </form>
+</div>
+
+<% if (results.length === 0) { %>
+  <p>No normalization results yet. Click "Run Normalization Now" to compute.</p>
+<% } else { %>
+  <p><%= results.length %> normalized score<%= results.length === 1 ? '' : 's' %>. Last computed: <%= results[0].computed_at ? results[0].computed_at.slice(0, 19).replace('T', ' ') : 'N/A' %> UTC.</p>
+  <table>
+    <thead>
+      <tr>
+        <th>Judge</th>
+        <th>Project</th>
+        <th>Raw Weighted</th>
+        <th>Z-Score</th>
+        <th>Method</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% for (const r of results) { %>
+        <tr>
+          <td><%= r.judge_name %></td>
+          <td><%= r.project_title %></td>
+          <td><%= r.raw_weighted_score.toFixed(3) %></td>
+          <td><%= r.normalized_score.toFixed(4) %></td>
+          <td><%= r.method %></td>
+        </tr>
+      <% } %>
+    </tbody>
+  </table>
+<% } %>
+
+<a href="/organizer/dashboard">Back to Dashboard</a>
+
+<%- include('../layouts/footer') %>

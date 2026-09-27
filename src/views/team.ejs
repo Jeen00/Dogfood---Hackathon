@@ -1,0 +1,39 @@
+<%- include('layouts/header', { title: 'My Team', session }) %>
+
+<h1>My Teams</h1>
+
+<% if (teams.length === 0) { %>
+  <p>You are not a member of any team yet.</p>
+  <p><a href="/invite">Join a team with an invite code</a></p>
+<% } else { %>
+  <table>
+    <thead>
+      <tr>
+        <th>Team Name</th>
+        <th>Members</th>
+        <th>Invite Code</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% for (const team of teams) { %>
+        <tr>
+          <td><%= team.name %></td>
+          <td><%= team.member_count %></td>
+          <td><code><%= team.invite_code %></code></td>
+        </tr>
+      <% } %>
+    </tbody>
+  </table>
+<% } %>
+
+<h2>Create a New Team</h2>
+<form method="POST" action="/api/teams" class="form-narrow">
+  <input type="hidden" name="event_id" value="evt_01">
+  <div class="form-group">
+    <label for="name">Team Name</label>
+    <input type="text" id="name" name="name" required maxlength="100">
+  </div>
+  <button type="submit">Create Team</button>
+</form>
+
+<%- include('layouts/footer') %>

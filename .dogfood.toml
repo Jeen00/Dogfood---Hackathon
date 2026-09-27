@@ -1,0 +1,19 @@
+[portal]
+base_url = "http://localhost:8080"
+
+[tiers]
+claimed = ["T1", "T2"]
+pitch = "A self-hosted hackathon submission and judging platform with weighted rubrics, backend-enforced role isolation, and documented z-score cross-judge normalization."
+
+[auth]
+organizer   = "Cookie: session=org_7f2a"
+judge_a     = "Cookie: session=jdg_a_91bc"
+judge_b     = "Cookie: session=jdg_b_44de"
+participant = "Cookie: session=prt_2e88"
+
+[routes]
+gallery      = "/projects"
+submit       = "/api/submissions"
+judge_scores = "/api/judge/scores"
+peer_scores  = "/api/judge/scores?judge=jdg_01"
+csv_export   = "/api/export.csv"

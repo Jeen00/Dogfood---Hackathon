@@ -1,0 +1,29 @@
+<%- include('../layouts/header', { title: 'Rubric', session }) %>
+
+<h1>Judging Rubric</h1>
+<p>Event: Sample Hack 2026 (evt_01)</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Criterion</th>
+      <th>Weight</th>
+      <th>Weight %</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% for (const c of criteria) { %>
+      <tr>
+        <td><%= c.name.charAt(0).toUpperCase() + c.name.slice(1) %></td>
+        <td><%= c.weight.toFixed(2) %></td>
+        <td><%= (c.weight * 100).toFixed(0) %>%</td>
+      </tr>
+    <% } %>
+  </tbody>
+</table>
+
+<p style="margin-top: 16px;">Weighted score formula: <code>score = sum(criterion_value * weight)</code>, where each criterion value is 1-5.</p>
+
+<a href="/organizer/dashboard">Back to Dashboard</a>
+
+<%- include('../layouts/footer') %>

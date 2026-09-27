@@ -1,0 +1,34 @@
+<%- include('../layouts/header', { title: 'Create Event', session }) %>
+
+<h1>Create New Event</h1>
+
+<% if (typeof error !== 'undefined' && error) { %>
+  <div class="error"><%= error %></div>
+<% } %>
+
+<form method="POST" action="/api/events" class="form-narrow">
+  <div class="form-group">
+    <label for="name">Event Name</label>
+    <input type="text" id="name" name="name" required maxlength="200">
+  </div>
+  <div class="form-group">
+    <label for="submissions_open">Submissions Open</label>
+    <input type="datetime-local" id="submissions_open" name="submissions_open">
+  </div>
+  <div class="form-group">
+    <label for="submissions_close">Submissions Close</label>
+    <input type="datetime-local" id="submissions_close" name="submissions_close">
+  </div>
+  <div class="form-group">
+    <label for="voting_open">Voting Open</label>
+    <input type="datetime-local" id="voting_open" name="voting_open">
+  </div>
+  <div class="form-group">
+    <label for="voting_close">Voting Close</label>
+    <input type="datetime-local" id="voting_close" name="voting_close">
+  </div>
+  <button type="submit">Create Event</button>
+  <a href="/organizer/dashboard" style="margin-left: 16px;">Cancel</a>
+</form>
+
+<%- include('../layouts/footer') %>

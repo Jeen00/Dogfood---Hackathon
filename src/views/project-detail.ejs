@@ -1,0 +1,41 @@
+<%- include('layouts/header', { title: project.title, session }) %>
+
+<div class="breadcrumb">
+  <a href="/projects">Gallery</a> / <%= project.title %>
+</div>
+
+<h1><%= project.title %></h1>
+
+<table class="detail-table">
+  <tr>
+    <th>Team</th>
+    <td><%= project.team_name %></td>
+  </tr>
+  <tr>
+    <th>Track</th>
+    <td><%= project.track_name %></td>
+  </tr>
+  <tr>
+    <th>Status</th>
+    <td><%= project.status %></td>
+  </tr>
+  <tr>
+    <th>Submitted</th>
+    <td><%= project.submitted_at ? project.submitted_at.slice(0, 10) : 'N/A' %></td>
+  </tr>
+  <% if (project.repo_url) { %>
+  <tr>
+    <th>Repository</th>
+    <td><a href="<%= project.repo_url %>" target="_blank" rel="noopener noreferrer"><%= project.repo_url %></a></td>
+  </tr>
+  <% } %>
+</table>
+
+<h2>Summary</h2>
+<p><%= project.summary || 'No summary provided.' %></p>
+
+<div class="actions">
+  <a href="/projects">Back to Gallery</a>
+</div>
+
+<%- include('layouts/footer') %>

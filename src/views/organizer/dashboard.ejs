@@ -1,0 +1,69 @@
+<%- include('../layouts/header', { title: 'Organizer Dashboard', session }) %>
+
+<h1>Organizer Dashboard</h1>
+
+<div class="dashboard-actions" style="margin-bottom: 24px;">
+  <a href="/api/export.csv" class="btn-action">Download CSV</a>
+  <a href="/organizer/normalization" class="btn-action">Run Normalization</a>
+  <a href="/organizer/assignments" class="btn-action">View Assignments</a>
+  <a href="/organizer/rubric" class="btn-action">Rubric</a>
+</div>
+
+<h2>Judge Progress</h2>
+<% if (judgeProgress.length === 0) { %>
+  <p>No judges found.</p>
+<% } else { %>
+  <table>
+    <thead>
+      <tr>
+        <th>Judge</th>
+        <th>Assigned</th>
+        <th>Completed</th>
+        <th>Completion</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% for (const j of judgeProgress) { %>
+        <%
+          var pct = j.assigned > 0
+            ? Math.round((j.completed / j.assigned) * 100)
+            : 0;
+        %>
+        <tr>
+          <td><%= j.judge_name %></td>
+          <td><%= j.assigned %></td>
+          <td><%= j.completed %></td>
+          <td><%= pct %>%</td>
+        </tr>
+      <% } %>
+    </tbody>
+  </table>
+<% } %>
+
+<h2>Project Coverage</h2>
+<% if (projectCoverage.length === 0) { %>
+  <p>No projects found.</p>
+<% } else { %>
+  <table>
+    <thead>
+      <tr>
+        <th>Project Title</th>
+        <th>Track</th>
+        <th>Reviews Received</th>
+        <th>Reviews Needed</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% for (const p of projectCoverage) { %>
+        <tr>
+          <td><a href="/projects/<%= p.project_id %>"><%= p.project_title %></a></td>
+          <td><%= p.track_name %></td>
+          <td><%= p.reviews_received %></td>
+          <td><%= p.reviews_needed %></td>
+        </tr>
+      <% } %>
+    </tbody>
+  </table>
+<% } %>
+
+<%- include('../layouts/footer') %>

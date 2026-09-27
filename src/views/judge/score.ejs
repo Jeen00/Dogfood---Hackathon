@@ -1,0 +1,130 @@
+<%- include('../layouts/header', { title: 'Score: ' + project.title, session }) %>
+
+<div class="breadcrumb">
+  <a href="/judge/dashboard">Dashboard</a> / Score Project
+</div>
+
+<h1>Score: <%= project.title %></h1>
+
+<table class="detail-table" style="margin-bottom: 24px;">
+  <tr>
+    <th>Team</th>
+    <td><%= project.team_name %></td>
+  </tr>
+  <tr>
+    <th>Track</th>
+    <td><%= project.track_name %></td>
+  </tr>
+  <% if (project.repo_url) { %>
+  <tr>
+    <th>Repository</th>
+    <td><a href="<%= project.repo_url %>" target="_blank" rel="noopener noreferrer"><%= project.repo_url %></a></td>
+  </tr>
+  <% } %>
+</table>
+
+<h2>Project Summary</h2>
+<p><%= project.summary || 'No summary provided.' %></p>
+
+<hr style="border: 1px solid #1A1A1A; margin: 24px 0;">
+
+<h2>Scoring Rubric</h2>
+<p>Rate each criterion from 1 (lowest) to 5 (highest).</p>
+
+<form method="POST" action="/api/judge/scores" id="score-form">
+  <input type="hidden" name="project_id" value="<%= project.id %>">
+
+  <% for (const crit of criteria) { %>
+    <div class="form-group">
+      <label for="crit_<%= crit.name %>">
+        <%= crit.name.charAt(0).toUpperCase() + crit.name.slice(1) %>
+        <span style="font-weight: normal; font-size: 0.85em;">(weight: <%= (crit.weight * 100).toFixed(0) %>%)</span>
+      </label>
+      <input
+        type="number"
+        id="crit_<%= crit.name %>"
+        name="criteria_scores[<%= crit.name %>]"
+        min="1"
+        max="5"
+        value="<%= existingScores[crit.name] || '' %>"
+        required
+        style="width: 80px;"
+        class="score-input"
+        data-weight="<%= crit.weight %>"
+      >
+    </div>
+  <% } %>
+
+  <div class="form-group">
+    <label for="comment">Comment</label>
+    <textarea id="comment" name="comment" rows="4" placeholder="Provide feedback for this project..."><%= existingComment || '' %></textarea>
+  </div>
+
+  <div id="weighted-preview" style="margin-bottom: 16px; border: 2px solid #1A1A1A; padding: 12px; background: #F5F5F0;">
+    Weighted Score: <strong id="weighted-value">--</strong> / 5.00
+  </div>
+
+  <button type="submit">Submit Score</button>
+  <a href="/judge/dashboard" style="margin-left: 16px;">Cancel</a>
+</form>
+
+<script>
+  function recalculate() {
+    var inputs = document.querySelectorAll('.score-input');
+    var total = 0;
+    var valid = true;
+    inputs.forEach(function(input) {
+      var val = parseFloat(input.value);
+      var weight = parseFloat(input.dataset.weight);
+      if (isNaN(val) || val < 1 || val > 5) {
+        valid = false;
+      } else {
+        total += val * weight;
+      }
+    });
+    document.getElementById('weighted-value').textContent = valid ? total.toFixed(2) : '--';
+  }
+
+  document.querySelectorAll('.score-input').forEach(function(input) {
+    input.addEventListener('input', recalculate);
+    input.addEventListener('change', recalculate);
+  });
+
+  // Initial calculation
+  recalculate();
+
+  // Handle form submission — convert nested name to JSON body via fetch
+  document.getElementById('score-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    var form = e.target;
+    var projectId = form.querySelector('[name="project_id"]').value;
+    var comment   = form.querySelector('[name="comment"]').value;
+    var criteriaScores = {};
+    form.querySelectorAll('.score-input').forEach(function(input) {
+      // name="criteria_scores[functionality]" -> extract key
+      var match = input.name.match(/\[([^\]]+)\]/);
+      if (match) {
+        criteriaScores[match[1]] = parseInt(input.value, 10);
+      }
+    });
+
+    fetch('/api/judge/scores', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ project_id: projectId, criteria_scores: criteriaScores, comment: comment })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.error) {
+        alert('Error: ' + data.error);
+      } else {
+        window.location.href = '/judge/dashboard';
+      }
+    })
+    .catch(function(err) {
+      alert('Network error: ' + err.message);
+    });
+  });
+</script>
+
+<%- include('../layouts/footer') %>

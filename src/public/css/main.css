@@ -1,0 +1,285 @@
+/* DOGFOOD 2026 - Global Styles
+   Design rules: off-white bg, #1A1A1A text, Arial font, 0 border-radius everywhere,
+   no shadows, no transitions, no animations, no hover effects, no gradients. */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  border-radius: 0 !important;
+  transition: none !important;
+  animation: none !important;
+}
+
+html {
+  font-size: 16px;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: #F5F5F0;
+  color: #1A1A1A;
+  font-family: Arial, Helvetica, sans-serif;
+  line-height: 1.6;
+}
+
+/* ─── Navigation ──────────────────────────────────────────────────────── */
+nav {
+  background: #1A1A1A;
+  color: #F5F5F0;
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+nav a {
+  color: #F5F5F0;
+  text-decoration: none;
+  font-weight: bold;
+  font-size: 0.95rem;
+}
+
+nav .site-name {
+  font-size: 1.1rem;
+  letter-spacing: 0.04em;
+  margin-right: 16px;
+}
+
+/* ─── Main content area ───────────────────────────────────────────────── */
+main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 32px 24px;
+}
+
+h1 {
+  font-size: 1.8rem;
+  margin: 0 0 24px 0;
+  border-bottom: 2px solid #1A1A1A;
+  padding-bottom: 12px;
+}
+
+h2 {
+  font-size: 1.3rem;
+  margin: 32px 0 16px 0;
+  border-bottom: 1px solid #1A1A1A;
+  padding-bottom: 8px;
+}
+
+h3 {
+  font-size: 1.1rem;
+  margin: 24px 0 12px 0;
+}
+
+p {
+  margin: 0 0 16px 0;
+}
+
+a {
+  color: #2C3E50;
+  text-decoration: underline;
+}
+
+hr {
+  border: none;
+  border-top: 2px solid #1A1A1A;
+  margin: 24px 0;
+}
+
+code {
+  font-family: "Courier New", Courier, monospace;
+  font-size: 0.9em;
+  background: #E8E8E4;
+  padding: 2px 6px;
+  border: 1px solid #1A1A1A;
+}
+
+/* ─── Tables ──────────────────────────────────────────────────────────── */
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-bottom: 24px;
+}
+
+th {
+  background: #1A1A1A;
+  color: #F5F5F0;
+  padding: 8px 12px;
+  text-align: left;
+  font-size: 0.9rem;
+}
+
+td {
+  border: 1px solid #1A1A1A;
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  vertical-align: top;
+}
+
+tr:nth-child(even) td {
+  background: #EEEEEA;
+}
+
+.detail-table th {
+  width: 140px;
+  white-space: nowrap;
+}
+
+/* ─── Forms ───────────────────────────────────────────────────────────── */
+.form-narrow {
+  max-width: 520px;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+label {
+  display: block;
+  font-weight: bold;
+  margin-bottom: 4px;
+  font-size: 0.9rem;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="datetime-local"],
+input[type="url"],
+select,
+textarea {
+  border: 2px solid #1A1A1A;
+  background: #F5F5F0;
+  color: #1A1A1A;
+  padding: 8px;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 0.95rem;
+  width: 100%;
+  display: block;
+}
+
+textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+button,
+input[type="submit"] {
+  background: #1A1A1A;
+  color: #F5F5F0;
+  border: 2px solid #1A1A1A;
+  padding: 10px 20px;
+  cursor: pointer;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 0.95rem;
+  font-weight: bold;
+}
+
+.btn-secondary {
+  display: inline-block;
+  background: #F5F5F0;
+  color: #1A1A1A;
+  border: 2px solid #1A1A1A;
+  padding: 10px 20px;
+  text-decoration: none;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 0.95rem;
+  font-weight: bold;
+}
+
+.btn-action {
+  display: inline-block;
+  background: #2C3E50;
+  color: #F5F5F0;
+  border: 2px solid #2C3E50;
+  padding: 8px 16px;
+  text-decoration: none;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 0.9rem;
+  font-weight: bold;
+  margin-right: 8px;
+  margin-bottom: 8px;
+}
+
+/* ─── Alerts ──────────────────────────────────────────────────────────── */
+.error {
+  color: #C0392B;
+  border: 2px solid #C0392B;
+  padding: 8px 12px;
+  margin-bottom: 16px;
+  background: #FDF0EE;
+}
+
+.banner {
+  background: #1A1A1A;
+  color: #F5F5F0;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  font-weight: bold;
+}
+
+/* ─── Search / filter row ────────────────────────────────────────────── */
+.search-form {
+  margin-bottom: 24px;
+}
+
+.search-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.search-row input,
+.search-row select {
+  width: auto;
+}
+
+/* ─── Breadcrumb ─────────────────────────────────────────────────────── */
+.breadcrumb {
+  font-size: 0.85rem;
+  margin-bottom: 16px;
+  color: #555;
+}
+
+.breadcrumb a {
+  color: #2C3E50;
+}
+
+/* ─── Dashboard actions row ──────────────────────────────────────────── */
+.dashboard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+}
+
+/* ─── Actions link row ───────────────────────────────────────────────── */
+.actions {
+  margin-top: 24px;
+}
+
+/* ─── Footer ─────────────────────────────────────────────────────────── */
+footer {
+  border-top: 2px solid #1A1A1A;
+  padding: 16px 24px;
+  margin-top: 48px;
+  font-size: 0.85rem;
+  background: #F5F5F0;
+}
+
+footer a {
+  color: #2C3E50;
+  text-decoration: underline;
+}
+
+/* ─── Utility ────────────────────────────────────────────────────────── */
+ul {
+  margin: 0 0 16px 0;
+  padding-left: 24px;
+}
+
+li {
+  margin-bottom: 4px;
+}

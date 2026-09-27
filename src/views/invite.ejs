@@ -1,0 +1,28 @@
+<%- include('layouts/header', { title: 'Join Team', session }) %>
+
+<h1>Join a Team</h1>
+
+<% if (typeof error !== 'undefined' && error) { %>
+  <div class="error"><%= error %></div>
+<% } %>
+
+<p>Enter your invite code to join an existing team.</p>
+
+<form method="POST" action="" class="form-narrow" id="invite-form">
+  <div class="form-group">
+    <label for="code">Invite Code</label>
+    <input type="text" id="code" name="code" required placeholder="INV-XXXXXXXX" style="text-transform: uppercase;">
+  </div>
+  <button type="submit">Join Team</button>
+</form>
+
+<script>
+  document.getElementById('invite-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    var code = document.getElementById('code').value.trim().toUpperCase();
+    if (!code) return;
+    window.location.href = '/api/teams/join/' + encodeURIComponent(code);
+  });
+</script>
+
+<%- include('layouts/footer') %>
