@@ -2,6 +2,7 @@
 const express = require('express');
 const { getDb } = require('../db/db');
 const requireRole = require('../middleware/requireRole');
+const { getRubric } = require('../lib/rubric');
 
 const router = express.Router();
 
@@ -39,6 +40,55 @@ router.get('/assignments', requireRole('judge'), (req, res) => {
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+/**
+ * GET /api/judge/assignments/:project_id
+ * Returns project details, track info, rubric criteria, and any existing score for this judge.
+ */
+router.get('/assignments/:project_id', requireRole('judge'), (req, res) => {
+  try {
+    const db = getDb();
+    const judgeId = req.session.userId;
+    const projectId = req.params.project_id;
+
+    const assignment = db.prepare(
+      'SELECT id FROM judge_assignments WHERE judge_id = ? AND project_id = ?'
+    ).get(judgeId, projectId);
+
+    if (!assignment) {
+      return res.status(403).json({ error: 'Project not assigned to this judge' });
+    }
+
+    const project = db.prepare(`
+      SELECT p.*, t.name AS team_name, tr.name AS track_name
+      FROM projects p
+      JOIN teams t ON t.id = p.team_id
+      JOIN tracks tr ON tr.id = p.track_id
+      WHERE p.id = ?
+    `).get(projectId);
+
+    const existingScore = db.prepare(
+      'SELECT * FROM scores WHERE judge_id = ? AND project_id = ?'
+    ).get(judgeId, projectId);
+
+    const criteria = getRubric(db);
+
+    return res.json({
+      project,
+      criteria,
+      score: existingScore ? {
+        id: existingScore.id,
+        criteria_scores: JSON.parse(existingScore.criteria_scores),
+        comment: existingScore.comment,
+        submitted_at: existingScore.submitted_at
+      } : null
+    });
+  } catch (err) {
+    console.error('[judge:assignments/:project_id] Error:', err.message);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 
 /**
  * GET /api/judge/scores

@@ -2,18 +2,9 @@
 const express = require('express');
 const { getDb } = require('../db/db');
 const requireRole = require('../middleware/requireRole');
+const { getRubric, computeWeightedScore } = require('../lib/rubric');
 
 const router = express.Router();
-
-const RUBRIC = [
-  { name: 'functionality', weight: 0.5 },
-  { name: 'quality',       weight: 0.3 },
-  { name: 'presentation',  weight: 0.2 }
-];
-
-function weightedScore(criteriaScores) {
-  return RUBRIC.reduce((sum, c) => sum + (criteriaScores[c.name] || 0) * c.weight, 0);
-}
 
 /**
  * POST /api/normalization/run
@@ -22,7 +13,8 @@ function weightedScore(criteriaScores) {
  */
 router.post('/run', requireRole('organizer', 'admin'), (req, res) => {
   try {
-    const db = getDb();
+    const db     = getDb();
+    const rubric = getRubric(db);
 
     // Load all scores
     const allScores = db.prepare('SELECT * FROM scores').all();
@@ -35,12 +27,13 @@ router.post('/run', requireRole('organizer', 'admin'), (req, res) => {
     const byJudge = {};
     for (const s of allScores) {
       const cs = JSON.parse(s.criteria_scores);
-      const ws = weightedScore(cs);
+      const ws = computeWeightedScore(cs, rubric);
       if (!byJudge[s.judge_id]) byJudge[s.judge_id] = [];
       byJudge[s.judge_id].push({ project_id: s.project_id, ws });
     }
 
-    const now = new Date().toISOString();
+
+    const now     = new Date().toISOString();
     const results = [];
 
     // Clear previous results
@@ -52,24 +45,24 @@ router.post('/run', requireRole('organizer', 'admin'), (req, res) => {
     `);
 
     for (const [judgeId, entries] of Object.entries(byJudge)) {
-      const scores  = entries.map(e => e.ws);
-      const n       = scores.length;
-      const mean    = scores.reduce((a, b) => a + b, 0) / n;
-      const variance= scores.reduce((a, b) => a + (b - mean) ** 2, 0) / n;
-      const stddev  = Math.sqrt(variance);
+      const scores   = entries.map(e => e.ws);
+      const n        = scores.length;
+      const mean     = scores.reduce((a, b) => a + b, 0) / n;
+      const variance = scores.reduce((a, b) => a + (b - mean) ** 2, 0) / n;
+      const stddev   = Math.sqrt(variance);
 
       for (const entry of entries) {
-        // If stddev is 0 (identical scores), z-score is 0 to avoid division by zero
+        // If stddev is 0 (all identical scores), z-score is 0 to avoid division by zero
         const zScore = stddev === 0 ? 0 : (entry.ws - mean) / stddev;
 
         insertNorm.run(judgeId, entry.project_id, entry.ws, zScore, now);
 
         results.push({
-          judge_id:          judgeId,
-          project_id:        entry.project_id,
+          judge_id:           judgeId,
+          project_id:         entry.project_id,
           raw_weighted_score: entry.ws,
-          normalized_score:  zScore,
-          stddev_was_zero:   stddev === 0
+          normalized_score:   zScore,
+          stddev_was_zero:    stddev === 0
         });
       }
     }
@@ -83,6 +76,7 @@ router.post('/run', requireRole('organizer', 'admin'), (req, res) => {
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 /**
  * GET /api/normalization/results

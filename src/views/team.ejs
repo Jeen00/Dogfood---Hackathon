@@ -2,9 +2,22 @@
 
 <h1>My Teams</h1>
 
+<% if (typeof error !== 'undefined' && error) { %>
+  <div class="error" style="margin-bottom: 16px;"><%= error %></div>
+<% } %>
+<% if (typeof success !== 'undefined' && success) { %>
+  <div class="banner" style="margin-bottom: 16px; background: #e6f4ea; color: #137333; border-color: #34a853;"><%= success %></div>
+<% } %>
+<% if (typeof info !== 'undefined' && info) { %>
+  <div class="banner" style="margin-bottom: 16px;"><%= info %></div>
+<% } %>
+
+<div style="margin-bottom: 20px;">
+  <a href="/invite" class="btn-action">+ Join Team with Code</a>
+</div>
+
 <% if (teams.length === 0) { %>
   <p>You are not a member of any team yet.</p>
-  <p><a href="/invite">Join a team with an invite code</a></p>
 <% } else { %>
   <table>
     <thead>
@@ -12,26 +25,30 @@
         <th>Team Name</th>
         <th>Members</th>
         <th>Invite Code</th>
+        <th>Direct Invite Link</th>
       </tr>
     </thead>
     <tbody>
       <% for (const team of teams) { %>
         <tr>
-          <td><%= team.name %></td>
+          <td><strong><%= team.name %></strong></td>
           <td><%= team.member_count %></td>
           <td><code><%= team.invite_code %></code></td>
+          <td><a href="/team/join/<%= team.invite_code %>">/team/join/<%= team.invite_code %></a></td>
         </tr>
       <% } %>
     </tbody>
   </table>
 <% } %>
 
+<hr style="margin: 32px 0; border: 0; border-top: 1px solid #ccc;">
+
 <h2>Create a New Team</h2>
-<form method="POST" action="/api/teams" class="form-narrow">
-  <input type="hidden" name="event_id" value="evt_01">
+<form method="POST" action="/team" class="form-narrow">
+  <input type="hidden" name="event_id" value="<%= typeof eventId !== 'undefined' ? eventId : 'evt_01' %>">
   <div class="form-group">
     <label for="name">Team Name</label>
-    <input type="text" id="name" name="name" required maxlength="100">
+    <input type="text" id="name" name="name" required maxlength="100" placeholder="e.g. Pixel Pioneers">
   </div>
   <button type="submit">Create Team</button>
 </form>

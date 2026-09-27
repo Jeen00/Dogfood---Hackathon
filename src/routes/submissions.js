@@ -2,6 +2,7 @@
 const express = require('express');
 const { getDb } = require('../db/db');
 const requireRole = require('../middleware/requireRole');
+const { ACTIVE_EVENT_ID } = require('../lib/config');
 
 const router = express.Router();
 
@@ -12,17 +13,26 @@ const router = express.Router();
 router.get('/new', requireRole('participant'), (req, res) => {
   try {
     const db = getDb();
-    const event  = db.prepare('SELECT * FROM events WHERE id = ?').get('evt_01');
+    const event  = db.prepare('SELECT * FROM events WHERE id = ?').get(ACTIVE_EVENT_ID);
     const tracks = db.prepare('SELECT * FROM tracks ORDER BY id').all();
     const closed = event && new Date() > new Date(event.submissions_close);
+
+    const userTeams = db.prepare(`
+      SELECT t.id, t.name
+      FROM teams t
+      JOIN team_members tm ON tm.team_id = t.id
+      WHERE tm.user_id = ?
+    `).all(req.session.userId);
 
     return res.render('submit', {
       event,
       tracks,
+      userTeams,
       closed,
       session: req.session,
       error: null
     });
+
   } catch (err) {
     console.error('[submissions:new] Error:', err.message);
     return res.status(500).render('error', {
@@ -39,7 +49,7 @@ router.get('/new', requireRole('participant'), (req, res) => {
 router.post('/', requireRole('participant'), (req, res) => {
   try {
     const db = getDb();
-    const event = db.prepare('SELECT * FROM events WHERE id = ?').get('evt_01');
+    const event = db.prepare('SELECT * FROM events WHERE id = ?').get(ACTIVE_EVENT_ID);
 
     if (!event) {
       return res.status(400).json({ error: 'Event not found' });
@@ -72,7 +82,7 @@ router.post('/', requireRole('participant'), (req, res) => {
     db.prepare(`
       INSERT INTO projects (id, event_id, team_id, track_id, title, summary, repo_url, status, submitted_at, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, 'submitted', ?, ?)
-    `).run(id, 'evt_01', team_id, track_id, title, summary || '', repo_url || '', now, now);
+    `).run(id, ACTIVE_EVENT_ID, team_id, track_id, title, summary || '', repo_url || '', now, now);
 
     // Audit log
     db.prepare(
@@ -93,7 +103,8 @@ router.post('/', requireRole('participant'), (req, res) => {
 router.patch('/:id', requireRole('participant'), (req, res) => {
   try {
     const db = getDb();
-    const event = db.prepare('SELECT * FROM events WHERE id = ?').get('evt_01');
+    const event = db.prepare('SELECT * FROM events WHERE id = ?').get(ACTIVE_EVENT_ID);
+
 
     if (!event) {
       return res.status(400).json({ error: 'Event not found' });

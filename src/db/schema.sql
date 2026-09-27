@@ -79,6 +79,14 @@ CREATE TABLE IF NOT EXISTS judge_assignments (
   UNIQUE (judge_id, project_id)
 );
 
+-- Stores which tracks each judge is responsible for (seeded from fixtures)
+CREATE TABLE IF NOT EXISTS judge_tracks (
+  judge_id TEXT NOT NULL,
+  track_id TEXT NOT NULL,
+  PRIMARY KEY (judge_id, track_id)
+);
+
+
 CREATE TABLE IF NOT EXISTS scores (
   id              TEXT PRIMARY KEY,
   judge_id        TEXT NOT NULL,
