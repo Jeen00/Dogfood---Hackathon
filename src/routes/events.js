@@ -2,8 +2,10 @@
 const express = require('express');
 const { getDb } = require('../db/db');
 const requireRole = require('../middleware/requireRole');
+const { getRubric } = require('../lib/rubric');
 
 const router = express.Router();
+
 
 /**
  * GET /events/new
@@ -74,4 +76,36 @@ router.get('/', (req, res) => {
   }
 });
 
+/**
+ * GET /api/events/:id
+
+ * Returns full event detail with tracks, prizes, and rubric criteria.
+ */
+router.get('/:id', (req, res) => {
+  try {
+    const db = getDb();
+    const eventId = req.params.id;
+
+    const event = db.prepare('SELECT * FROM events WHERE id = ?').get(eventId);
+    if (!event) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    const tracks   = db.prepare('SELECT * FROM tracks WHERE event_id = ?').all(eventId);
+    const prizes   = db.prepare('SELECT * FROM prizes WHERE event_id = ?').all(eventId);
+    const criteria = getRubric(db, eventId);
+
+    return res.json({
+      event,
+      tracks,
+      prizes,
+      criteria
+    });
+  } catch (err) {
+    console.error('[events:id GET] Error:', err.message);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router;
+

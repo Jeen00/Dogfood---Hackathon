@@ -56,7 +56,33 @@ router.get('/progress', requireRole('organizer', 'admin'), (req, res) => {
 });
 
 /**
+ * GET /api/organizer/stats
+ * Returns overall summary statistics for organizer dashboards.
+ */
+router.get('/stats', requireRole('organizer', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const totalProjects = db.prepare("SELECT COUNT(*) AS count FROM projects WHERE status = 'submitted'").get().count;
+    const activeJudges   = db.prepare("SELECT COUNT(DISTINCT id) AS count FROM users WHERE role = 'judge'").get().count;
+    const scoresSubmitted = db.prepare("SELECT COUNT(*) AS count FROM scores").get().count;
+    const totalAssignments = db.prepare("SELECT COUNT(*) AS count FROM judge_assignments").get().count;
+
+    return res.json({
+      totalProjects,
+      activeJudges,
+      scoresSubmitted,
+      totalAssignments,
+      completionRate: totalAssignments > 0 ? Math.round((scoresSubmitted / totalAssignments) * 100) : 0
+    });
+  } catch (err) {
+    console.error('[organizer:stats] Error:', err.message);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
  * POST /api/judge/assignments/auto
+
  * Re-runs auto-assignment: assigns judges to projects based on track matching.
  * Idempotent (INSERT OR IGNORE).
  */
@@ -201,23 +227,90 @@ router.get('/event/new', requireRole('organizer', 'admin'), (req, res) => {
 });
 
 /**
- * GET /organizer/rubric
- * Render rubric management page.
+ * GET /organizer/rubric & GET /api/organizer/rubric
+ * Render rubric management page or return JSON criteria.
  */
 router.get('/rubric', requireRole('organizer', 'admin'), (req, res) => {
   try {
     const db = getDb();
     const criteria = getRubric(db, ACTIVE_EVENT_ID);
+
+    if (req.baseUrl.startsWith('/api') || (!req.accepts('html') && req.accepts('json'))) {
+      return res.json({ criteria });
+    }
+
     return res.render('organizer/rubric', {
       criteria,
       session: req.session
     });
-
   } catch (err) {
+    console.error('[organizer:rubric GET] Error:', err.message);
+    if (req.baseUrl.startsWith('/api') || !req.accepts('html')) {
+      return res.status(500).json({ error: 'Internal server error' });
+    }
     return res.status(500).render('error', {
       message: 'Failed to load rubric.',
       session: req.session
     });
+  }
+});
+
+/**
+ * POST /api/organizer/assignments
+ * Manually assign a judge to a project.
+ * Body: { judge_id, project_id }
+ */
+router.post('/assignments', requireRole('organizer', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const { judge_id, project_id } = req.body;
+
+    if (!judge_id || !project_id) {
+      return res.status(400).json({ error: 'judge_id and project_id are required' });
+    }
+
+    const id = `asgn_man_${judge_id}_${project_id}`;
+    const info = db.prepare(
+      'INSERT OR IGNORE INTO judge_assignments (id, judge_id, project_id) VALUES (?, ?, ?)'
+    ).run(id, judge_id, project_id);
+
+    if (info.changes === 0) {
+      return res.status(409).json({ message: 'Assignment already exists' });
+    }
+
+    const now = new Date().toISOString();
+    db.prepare('INSERT INTO audit_log (id, actor_id, action, target_id, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(`al_${Date.now()}`, req.session.userId, 'judge_assigned', id, `${judge_id}->${project_id}`, now);
+
+    return res.status(201).json({ message: 'Judge assigned successfully', id });
+  } catch (err) {
+    console.error('[organizer:assignments POST] Error:', err.message);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * DELETE /api/organizer/assignments/:id
+ * Remove a judge assignment.
+ */
+router.delete('/assignments/:id', requireRole('organizer', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const id = req.params.id;
+
+    const info = db.prepare('DELETE FROM judge_assignments WHERE id = ?').run(id);
+    if (info.changes === 0) {
+      return res.status(404).json({ error: 'Assignment not found' });
+    }
+
+    const now = new Date().toISOString();
+    db.prepare('INSERT INTO audit_log (id, actor_id, action, target_id, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(`al_${Date.now()}`, req.session.userId, 'judge_unassigned', id, '', now);
+
+    return res.json({ message: 'Assignment removed' });
+  } catch (err) {
+    console.error('[organizer:assignments DELETE] Error:', err.message);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -237,6 +330,10 @@ router.get('/assignments', requireRole('organizer', 'admin'), (req, res) => {
       ORDER BY u.name, p.title
     `).all();
 
+    if (req.baseUrl.startsWith('/api') || (!req.accepts('html') && req.accepts('json'))) {
+      return res.json({ assignments });
+    }
+
     return res.render('organizer/assignments', {
       assignments,
       session: req.session
@@ -248,6 +345,7 @@ router.get('/assignments', requireRole('organizer', 'admin'), (req, res) => {
     });
   }
 });
+
 
 /**
  * GET /organizer/invite-judge
@@ -355,5 +453,60 @@ router.post('/rubric', requireRole('organizer', 'admin'), (req, res) => {
   }
 });
 
+/**
+ * GET /api/organizer/results & GET /organizer/results
+ * Returns final ranked hackathon leaderboard based on normalized scores.
+ */
+router.get('/results', requireRole('organizer', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+
+    // Query aggregated normalized scores per project
+    const results = db.prepare(`
+      SELECT
+        p.id AS project_id,
+        p.title AS project_title,
+        p.repo_url,
+        t.name AS team_name,
+        tr.name AS track_name,
+        COUNT(ns.judge_id) AS reviews_count,
+        ROUND(AVG(ns.raw_weighted_score), 2) AS avg_raw_score,
+        ROUND(AVG(ns.normalized_score), 3) AS final_normalized_score
+      FROM projects p
+      JOIN teams t ON t.id = p.team_id
+      JOIN tracks tr ON tr.id = p.track_id
+      LEFT JOIN normalized_scores ns ON ns.project_id = p.id
+      WHERE p.status = 'submitted'
+      GROUP BY p.id
+      ORDER BY final_normalized_score DESC, avg_raw_score DESC
+    `).all();
+
+    // Assign sequential ranks (1, 2, 3...)
+    const leaderboard = results.map((item, index) => ({
+      rank: index + 1,
+      ...item
+    }));
+
+    if (req.baseUrl.startsWith('/api') || (!req.accepts('html') && req.accepts('json'))) {
+      return res.json({ leaderboard });
+    }
+
+    return res.render('organizer/results', {
+      leaderboard,
+      session: req.session
+    });
+  } catch (err) {
+    console.error('[organizer:results GET] Error:', err.message);
+    if (req.baseUrl.startsWith('/api') || !req.accepts('html')) {
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+    return res.status(500).render('error', {
+      message: 'Failed to load results leaderboard.',
+      session: req.session
+    });
+  }
+});
+
 module.exports = router;
+
 
