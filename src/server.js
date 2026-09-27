@@ -147,11 +147,17 @@ app.use('/api/organizer',         organizerRouter);
 app.use('/api/export.csv',        exportRouter);
 app.use('/api/normalization',     normalizationRouter);
 
-// Login convenience routes
-app.get('/login', authRouter);
-app.post('/auth/login', authRouter);
-app.get('/auth/logout', authRouter);
-app.post('/auth/logout', authRouter);
+// ─── Login convenience route ──────────────────────────────────────────────
+// /login renders the login page; actual form posts go to /auth/login
+app.get('/login', (req, res) => {
+  if (req.session) {
+    if (req.session.role === 'judge')     return res.redirect('/judge/dashboard');
+    if (req.session.role === 'organizer') return res.redirect('/organizer/dashboard');
+    return res.redirect('/projects');
+  }
+  return res.render('login', { session: null, error: null });
+});
+
 
 // ─── Static content pages ─────────────────────────────────────────────────────
 app.get('/tos', (req, res) => res.render('tos', { session: req.session }));

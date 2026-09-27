@@ -61,31 +61,31 @@ router.post('/assignments/auto', requireRole('organizer', 'admin'), (req, res) =
   try {
     const db = getDb();
 
+    const projects = db.prepare('SELECT * FROM projects WHERE status = ?').all('submitted');
     const judges   = db.prepare("SELECT id FROM users WHERE role = 'judge'").all();
-    const projects = db.prepare('SELECT * FROM projects').all();
-    const judgeTrackMap = {};
 
-    // Rebuild the track map from DB
-    for (const judge of judges) {
-      // We stored judge track preferences in fixtures only; re-derive from assignments not available.
-      // Instead, use a join: judge can be assigned based on event tracks.
-      // For this auto-assignment, we reassign using the fixture approach:
-      // assign a judge to a project if they share a track assignment record already exists,
-      // OR assign 3 judges per project as fallback.
-      judgeTrackMap[judge.id] = judge.id; // placeholder — see below
-    }
-
-    // Pull all existing assignments to know current state, then insert new ones
     const insertAssignment = db.prepare(
       'INSERT OR IGNORE INTO judge_assignments (id, judge_id, project_id) VALUES (?, ?, ?)'
     );
 
     let added = 0;
+
     for (const proj of projects) {
-      // Pick first 3 judges for each project if they aren't already assigned
-      for (const judge of judges.slice(0, 3)) {
-        const aId = `asgn_auto_${judge.id}_${proj.id}`;
-        const info = insertAssignment.run(aId, judge.id, proj.id);
+      // Find judges whose track preferences include this project's track
+      const matchingJudges = db.prepare(`
+        SELECT DISTINCT jt.judge_id
+        FROM judge_tracks jt
+        WHERE jt.track_id = ?
+      `).all(proj.track_id).map(r => r.judge_id);
+
+      // If no track match, fall back to first 3 judges
+      const assignees = matchingJudges.length > 0
+        ? matchingJudges
+        : judges.slice(0, 3).map(j => j.id);
+
+      for (const judgeId of assignees) {
+        const aId  = `asgn_auto_${judgeId}_${proj.id}`;
+        const info = insertAssignment.run(aId, judgeId, proj.id);
         if (info.changes > 0) added++;
       }
     }
@@ -96,6 +96,7 @@ router.post('/assignments/auto', requireRole('organizer', 'admin'), (req, res) =
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 /**
  * GET /organizer/dashboard
@@ -256,4 +257,98 @@ router.get('/invite-judge', requireRole('organizer', 'admin'), (req, res) => {
   });
 });
 
+/**
+ * POST /organizer/invite-judge
+ * Create a new judge user and seed a fixed session for them.
+ * Body: { name, email }
+ */
+router.post('/invite-judge', requireRole('organizer', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const { name, email } = req.body;
+
+    if (!name || !email) {
+      return res.render('organizer/invite-judge', {
+        session: req.session,
+        error:   'Name and email are required.',
+        success: null
+      });
+    }
+
+    const existing = db.prepare('SELECT id FROM users WHERE LOWER(email) = ?').get(email.toLowerCase());
+    if (existing) {
+      return res.render('organizer/invite-judge', {
+        session: req.session,
+        error:   'A user with that email already exists.',
+        success: null
+      });
+    }
+
+    const { v4: uuidv4 } = require('uuid');
+    const userId    = `jdg_${uuidv4().slice(0, 8)}`;
+    const sessionId = `jdg_${uuidv4().slice(0, 8)}`;
+    const now       = new Date().toISOString();
+
+    db.prepare('INSERT INTO users (id, name, email, role, password_hash) VALUES (?, ?, ?, ?, ?)')
+      .run(userId, name, email, 'judge', null);
+
+    db.prepare('INSERT INTO sessions (id, user_id, role) VALUES (?, ?, ?)')
+      .run(sessionId, userId, 'judge');
+
+    db.prepare('INSERT INTO audit_log (id, actor_id, action, target_id, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(`al_${Date.now()}`, req.session.userId, 'judge_invited', userId, email, now);
+
+    return res.render('organizer/invite-judge', {
+      session: req.session,
+      error:   null,
+      success: `Judge "${name}" created. Session cookie: session=${sessionId}`
+    });
+  } catch (err) {
+    console.error('[organizer:invite-judge POST] Error:', err.message);
+    return res.render('organizer/invite-judge', {
+      session: req.session,
+      error:   'An error occurred. Please try again.',
+      success: null
+    });
+  }
+});
+
+/**
+ * POST /organizer/rubric
+ * Update rubric criteria weights for the event.
+ * Body: { criteria: [{ id, weight }, ...] }
+ */
+router.post('/rubric', requireRole('organizer', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    // Accept either JSON body (from React fetch) or form-encoded body
+    const criteria = req.body.criteria;
+
+    if (!criteria || !Array.isArray(criteria)) {
+      return res.status(400).json({ error: 'criteria array is required' });
+    }
+
+    // Validate that weights sum to 1.0 (±0.01 tolerance)
+    const total = criteria.reduce((s, c) => s + parseFloat(c.weight || 0), 0);
+    if (Math.abs(total - 1.0) > 0.01) {
+      return res.status(400).json({ error: `Weights must sum to 1.0 (got ${total.toFixed(4)})` });
+    }
+
+    const update = db.prepare('UPDATE rubric_criteria SET weight = ? WHERE id = ? AND event_id = ?');
+    for (const c of criteria) {
+      update.run(parseFloat(c.weight), c.id, 'evt_01');
+    }
+
+    const now = new Date().toISOString();
+    db.prepare('INSERT INTO audit_log (id, actor_id, action, target_id, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(`al_${Date.now()}`, req.session.userId, 'rubric_updated', 'evt_01', JSON.stringify(criteria), now);
+
+    return res.json({ message: 'Rubric updated successfully' });
+  } catch (err) {
+    console.error('[organizer:rubric POST] Error:', err.message);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 module.exports = router;
+

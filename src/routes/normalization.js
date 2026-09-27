@@ -5,15 +5,21 @@ const requireRole = require('../middleware/requireRole');
 
 const router = express.Router();
 
-const RUBRIC = [
-  { name: 'functionality', weight: 0.5 },
-  { name: 'quality',       weight: 0.3 },
-  { name: 'presentation',  weight: 0.2 }
-];
-
-function weightedScore(criteriaScores) {
-  return RUBRIC.reduce((sum, c) => sum + (criteriaScores[c.name] || 0) * c.weight, 0);
+/**
+ * Fetch rubric criteria for the given event from the DB.
+ * Falls back to sensible defaults if the table is empty.
+ */
+function getRubric(db, eventId) {
+  const rows = db.prepare('SELECT name, weight FROM rubric_criteria WHERE event_id = ?').all(eventId);
+  if (rows.length > 0) return rows;
+  // Fallback in case the table is empty (should not happen after seeding)
+  return [
+    { name: 'functionality', weight: 0.5 },
+    { name: 'quality',       weight: 0.3 },
+    { name: 'presentation',  weight: 0.2 }
+  ];
 }
+
 
 /**
  * POST /api/normalization/run
@@ -22,7 +28,8 @@ function weightedScore(criteriaScores) {
  */
 router.post('/run', requireRole('organizer', 'admin'), (req, res) => {
   try {
-    const db = getDb();
+    const db     = getDb();
+    const rubric = getRubric(db, 'evt_01');
 
     // Load all scores
     const allScores = db.prepare('SELECT * FROM scores').all();
@@ -30,6 +37,10 @@ router.post('/run', requireRole('organizer', 'admin'), (req, res) => {
     if (allScores.length === 0) {
       return res.status(400).json({ error: 'No scores to normalize' });
     }
+
+    // Compute weighted score from DB-backed rubric
+    const weightedScore = (criteriaScores) =>
+      rubric.reduce((sum, c) => sum + (criteriaScores[c.name] || 0) * c.weight, 0);
 
     // Group scores by judge
     const byJudge = {};
@@ -40,7 +51,7 @@ router.post('/run', requireRole('organizer', 'admin'), (req, res) => {
       byJudge[s.judge_id].push({ project_id: s.project_id, ws });
     }
 
-    const now = new Date().toISOString();
+    const now     = new Date().toISOString();
     const results = [];
 
     // Clear previous results
@@ -52,24 +63,24 @@ router.post('/run', requireRole('organizer', 'admin'), (req, res) => {
     `);
 
     for (const [judgeId, entries] of Object.entries(byJudge)) {
-      const scores  = entries.map(e => e.ws);
-      const n       = scores.length;
-      const mean    = scores.reduce((a, b) => a + b, 0) / n;
-      const variance= scores.reduce((a, b) => a + (b - mean) ** 2, 0) / n;
-      const stddev  = Math.sqrt(variance);
+      const scores   = entries.map(e => e.ws);
+      const n        = scores.length;
+      const mean     = scores.reduce((a, b) => a + b, 0) / n;
+      const variance = scores.reduce((a, b) => a + (b - mean) ** 2, 0) / n;
+      const stddev   = Math.sqrt(variance);
 
       for (const entry of entries) {
-        // If stddev is 0 (identical scores), z-score is 0 to avoid division by zero
+        // If stddev is 0 (all identical scores), z-score is 0 to avoid division by zero
         const zScore = stddev === 0 ? 0 : (entry.ws - mean) / stddev;
 
         insertNorm.run(judgeId, entry.project_id, entry.ws, zScore, now);
 
         results.push({
-          judge_id:          judgeId,
-          project_id:        entry.project_id,
+          judge_id:           judgeId,
+          project_id:         entry.project_id,
           raw_weighted_score: entry.ws,
-          normalized_score:  zScore,
-          stddev_was_zero:   stddev === 0
+          normalized_score:   zScore,
+          stddev_was_zero:    stddev === 0
         });
       }
     }
@@ -83,6 +94,7 @@ router.post('/run', requireRole('organizer', 'admin'), (req, res) => {
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 /**
  * GET /api/normalization/results

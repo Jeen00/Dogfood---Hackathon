@@ -40,6 +40,7 @@ function seedDb() {
     DELETE FROM normalized_scores;
     DELETE FROM scores;
     DELETE FROM judge_assignments;
+    DELETE FROM judge_tracks;
     DELETE FROM projects;
     DELETE FROM team_members;
     DELETE FROM teams;
@@ -51,6 +52,7 @@ function seedDb() {
     DELETE FROM audit_log;
     DELETE FROM users;
   `);
+
 
   console.log('[seed] Tables cleared.');
 
@@ -97,11 +99,20 @@ function seedDb() {
   // ─── Judges ───────────────────────────────────────────────────────────────
   // Build a map of judgeId -> track array for assignment later
   const judgeTrackMap = {}; // judgeId -> [trk_id, ...]
+  const insertJudgeTrack = db.prepare(
+    'INSERT OR IGNORE INTO judge_tracks (judge_id, track_id) VALUES (?, ?)'
+  );
+
   for (const j of fixtures.judges) {
     insertUser.run(j.id, j.name, j.email, 'judge', null);
     judgeTrackMap[j.id] = j.tracks;
+    // Persist track preferences so auto-assignment can use them without fixtures.json
+    for (const trackId of j.tracks) {
+      insertJudgeTrack.run(j.id, trackId);
+    }
   }
   console.log('[seed] Judges seeded:', fixtures.judges.length);
+
 
   // ─── Teams & Members ─────────────────────────────────────────────────────
   const insertTeam   = db.prepare('INSERT INTO teams (id, event_id, name, invite_code) VALUES (?, ?, ?, ?)');
