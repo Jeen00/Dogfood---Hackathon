@@ -1,19 +1,28 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'motion/react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, Code } from '@phosphor-icons/react'
 import DinoIcon from '../components/DinoIcon'
 
 export default function GalleryPage() {
   const [projects, setProjects] = useState([])
+  const [allProjects, setAllProjects] = useState([])
+  const [tracks, setTracks] = useState([])
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const activeTrack = searchParams.get('track') || ''
 
   useEffect(() => {
     fetch('/projects/api')
       .then(r => r.json())
       .then(d => {
-        setProjects(d.projects || [])
+        const p = d.projects || []
+        setAllProjects(p)
+        // Extract unique tracks
+        const trackMap = {}
+        p.forEach(proj => { if (proj.track_id && proj.track_name) trackMap[proj.track_id] = proj.track_name })
+        setTracks(Object.entries(trackMap).map(([id, name]) => ({ id, name })))
         setLoading(false)
       })
       .catch(e => {
@@ -21,6 +30,14 @@ export default function GalleryPage() {
         setLoading(false)
       })
   }, [])
+
+  useEffect(() => {
+    if (activeTrack) {
+      setProjects(allProjects.filter(p => p.track_id === activeTrack))
+    } else {
+      setProjects(allProjects)
+    }
+  }, [activeTrack, allProjects])
 
   return (
     <main className="relative flex flex-col min-h-screen w-full bg-[#0a0d12] text-white font-sans selection:bg-white/30">
@@ -73,6 +90,34 @@ export default function GalleryPage() {
             Explore the innovative submissions built by participants during the DOGFOOD 2026 hackathon.
           </p>
         </motion.div>
+
+        {/* Track Filters */}
+        {tracks.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
+            className="flex flex-wrap items-center justify-center gap-3 mb-4"
+          >
+            <button
+              onClick={() => setSearchParams({})}
+              className={`px-4 py-1.5 rounded-full text-[10px] font-medium uppercase tracking-widest transition-all ${
+                !activeTrack ? 'bg-white text-black' : 'border border-white/10 text-white/50 hover:text-white hover:border-white/30'
+              }`}
+            >
+              All Tracks
+            </button>
+            {tracks.map(t => (
+              <button
+                key={t.id}
+                onClick={() => setSearchParams({ track: t.id })}
+                className={`px-4 py-1.5 rounded-full text-[10px] font-medium uppercase tracking-widest transition-all ${
+                  activeTrack === t.id ? 'bg-white text-black' : 'border border-white/10 text-white/50 hover:text-white hover:border-white/30'
+                }`}
+              >
+                {t.name}
+              </button>
+            ))}
+          </motion.div>
+        )}
 
         {loading ? (
           <div className="flex items-center justify-center gap-3 text-white/40 font-light uppercase tracking-widest text-sm mt-12">

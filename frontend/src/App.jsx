@@ -10,6 +10,7 @@ import OrganizerEventsPage from './pages/OrganizerEventsPage'
 import OrganizerResultsPage from './pages/OrganizerResultsPage'
 import OrganizerAssignmentsPage from './pages/OrganizerAssignmentsPage'
 import ParticipantDashboard from './pages/ParticipantDashboard'
+import TracksPage from './pages/TracksPage'
 import RulesPage from './pages/RulesPage'
 import FAQPage from './pages/FAQPage'
 import GalleryPage from './pages/GalleryPage'
@@ -27,6 +28,7 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/projects" element={<GalleryPage />} />
+        <Route path="/tracks" element={<TracksPage />} />
         
         {/* Participant Routes */}
         <Route path="/participant/dashboard" element={<ParticipantDashboard />} />

@@ -194,8 +194,8 @@ export default function HeroSection({ footerProgress }) {
           <div className="w-1/3 hidden md:flex items-center justify-center gap-8 lg:gap-12">
             {[
               { label: 'Gallery', path: '/projects', external: true },
-              { label: 'Tracks', path: '/#tracks' },
-              { label: 'Rules', path: '/rules' },
+              { label: 'Tracks', path: '/tracks', external: true },
+              { label: 'Rules', path: '/rules', external: true },
               { label: 'FAQ', path: '/faq' }
             ].map((link) => (
               <motion.a 
