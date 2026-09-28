@@ -101,24 +101,39 @@ export default function TracksPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0d12] text-white font-sans selection:bg-white/30">
+    <div className="relative flex flex-col min-h-screen w-full bg-[#0a0d12] text-white font-sans selection:bg-white/30">
+      
+      {/* Background Video */}
+      <video
+        className="fixed inset-0 w-full h-full object-cover z-0 pointer-events-none"
+        autoPlay
+        muted
+        loop
+        playsInline
+      >
+        <source
+          src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260328_115001_bcdaa3b4-03de-47e7-ad63-ae3e392c32d4.mp4"
+          type="video/mp4"
+        />
+      </video>
+
       {/* Navbar */}
-      <header className="sticky top-0 z-50 bg-[#0a0d12]/80 backdrop-blur-2xl border-b border-white/5">
-        <div className="max-w-6xl mx-auto px-6 h-20 flex items-center justify-between">
+      <div className="p-4 relative z-50">
+        <header className="max-w-6xl mx-auto bg-black/40 backdrop-blur-2xl border border-white/10 rounded-[2rem] px-8 py-5 flex items-center justify-between shadow-2xl">
           <div onClick={() => navigate('/')} className="flex items-center gap-4 cursor-pointer group">
             <div className="w-8 h-[2px] bg-white transition-all group-hover:w-12" />
             <span className="font-bold tracking-[0.2em] text-sm uppercase">DOGFOOD<span className="opacity-50">2026</span></span>
           </div>
           <div className="flex items-center gap-6">
-            <button onClick={() => navigate('/projects')} className="text-[11px] tracking-[0.2em] uppercase text-white/50 hover:text-white transition-colors">Gallery</button>
-            <button onClick={() => navigate('/rules')} className="text-[11px] tracking-[0.2em] uppercase text-white/50 hover:text-white transition-colors">Rules</button>
-            <button onClick={() => navigate('/faq')} className="text-[11px] tracking-[0.2em] uppercase text-white/50 hover:text-white transition-colors">FAQ</button>
-            <button onClick={() => navigate('/login')} className="text-[11px] tracking-[0.2em] uppercase text-white/50 hover:text-white transition-colors">Sign In</button>
+            <button onClick={() => navigate('/projects')} className="text-[11px] tracking-[0.2em] uppercase text-white/50 hover:text-white transition-colors cursor-pointer bg-transparent border-none">Gallery</button>
+            <button onClick={() => navigate('/rules')} className="text-[11px] tracking-[0.2em] uppercase text-white/50 hover:text-white transition-colors cursor-pointer bg-transparent border-none">Rules</button>
+            <button onClick={() => navigate('/faq')} className="text-[11px] tracking-[0.2em] uppercase text-white/50 hover:text-white transition-colors cursor-pointer bg-transparent border-none">FAQ</button>
+            <button onClick={() => navigate('/login')} className="text-[11px] tracking-[0.2em] uppercase text-white/50 hover:text-white transition-colors cursor-pointer bg-transparent border-none">Sign In</button>
           </div>
-        </div>
-      </header>
+        </header>
+      </div>
 
-      <main className="max-w-6xl mx-auto px-6 py-20">
+      <main className="relative z-10 max-w-6xl mx-auto w-full px-6 py-12">
         {/* Page Header */}
         <div className="mb-16 border-b border-white/10 pb-12">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
@@ -192,7 +207,7 @@ export default function TracksPage() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.15 + i * 0.07, duration: 0.5 }}
                     key={track.id}
-                    className="group flex flex-col gap-0 bg-white/[0.02] hover:bg-white/[0.05] border border-white/10 hover:border-white/25 rounded-[32px] overflow-hidden transition-all"
+                    className="group flex flex-col gap-0 bg-black/40 backdrop-blur-2xl hover:bg-black/60 border border-white/15 hover:border-white/30 rounded-[32px] overflow-hidden transition-all shadow-xl"
                   >
                     {/* Track Header */}
                     <div className="p-8 flex-1">
@@ -238,7 +253,7 @@ export default function TracksPage() {
             {/* Rubric callout */}
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
-              className="mt-20 p-8 border border-white/5 rounded-[32px] bg-white/[0.02] grid grid-cols-1 md:grid-cols-3 gap-8 items-center"
+              className="mt-20 p-8 border border-white/15 rounded-[32px] bg-black/40 backdrop-blur-2xl shadow-xl grid grid-cols-1 md:grid-cols-3 gap-8 items-center"
             >
               <div className="col-span-2">
                 <p className="text-[10px] uppercase tracking-[0.2em] text-white/30 mb-3">Judging Criteria</p>

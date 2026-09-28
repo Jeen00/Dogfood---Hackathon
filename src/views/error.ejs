@@ -1,9 +1,0 @@
-<%- include('layouts/header', { title: 'Error', session }) %>
-
-<h1>Error</h1>
-<div class="error">
-  <%= typeof message !== 'undefined' ? message : 'An unexpected error occurred.' %>
-</div>
-<p><a href="/projects">Return to Gallery</a></p>
-
-<%- include('layouts/footer') %>

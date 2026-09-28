@@ -213,19 +213,7 @@ function seedDb() {
       projectsSkipped++;
     }
   }
-  insertProject.run(
-    'proj_df_01', 'evt_dogfood_2026', 'team_df_01', 'trk_df_01',
-    'Autonomous Multi-Agent Orchestrator', 'Next-gen agent workflows with local models',
-    'https://github.com/cyberpioneers/agent-orch', 'submitted',
-    '2026-09-27T10:00:00Z', '2026-09-27T10:00:00Z'
-  );
-  insertProject.run(
-    'proj_df_02', 'evt_dogfood_2026', 'team_df_02', 'trk_df_02',
-    'Edge Cloud Devbox', 'Zero-config local cloud developer platform',
-    'https://github.com/neuralsync/edge-devbox', 'submitted',
-    '2026-09-27T11:30:00Z', '2026-09-27T11:30:00Z'
-  );
-  console.log(`[seed] Projects seeded: ${projectsSeeded + 2}, skipped (duplicates): ${projectsSkipped}`);
+  console.log(`[seed] Projects seeded: ${projectsSeeded}, skipped (duplicates): ${projectsSkipped}`);
 
   // ─── Judge Assignments ───────────────────────────────────────────────────
   // Strategy: for each project, assign judges whose track list includes the project's track_id.

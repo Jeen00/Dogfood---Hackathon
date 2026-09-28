@@ -7,24 +7,15 @@ const router = express.Router();
 
 /**
  * GET /login
- * Render the login form.
+ * Redirects to the frontend login.
  */
 router.get('/login', (req, res) => {
-  if (req.session) {
-    if (req.session.role === 'judge') return res.redirect('/judge/dashboard');
-    if (req.session.role === 'organizer') return res.redirect('/organizer/events');
-    if (req.session.role === 'participant') return res.redirect('/team');
-    return res.redirect('/projects');
-
-  }
-  return res.render('login', { session: null, error: null });
+  return res.redirect('/login');
 });
 
 /**
  * POST /auth/login
- * Authenticates user by email + password (or for demo, by looking up email).
- * In this demo platform, passwords are not hashed — sessions are cookie-based.
- * The fixed sessions are seeded and used directly by the checker.
+ * Authenticates user by email + password. Returns JSON.
  */
 router.post('/login', (req, res) => {
   try {
@@ -33,28 +24,24 @@ router.post('/login', (req, res) => {
     const pass  = (req.body.password || '').trim();
 
     if (!email) {
-      return res.render('login', { session: null, error: 'Email is required' });
+      return res.status(400).json({ error: 'Email is required' });
     }
 
     const user = db.prepare('SELECT * FROM users WHERE LOWER(email) = ?').get(email);
     if (!user) {
-      return res.render('login', { session: null, error: 'Invalid credentials' });
+      return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // For demo: any non-empty password accepted (no real password hashing)
-    // In production this would use bcrypt.compare
     if (!pass) {
-      return res.render('login', { session: null, error: 'Password is required' });
+      return res.status(400).json({ error: 'Password is required' });
     }
 
-    // Check if a fixed session already exists for this user
     const existing = db.prepare('SELECT * FROM sessions WHERE user_id = ?').get(user.id);
     let sessionId;
 
     if (existing) {
       sessionId = existing.id;
     } else {
-      // Create a new session
       sessionId = `sess_${Date.now()}_${Math.random().toString(36).slice(2)}`;
       db.prepare('INSERT INTO sessions (id, user_id, role) VALUES (?, ?, ?)').run(sessionId, user.id, user.role);
     }
@@ -65,20 +52,16 @@ router.post('/login', (req, res) => {
       maxAge:   7 * 24 * 60 * 60 * 1000 // 7 days
     });
 
-    if (user.role === 'judge')     return res.redirect('/judge/dashboard');
-    if (user.role === 'organizer') return res.redirect('/organizer/events');
-    if (user.role === 'participant') return res.redirect('/team');
-    return res.redirect('/projects');
+    return res.json({ success: true, role: user.role });
 
   } catch (err) {
     console.error('[auth:login] Error:', err.message);
-    return res.render('login', { session: null, error: 'An error occurred. Please try again.' });
+    return res.status(500).json({ error: 'An error occurred.' });
   }
 });
 
 /**
  * POST /auth/logout
- * Clears the session cookie.
  */
 router.post('/logout', (req, res) => {
   res.clearCookie('session');
@@ -86,14 +69,12 @@ router.post('/logout', (req, res) => {
 });
 
 /**
- * GET /auth/logout (convenience GET for nav link)
+ * GET /auth/logout
  */
 router.get('/logout', (req, res) => {
   res.clearCookie('session');
   return res.redirect('/login');
 });
-
-
 
 router.get('/me', (req, res) => {
   if (req.session) {
@@ -102,10 +83,8 @@ router.get('/me', (req, res) => {
   return res.json({ loggedIn: false });
 });
 
-
 /**
  * POST /auth/signup
- * Registers a new participant and logs them in.
  */
 router.post('/signup', (req, res) => {
   try {
@@ -118,17 +97,14 @@ router.post('/signup', (req, res) => {
 
     const name = (firstName + ' ' + (lastName || '')).trim();
     
-    // Check if user exists
     const existing = db.prepare('SELECT * FROM users WHERE LOWER(email) = ?').get(email.toLowerCase());
     if (existing) {
       return res.status(400).json({ error: 'Email already registered' });
     }
 
-    // Insert user
     const userId = 'usr_' + Date.now();
     db.prepare('INSERT INTO users (id, name, email, role) VALUES (?, ?, ?, ?)').run(userId, name, email.toLowerCase(), role);
 
-    // Create session
     const sessionId = 'sess_' + Date.now();
     db.prepare('INSERT INTO sessions (id, user_id, role) VALUES (?, ?, ?)').run(sessionId, userId, role);
 
@@ -145,6 +121,3 @@ router.post('/signup', (req, res) => {
   }
 });
 module.exports = router;
-
-
-

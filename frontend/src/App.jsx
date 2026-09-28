@@ -10,6 +10,7 @@ import OrganizerEventsPage from './pages/OrganizerEventsPage'
 import OrganizerResultsPage from './pages/OrganizerResultsPage'
 import OrganizerAssignmentsPage from './pages/OrganizerAssignmentsPage'
 import ParticipantDashboard from './pages/ParticipantDashboard'
+import VerifyEmailPage from './pages/VerifyEmailPage'
 import TracksPage from './pages/TracksPage'
 import RulesPage from './pages/RulesPage'
 import FAQPage from './pages/FAQPage'
@@ -31,6 +32,7 @@ export default function App() {
         <Route path="/tracks" element={<TracksPage />} />
         
         {/* Participant Routes */}
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/participant/dashboard" element={<ParticipantDashboard />} />
 
         {/* Judge Routes */}

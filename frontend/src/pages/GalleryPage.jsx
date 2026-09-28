@@ -57,21 +57,23 @@ export default function GalleryPage() {
       </video>
 
       {/* Navigation Bar */}
-      <nav className="relative z-50 w-full flex items-center justify-between backdrop-blur-xl border-b border-white/10 px-8 py-5 bg-black/40">
-        <div className="flex items-center gap-4 cursor-pointer group" onClick={() => navigate('/')}>
-          <button className="text-white/60 hover:text-white transition-colors bg-transparent border-none">
-            <ArrowLeft size={24} className="group-hover:-translate-x-1 transition-transform" />
-          </button>
-          <div className="h-6 w-px bg-white/20" />
-          <div className="relative flex flex-col items-center">
-            <DinoIcon className="w-10 h-8 -ml-1 text-white" style={{ fill: 'currentColor' }} />
-            <div className="w-8 h-[2px] mt-0.5 bg-white" />
+      <div className="p-4 relative z-50">
+        <nav className="max-w-7xl mx-auto bg-black/40 backdrop-blur-2xl border border-white/10 rounded-[2rem] px-8 py-5 flex items-center justify-between shadow-2xl">
+          <div className="flex items-center gap-4 cursor-pointer group" onClick={() => navigate('/')}>
+            <button className="text-white/60 hover:text-white transition-colors bg-transparent border-none">
+              <ArrowLeft size={24} className="group-hover:-translate-x-1 transition-transform" />
+            </button>
+            <div className="h-6 w-px bg-white/20" />
+            <div className="relative flex flex-col items-center">
+              <DinoIcon className="w-10 h-8 -ml-1 text-white" style={{ fill: 'currentColor' }} />
+              <div className="w-8 h-[2px] mt-0.5 bg-white" />
+            </div>
+            <span className="font-bold tracking-[0.15em] text-lg uppercase flex items-start gap-1 text-white">
+              DOGFOOD<span className="text-[10px] mt-0.5 opacity-60">®</span>
+            </span>
           </div>
-          <span className="font-bold tracking-[0.15em] text-lg uppercase flex items-start gap-1 text-white">
-            DOGFOOD<span className="text-[10px] mt-0.5 opacity-60">®</span>
-          </span>
-        </div>
-      </nav>
+        </nav>
+      </div>
 
       {/* Content */}
       <div className="relative z-10 w-full max-w-7xl mx-auto px-6 py-20 flex flex-col gap-10 overflow-y-auto">
@@ -83,7 +85,7 @@ export default function GalleryPage() {
           transition={{ duration: 0.8 }}
           className="text-center space-y-6 mb-8"
         >
-          <h1 className="text-4xl md:text-6xl font-light tracking-[0.15em] uppercase">
+          <h1 className="text-5xl md:text-6xl tracking-tighter font-extrabold">
             Project Gallery
           </h1>
           <p className="text-white/60 text-lg md:text-xl font-light tracking-wide max-w-2xl mx-auto">
@@ -128,36 +130,32 @@ export default function GalleryPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {projects.map((project, i) => (
               <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.6, delay: i * 0.1 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.2 }}
                 key={project.id}
-                className="group p-8 rounded-3xl bg-white/[0.03] backdrop-blur-2xl border border-white/10 shadow-2xl relative overflow-hidden flex flex-col h-full hover:bg-white/[0.06] hover:border-white/20 transition-all"
+                className="p-8 rounded-[2rem] bg-white/[0.02] backdrop-blur-xl border border-white/5 shadow-lg flex flex-col h-full hover:bg-white/[0.06] hover:border-white/15 transition-colors duration-200"
               >
-                <div className="relative z-10 flex-1 flex flex-col">
+                <div className="flex-1 flex flex-col">
                   <div className="flex items-start justify-between mb-6 gap-4">
-                    <h2 className="text-xl font-semibold tracking-wide leading-tight text-white group-hover:text-white transition-colors">{project.title}</h2>
+                    <h2 className="text-xl font-medium tracking-wide leading-tight text-white">{project.title}</h2>
                     <span className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] uppercase tracking-widest text-white/50 shrink-0">
                       {project.status || 'Submitted'}
                     </span>
                   </div>
-                  <p className="text-white/70 font-light text-base leading-relaxed mb-8 line-clamp-4">
+                  <p className="text-white/60 font-light text-sm leading-relaxed mb-8 line-clamp-4">
                     {project.summary}
                   </p>
                   
-                  <div className="pt-6 border-t border-white/10 flex items-center justify-between mt-auto">
+                  <div className="pt-5 flex items-center justify-between mt-auto">
                     <a 
                       href={project.repo_url} 
                       target="_blank" 
                       rel="noreferrer"
-                      className="inline-flex items-center gap-2 text-[11px] uppercase tracking-[0.15em] font-medium text-white/50 hover:text-white transition-colors"
+                      className="inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.15em] font-medium text-white/40 hover:text-white transition-colors"
                     >
-                      <Code size={16} weight="duotone" /> Repository
+                      <Code size={14} weight="duotone" /> Repository
                     </a>
-                    <button className="w-10 h-10 rounded-full bg-white/10 group-hover:bg-white flex items-center justify-center transition-colors cursor-pointer">
-                      <ArrowRight size={16} className="text-white group-hover:text-black transition-colors" />
-                    </button>
                   </div>
                 </div>
               </motion.div>

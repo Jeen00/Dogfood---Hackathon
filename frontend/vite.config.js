@@ -13,17 +13,10 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      // Forward API calls to Express backend
+      // Forward only specific API prefixes to the Express backend to prevent shadowing React routes
       "/projects/api": "http://localhost:8080",
       "/api": "http://localhost:8080",
       "/auth": "http://localhost:8080",
-      "/team": "http://localhost:8080",
-      "/submissions": "http://localhost:8080",
-      "/organizer": "http://localhost:8080",
-      "/events": "http://localhost:8080",
-      "/invite": "http://localhost:8080",
-      "/judge/score": "http://localhost:8080",
-      "/judge/scores": "http://localhost:8080",
     },
   },
 })

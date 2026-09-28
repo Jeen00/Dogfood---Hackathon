@@ -199,7 +199,22 @@ export default function LoginPage() {
           </div>
 
           {/* Form */}
-          <form action="/auth/login" method="POST" className="space-y-4">
+          <form onSubmit={async (e) => {
+              e.preventDefault();
+              const res = await fetch('/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+              });
+              const data = await res.json();
+              if (res.ok) {
+                if (data.role === 'judge') navigate('/judge/dashboard');
+                else if (data.role === 'organizer') navigate('/organizer/events');
+                else navigate('/participant/dashboard');
+              } else {
+                alert(data.error || 'Login failed');
+              }
+            }} className="space-y-4">
             <InputGroup
               name="email"
               label="Email Address"

@@ -16,14 +16,14 @@ export default function ScorePage() {
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
-    fetch(`/api/judge/scores/${id}`)
+    fetch(`/api/judge/assignments/${id}`)
       .then(res => res.json())
       .then(data => {
         if (data.project && !project) setProject(data.project)
         if (data.criteria) setCriteria(data.criteria)
-        if (data.existingScore) {
-          setScores(data.existingScore.scores)
-          setComment(data.existingScore.comment || '')
+        if (data.score) {
+          setScores(data.score.criteria_scores || {})
+          setComment(data.score.comment || '')
         }
         setLoading(false)
       })
@@ -37,10 +37,10 @@ export default function ScorePage() {
     e.preventDefault()
     setSubmitting(true)
     try {
-      const res = await fetch(`/api/judge/scores/${id}`, {
+      const res = await fetch(`/api/judge/scores`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ scores, comment })
+        body: JSON.stringify({ project_id: id, criteria_scores: scores, comment })
       })
       if (res.ok) {
         navigate('/judge/dashboard')
@@ -53,8 +53,8 @@ export default function ScorePage() {
     setSubmitting(false)
   }
 
-  const allScored = criteria.every(c => scores[c.key])
-  const weightedScore = criteria.reduce((sum, c) => sum + (scores[c.key] || 0) * c.weight, 0).toFixed(2)
+  const allScored = criteria.every(c => scores[c.name])
+  const weightedScore = criteria.reduce((sum, c) => sum + (scores[c.name] || 0) * c.weight, 0).toFixed(2)
 
   if (loading) return (
     <div className="min-h-screen bg-[#0a0d12] flex items-center justify-center">
@@ -92,11 +92,11 @@ export default function ScorePage() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.1, duration: 0.5 }}
-                key={c.key} 
+                key={c.name} 
                 className="space-y-6"
               >
                 <div className="flex items-center justify-between border-b border-white/5 pb-4">
-                  <label className="text-sm font-light tracking-widest uppercase text-white/80">{c.label}</label>
+                  <label className="text-sm font-light tracking-widest uppercase text-white/80">{c.name}</label>
                   <span className="text-[10px] font-medium tracking-[0.2em] text-white/30 uppercase">
                     Weight {c.weight * 100}%
                   </span>
@@ -106,9 +106,9 @@ export default function ScorePage() {
                     <button
                       key={val}
                       type="button"
-                      onClick={() => setScores(s => ({ ...s, [c.key]: val }))}
+                      onClick={() => setScores(s => ({ ...s, [c.name]: val }))}
                       className={`flex-1 py-4 flex items-center justify-center transition-all cursor-pointer border-b-2 ${
-                        scores[c.key] === val 
+                        scores[c.name] === val 
                           ? 'border-white text-white bg-white/5' 
                           : 'border-transparent text-white/30 hover:bg-white/[0.02] hover:text-white/60'
                       }`}

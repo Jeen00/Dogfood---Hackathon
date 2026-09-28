@@ -18,15 +18,10 @@ const judgeRouter         = require('./routes/judge');
 const organizerRouter     = require('./routes/organizer');
 const exportRouter        = require('./routes/export');
 const normalizationRouter = require('./routes/normalization');
-const judgePagesRouter    = require('./routes/judge-pages');
 const githubRouter        = require('./routes/github');
 
 const app  = express();
 const PORT = process.env.PORT || 8080;
-
-// ─── View engine ─────────────────────────────────────────────────────────────
-app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'));
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
 app.use(cookieParser());
@@ -43,12 +38,11 @@ app.use('/api/events',            eventsRouter);
 app.use('/team',                  teamsRouter);
 
 app.use('/api/teams',             teamsRouter);
-app.get('/invite', (req, res) => res.render('invite', { session: req.session, error: null }));
-app.get('/invite/:code', (req, res) => res.redirect('/team/join/' + encodeURIComponent(req.params.code)));
+app.get('/invite', (req, res) => res.redirect('http://localhost:5173/login'));
+app.get('/invite/:code', (req, res) => res.redirect('http://localhost:5173/participant/dashboard?code=' + encodeURIComponent(req.params.code)));
 app.use('/submissions',           submissionsRouter);
 
 app.use('/api/submissions',       submissionsRouter);
-app.use('/judge',                 judgePagesRouter);
 app.use('/api/judge',             judgeRouter);
 app.use('/organizer',             organizerRouter);
 app.use('/api/organizer',         organizerRouter);
@@ -57,40 +51,25 @@ app.use('/api/normalization',     normalizationRouter);
 app.use('/',                      githubRouter);
 
 // ─── Login convenience route ──────────────────────────────────────────────
-// /login renders the login page; actual form posts go to /auth/login
 app.get('/login', (req, res) => {
-  if (req.session) {
-    if (req.session.role === 'judge')     return res.redirect('/judge/dashboard');
-    if (req.session.role === 'organizer') return res.redirect('/organizer/events');
-    if (req.session.role === 'participant') return res.redirect('/team');
-    return res.redirect('/projects');
-
-  }
-  return res.render('login', { session: null, error: null });
+  res.redirect('http://localhost:5173/login');
 });
 
-
-// ─── Static content pages ─────────────────────────────────────────────────────
-app.get('/tos', (req, res) => res.render('tos', { session: req.session }));
-app.get('/privacy', (req, res) => res.render('privacy', { session: req.session }));
-
 // ─── Root redirect ────────────────────────────────────────────────────────────
-app.get('/', (req, res) => res.redirect('/projects'));
+app.get('/', (req, res) => res.redirect('http://localhost:5173/projects'));
 
 // ─── 404 handler ─────────────────────────────────────────────────────────────
 app.use((req, res) => {
-  res.status(404).render('error', {
-    message: `Page not found: ${req.path}`,
-    session: req.session
+  res.status(404).json({
+    error: `API route not found: ${req.path}`
   });
 });
 
 // ─── Error handler ────────────────────────────────────────────────────────────
 app.use((err, req, res, next) => {
   console.error('[server] Unhandled error:', err);
-  res.status(500).render('error', {
-    message: err.message || 'Internal server error',
-    session: req.session || null
+  res.status(500).json({
+    error: err.message || 'Internal server error'
   });
 });
 
@@ -99,7 +78,7 @@ initDb();
 seedDb();
 
 app.listen(PORT, () => {
-  console.log(`[server] DOGFOOD 2026 running on http://localhost:${PORT}`);
+  console.log(`[server] DOGFOOD 2026 backend running on http://localhost:${PORT}`);
 });
 
 module.exports = app;
