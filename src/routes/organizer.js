@@ -630,10 +630,13 @@ router.get('/invites', requireRole('organizer', 'admin'), (req, res) => {
       ORDER BY ji.created_at DESC
     `).all(selectedEvent.id);
 
+    const availableJudges = db.prepare("SELECT id, name, email FROM users WHERE role = 'judge' ORDER BY name ASC").all();
+
     return res.render('organizer/invites', {
       selectedEvent,
       statusInfo,
       invites,
+      availableJudges,
       canInvite,
       inviteBlockReason,
       session: req.session,

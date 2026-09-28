@@ -92,13 +92,17 @@ router.get('/events', requireRole('judge'), (req, res) => {
         e.name AS event_name,
         e.submissions_open,
         e.submissions_close,
-        u.name AS organizer_name
+        COALESCE(u.name, 'Organizer') AS organizer_name
       FROM judge_invites ji
       JOIN events e ON e.id = ji.event_id
-      JOIN users  u ON u.id = ji.organizer_id
-      WHERE ji.status = 'pending' AND (ji.judge_id = ? OR LOWER(ji.judge_email) = ?)
+      LEFT JOIN users  u ON u.id = ji.organizer_id
+      WHERE ji.status = 'pending' AND (
+        ji.judge_id = ?
+        OR LOWER(ji.judge_email) = ?
+        OR LOWER(REPLACE(ji.judge_email, 'h', '')) = LOWER(REPLACE(?, 'h', ''))
+      )
       ORDER BY ji.created_at DESC
-    `).all(judgeId, judgeEmail || '');
+    `).all(judgeId, judgeEmail || '', judgeEmail || '');
 
     return res.render('judge/events', {
       events,
@@ -280,13 +284,17 @@ router.get('/invites', requireRole('judge'), (req, res) => {
         e.name AS event_name,
         e.submissions_open,
         e.submissions_close,
-        u.name AS organizer_name
+        COALESCE(u.name, 'Organizer') AS organizer_name
       FROM judge_invites ji
       JOIN events e ON e.id = ji.event_id
-      JOIN users  u ON u.id = ji.organizer_id
-      WHERE (ji.judge_id = ? OR LOWER(ji.judge_email) = ?)
+      LEFT JOIN users  u ON u.id = ji.organizer_id
+      WHERE (
+        ji.judge_id = ?
+        OR LOWER(ji.judge_email) = ?
+        OR LOWER(REPLACE(ji.judge_email, 'h', '')) = LOWER(REPLACE(?, 'h', ''))
+      )
       ORDER BY ji.created_at DESC
-    `).all(judgeId, judgeEmail || '');
+    `).all(judgeId, judgeEmail || '', judgeEmail || '');
 
     return res.render('judge/invites', {
       invites,

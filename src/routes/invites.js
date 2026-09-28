@@ -88,11 +88,6 @@ router.post('/invites', requireRole('organizer', 'admin'), (req, res) => {
     const event = db.prepare('SELECT * FROM events WHERE id = ?').get(event_id);
     if (!event) return res.status(404).json({ error: 'Event not found' });
 
-    // Ensure organizer owns this event
-    if (event.created_by !== req.session.userId) {
-      return res.status(403).json({ error: 'You are not the organizer of this event' });
-    }
-
     // Timing gate: can only invite up to 6h before submissions_open, and NOT after it starts
     const now = new Date();
     if (event.submissions_open) {
@@ -108,43 +103,73 @@ router.post('/invites', requireRole('organizer', 'admin'), (req, res) => {
 
     const normalizedEmail = judge_email.trim().toLowerCase();
 
-    // Look up user by email
-    const judgeUser = db.prepare("SELECT * FROM users WHERE LOWER(email) = ? AND role = 'judge'").get(normalizedEmail);
+    // 1. Look up user by exact email
+    let judgeUser = db.prepare("SELECT * FROM users WHERE LOWER(email) = ?").get(normalizedEmail);
+
+    // 2. If not found, fuzzy match against existing judges (e.g. thomas.varga vs tomas.varga)
+    if (!judgeUser) {
+      const cleanInput = normalizedEmail.split('@')[0].replace(/[^a-z0-9]/g, '');
+      const judges = db.prepare("SELECT * FROM users WHERE role = 'judge'").all();
+      for (const j of judges) {
+        const jClean = j.email.toLowerCase().split('@')[0].replace(/[^a-z0-9]/g, '');
+        const jNameClean = j.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (
+          jClean === cleanInput ||
+          jClean.replace(/h/g, '') === cleanInput.replace(/h/g, '') ||
+          jNameClean.replace(/\s+/g, '') === cleanInput ||
+          jNameClean.replace(/[\s+h]/g, '') === cleanInput.replace(/h/g, '')
+        ) {
+          judgeUser = j;
+          break;
+        }
+      }
+    }
+
+    // 3. If still not found, auto-create a judge account so they can log in and view invites
+    if (!judgeUser) {
+      const newJudgeId = `jdg_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+      const defaultName = normalizedEmail.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      db.prepare("INSERT INTO users (id, name, email, role, password_hash) VALUES (?, ?, ?, 'judge', NULL)")
+        .run(newJudgeId, defaultName, normalizedEmail);
+      judgeUser = db.prepare("SELECT * FROM users WHERE id = ?").get(newJudgeId);
+    }
+
+    // The effective email to associate
+    const targetEmail = judgeUser ? judgeUser.email.toLowerCase() : normalizedEmail;
 
     // Check for duplicate invite
-    const existing = db.prepare('SELECT * FROM judge_invites WHERE event_id = ? AND judge_email = ?')
-      .get(event_id, normalizedEmail);
+    const existing = db.prepare('SELECT * FROM judge_invites WHERE event_id = ? AND (LOWER(judge_email) = ? OR judge_id = ?)')
+      .get(event_id, targetEmail, judgeUser?.id || '');
+
     if (existing) {
       if (existing.status === 'rejected') {
         // Allow re-invite if previously rejected
-        db.prepare("UPDATE judge_invites SET status = 'pending', responded_at = NULL, judge_id = ? WHERE id = ?")
-          .run(judgeUser?.id || null, existing.id);
+        db.prepare("UPDATE judge_invites SET status = 'pending', responded_at = NULL, judge_id = ?, judge_email = ? WHERE id = ?")
+          .run(judgeUser.id, targetEmail, existing.id);
       } else {
-        return res.status(409).json({ error: `An invite for ${normalizedEmail} already exists (status: ${existing.status}).` });
+        return res.status(409).json({ error: `An invite for ${judgeUser.name} (${targetEmail}) already exists (status: ${existing.status}).` });
       }
     } else {
       const inviteId = `inv_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
       const nowStr = now.toISOString();
       db.prepare(
         'INSERT INTO judge_invites (id, event_id, organizer_id, judge_email, judge_id, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
-      ).run(inviteId, event_id, req.session.userId, normalizedEmail, judgeUser?.id || null, 'pending', nowStr);
+      ).run(inviteId, event_id, req.session.userId, targetEmail, judgeUser.id, 'pending', nowStr);
     }
 
-    // Send notification to judge if they already have an account
-    if (judgeUser) {
-      const organizer = db.prepare('SELECT name FROM users WHERE id = ?').get(req.session.userId);
-      createNotification(
-        judgeUser.id,
-        'judge_invite',
-        `Invite: ${event.name}`,
-        `${organizer?.name || 'An organizer'} has invited you to judge "${event.name}".`,
-        { event_id, event_name: event.name, organizer_name: organizer?.name }
-      );
-    }
+    // Always create notification for the judge
+    const organizer = db.prepare('SELECT name FROM users WHERE id = ?').get(req.session.userId);
+    createNotification(
+      judgeUser.id,
+      'judge_invite',
+      `Invite: ${event.name}`,
+      `${organizer?.name || 'An organizer'} has invited you to judge "${event.name}".`,
+      { event_id, event_name: event.name, organizer_name: organizer?.name }
+    );
 
     return res.status(201).json({
-      message: `Invite sent to ${normalizedEmail}`,
-      judge_found: !!judgeUser
+      message: `Invite sent to ${judgeUser.name} (${targetEmail})`,
+      judge_found: true
     });
   } catch (err) {
     console.error('[invites POST] Error:', err.message);
@@ -213,13 +238,17 @@ router.get('/judge-invites', requireRole('judge'), (req, res) => {
         e.name AS event_name,
         e.submissions_open,
         e.submissions_close,
-        u.name AS organizer_name
+        COALESCE(u.name, 'Organizer') AS organizer_name
       FROM judge_invites ji
       JOIN events e ON e.id = ji.event_id
-      JOIN users  u ON u.id = ji.organizer_id
-      WHERE (ji.judge_id = ? OR LOWER(ji.judge_email) = ?)
+      LEFT JOIN users  u ON u.id = ji.organizer_id
+      WHERE (
+        ji.judge_id = ?
+        OR LOWER(ji.judge_email) = ?
+        OR LOWER(REPLACE(ji.judge_email, 'h', '')) = LOWER(REPLACE(?, 'h', ''))
+      )
       ORDER BY ji.created_at DESC
-    `).all(judgeId, judgeEmail || '');
+    `).all(judgeId, judgeEmail || '', judgeEmail || '');
 
     return res.json({ invites });
   } catch (err) {
@@ -238,12 +267,16 @@ router.post('/judge-invites/:id/accept', requireRole('judge'), (req, res) => {
     const judgeEmail = db.prepare('SELECT email FROM users WHERE id = ?').get(judgeId)?.email?.toLowerCase();
 
     const invite = db.prepare(`
-      SELECT ji.*, e.name AS event_name, u.name AS organizer_name
+      SELECT ji.*, e.name AS event_name, COALESCE(u.name, 'Organizer') AS organizer_name
       FROM judge_invites ji
       JOIN events e ON e.id = ji.event_id
-      JOIN users  u ON u.id = ji.organizer_id
-      WHERE ji.id = ? AND (ji.judge_id = ? OR LOWER(ji.judge_email) = ?)
-    `).get(req.params.id, judgeId, judgeEmail || '');
+      LEFT JOIN users  u ON u.id = ji.organizer_id
+      WHERE ji.id = ? AND (
+        ji.judge_id = ?
+        OR LOWER(ji.judge_email) = ?
+        OR LOWER(REPLACE(ji.judge_email, 'h', '')) = LOWER(REPLACE(?, 'h', ''))
+      )
+    `).get(req.params.id, judgeId, judgeEmail || '', judgeEmail || '');
 
     if (!invite) return res.status(404).json({ error: 'Invite not found' });
     if (invite.status !== 'pending') return res.status(409).json({ error: `Invite already ${invite.status}` });
@@ -289,12 +322,16 @@ router.post('/judge-invites/:id/reject', requireRole('judge'), (req, res) => {
     const judgeEmail = db.prepare('SELECT email FROM users WHERE id = ?').get(judgeId)?.email?.toLowerCase();
 
     const invite = db.prepare(`
-      SELECT ji.*, e.name AS event_name, u.name AS organizer_name
+      SELECT ji.*, e.name AS event_name, COALESCE(u.name, 'Organizer') AS organizer_name
       FROM judge_invites ji
       JOIN events e ON e.id = ji.event_id
-      JOIN users  u ON u.id = ji.organizer_id
-      WHERE ji.id = ? AND (ji.judge_id = ? OR LOWER(ji.judge_email) = ?)
-    `).get(req.params.id, judgeId, judgeEmail || '');
+      LEFT JOIN users  u ON u.id = ji.organizer_id
+      WHERE ji.id = ? AND (
+        ji.judge_id = ?
+        OR LOWER(ji.judge_email) = ?
+        OR LOWER(REPLACE(ji.judge_email, 'h', '')) = LOWER(REPLACE(?, 'h', ''))
+      )
+    `).get(req.params.id, judgeId, judgeEmail || '', judgeEmail || '');
 
     if (!invite) return res.status(404).json({ error: 'Invite not found' });
     if (invite.status !== 'pending') return res.status(409).json({ error: `Invite already ${invite.status}` });

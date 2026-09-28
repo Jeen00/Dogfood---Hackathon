@@ -18,17 +18,37 @@
   <div style="background:#fff; border:2px solid #1A1A1A; padding:20px; margin-bottom:28px;">
     <h2 style="margin:0 0 14px 0; font-size:1.1rem;">Send New Invite</h2>
     <p style="color:#555; margin:0 0 14px 0; font-size:0.9rem;">
-      Enter a judge's email address. They must have an account with the <strong>judge</strong> role.
-      Invites can be sent until the hackathon starts.
+      Enter a judge's email address or select from registered judges.
+      Invites can be sent up to 6 hours before the hackathon begins.
     </p>
     <form id="invite-form" style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
-      <div style="flex:1; min-width:220px;">
+      <div style="flex:1; min-width:260px;">
         <label for="judge_email" style="display:block; font-weight:bold; margin-bottom:6px; font-size:0.9rem;">Judge Email</label>
-        <input type="email" id="judge_email" placeholder="judge@example.com"
+        <input type="email" id="judge_email" list="judges-list" placeholder="e.g. tomas.varga@example.org" required
           style="width:100%; padding:9px 12px; border:1px solid #1A1A1A; font-size:0.95rem; background:#F5F5F0;">
+        <datalist id="judges-list">
+          <% if (typeof availableJudges !== 'undefined' && availableJudges) { %>
+            <% for (const j of availableJudges) { %>
+              <option value="<%= j.email %>"><%= j.name %> (<%= j.email %>)</option>
+            <% } %>
+          <% } %>
+        </datalist>
       </div>
       <button type="submit" class="btn-action" style="white-space:nowrap;">Send Invite</button>
     </form>
+
+    <% if (typeof availableJudges !== 'undefined' && availableJudges && availableJudges.length > 0) { %>
+      <div style="margin-top: 14px; font-size: 0.85rem; color: #555;">
+        <span style="font-weight: bold; margin-right: 6px;">Registered Judges:</span>
+        <% for (const j of availableJudges.slice(0, 8)) { %>
+          <button type="button" onclick="document.getElementById('judge_email').value='<%= j.email %>'"
+            style="display: inline-block; background: #E8E8E4; border: 1px solid #ccc; padding: 2px 8px; margin: 2px 4px 2px 0; font-size: 0.8rem; cursor: pointer; color: #1A1A1A;">
+            <%= j.name %> (<%= j.email %>)
+          </button>
+        <% } %>
+      </div>
+    <% } %>
+
     <div id="invite-msg" style="margin-top:10px; font-size:0.9rem; display:none;"></div>
   </div>
 <% } else { %>
