@@ -7,27 +7,28 @@ import { ArrowRight, Download } from 'lucide-react'
 export default function OrganizerDashboard() {
   const navigate = useNavigate()
   const [data, setData] = useState([])
-  const [stats, setStats] = useState({ projects: 0, judges: 0, scores: 0 })
+  const [stats, setStats] = useState({ totalProjects: 0, activeJudges: 0, scoresSubmitted: 0, completionRate: 0 })
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/organizer/progress')
-      .then(res => res.json())
-      .then(result => {
-        if (result.judgeProgress && result.projectCoverage) {
-          const chartData = result.projectCoverage.map(p => ({
+    Promise.all([
+      fetch('/api/organizer/progress').then(r => r.json()),
+      fetch('/api/organizer/stats').then(r => r.json())
+    ])
+      .then(([progress, statsData]) => {
+        if (progress.projectCoverage) {
+          setData(progress.projectCoverage.map(p => ({
             name: p.team_name,
             scored: p.reviews_received,
             total: p.reviews_needed
-          }))
-          setData(chartData)
-          
-          setStats({
-            projects: result.projectCoverage.length,
-            judges: result.judgeProgress.length,
-            scores: result.judgeProgress.reduce((sum, j) => sum + j.completed, 0)
-          })
+          })))
         }
+        setStats({
+          totalProjects: statsData.totalProjects ?? 0,
+          activeJudges: statsData.activeJudges ?? 0,
+          scoresSubmitted: statsData.scoresSubmitted ?? 0,
+          completionRate: statsData.completionRate ?? 0
+        })
         setLoading(false)
       })
       .catch(err => {
@@ -54,21 +55,16 @@ export default function OrganizerDashboard() {
       {/* Navbar */}
       <header className="sticky top-0 z-50 bg-[#0a0d12]/80 backdrop-blur-2xl border-b border-white/5">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-          <div 
-            onClick={() => navigate('/')}
-            className="flex items-center gap-4 cursor-pointer group"
-          >
+          <div onClick={() => navigate('/')} className="flex items-center gap-4 cursor-pointer group">
             <div className="w-8 h-[2px] bg-white transition-all group-hover:w-12" />
             <span className="font-bold tracking-[0.2em] text-sm uppercase">DOGFOOD<span className="opacity-50">2026</span></span>
           </div>
-          <button 
-            onClick={() => {
-              fetch('/auth/logout', { method: 'POST' }).then(() => navigate('/login'))
-            }}
-            className="text-[11px] tracking-[0.2em] uppercase text-white/50 hover:text-white transition-colors"
-          >
-            Log Out
-          </button>
+          <div className="flex items-center gap-6">
+            <button onClick={() => navigate('/organizer/events')} className="text-[11px] tracking-[0.2em] uppercase text-white/50 hover:text-white transition-colors">Events</button>
+            <button onClick={() => navigate('/organizer/results')} className="text-[11px] tracking-[0.2em] uppercase text-white/50 hover:text-white transition-colors">Results</button>
+            <button onClick={() => navigate('/organizer/assignments')} className="text-[11px] tracking-[0.2em] uppercase text-white/50 hover:text-white transition-colors">Assignments</button>
+            <button onClick={() => { fetch('/auth/logout', { method: 'POST' }).then(() => navigate('/login')) }} className="text-[11px] tracking-[0.2em] uppercase text-white/50 hover:text-white transition-colors">Log Out</button>
+          </div>
         </div>
       </header>
 
@@ -107,11 +103,12 @@ export default function OrganizerDashboard() {
           <div className="space-y-24">
             
             {/* Topline Metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-12 md:gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-12 md:gap-6">
               {[
-                { label: 'Total Projects', value: stats.projects },
-                { label: 'Active Judges', value: stats.judges },
-                { label: 'Scores Submitted', value: stats.scores }
+                { label: 'Total Projects', value: stats.totalProjects },
+                { label: 'Active Judges', value: stats.activeJudges },
+                { label: 'Scores Submitted', value: stats.scoresSubmitted },
+                { label: 'Completion Rate', value: `${stats.completionRate}%` },
               ].map((stat, i) => (
                 <motion.div 
                   initial={{ opacity: 0, y: 10 }}

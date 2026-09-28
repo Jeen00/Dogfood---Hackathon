@@ -130,8 +130,8 @@ function handleJoinTeam(code, req, res) {
 }
 
 /**
- * GET /team
- * Render team management page for current participant.
+ * GET /team or GET /api/teams
+ * EJS render for HTML requests; JSON for API requests.
  */
 router.get('/', requireRole('participant'), (req, res) => {
   try {
@@ -145,6 +145,11 @@ router.get('/', requireRole('participant'), (req, res) => {
       LEFT JOIN team_members tm2 ON tm2.team_id = t.id
       GROUP BY t.id
     `).all(userId);
+
+    const isJson = req.is('json') || (!req.accepts('html') && req.accepts('json')) || req.baseUrl.startsWith('/api');
+    if (isJson) {
+      return res.json({ teams });
+    }
 
     return res.render('team', {
       teams,

@@ -455,8 +455,10 @@ router.post('/invite-judge', requireRole('organizer', 'admin'), (req, res) => {
   try {
     const db = getDb();
     const { name, email } = req.body;
+    const isJson = req.is('json') || req.headers.accept?.includes('application/json');
 
     if (!name || !email) {
+      if (isJson) return res.status(400).json({ error: 'Name and email are required.' });
       return res.render('organizer/invite-judge', {
         session: req.session,
         error:   'Name and email are required.',
@@ -466,6 +468,7 @@ router.post('/invite-judge', requireRole('organizer', 'admin'), (req, res) => {
 
     const existing = db.prepare('SELECT id FROM users WHERE LOWER(email) = ?').get(email.toLowerCase());
     if (existing) {
+      if (isJson) return res.status(409).json({ error: 'A user with that email already exists.' });
       return res.render('organizer/invite-judge', {
         session: req.session,
         error:   'A user with that email already exists.',
@@ -487,13 +490,17 @@ router.post('/invite-judge', requireRole('organizer', 'admin'), (req, res) => {
     db.prepare('INSERT INTO audit_log (id, actor_id, action, target_id, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)')
       .run(`al_${Date.now()}`, req.session.userId, 'judge_invited', userId, email, now);
 
+    const successMsg = `Judge "${name}" created. Session cookie: session=${sessionId}`;
+    if (isJson) return res.json({ success: successMsg, userId, sessionId });
+
     return res.render('organizer/invite-judge', {
       session: req.session,
       error:   null,
-      success: `Judge "${name}" created. Session cookie: session=${sessionId}`
+      success: successMsg
     });
   } catch (err) {
     console.error('[organizer:invite-judge POST] Error:', err.message);
+    if (req.is('json')) return res.status(500).json({ error: 'An error occurred. Please try again.' });
     return res.render('organizer/invite-judge', {
       session: req.session,
       error:   'An error occurred. Please try again.',

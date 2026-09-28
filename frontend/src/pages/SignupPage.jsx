@@ -88,7 +88,7 @@ export default function SignupPage() {
       })
       if (res.ok) {
         if (role === 'judge') navigate('/judge/dashboard')
-        else navigate('/projects')
+        else navigate('/participant/dashboard')
       } else {
         const data = await res.json()
         alert('Signup failed: ' + (data.error || 'Unknown error'))
