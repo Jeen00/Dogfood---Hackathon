@@ -1,0 +1,184 @@
+<%- include('../layouts/header', { title: 'Hackathons', session }) %>
+
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+  <div>
+    <h1 style="margin: 0 0 8px 0; border: none; padding: 0;">Hackathons</h1>
+    <p style="color: #666; margin: 0;">Explore hackathons, participate with your team, and submit your projects.</p>
+  </div>
+</div>
+
+<hr style="margin-bottom: 28px;">
+
+<% if (typeof error !== 'undefined' && error) { %>
+  <div class="error" style="margin-bottom: 16px;"><%= error %></div>
+<% } %>
+<% if (typeof success !== 'undefined' && success) { %>
+  <div class="banner" style="margin-bottom: 16px; background: #e6f4ea; color: #137333; border-color: #34a853;"><%= success %></div>
+<% } %>
+<% if (typeof info !== 'undefined' && info) { %>
+  <div class="banner" style="margin-bottom: 16px;"><%= info %></div>
+<% } %>
+
+<!-- Pending Team Invitations (Real-time without page reload) -->
+<div id="pending-invites-section" style="<%= (typeof pendingInvites !== 'undefined' && pendingInvites && pendingInvites.length > 0) ? 'display:block;' : 'display:none;' %> margin-bottom: 32px;">
+  <h2 style="font-size: 1.15rem; margin-bottom: 12px; color: #1A1A1A;">📬 Pending Team Invitations</h2>
+  <div id="pending-invites-list" style="display: flex; flex-direction: column; gap: 14px;">
+    <% if (typeof pendingInvites !== 'undefined' && pendingInvites) { %>
+      <% for (const inv of pendingInvites) { %>
+        <div id="team-invite-<%= inv.id %>" style="background: #FFFFFF; border: 2px solid #1A1A1A; border-left: 6px solid #1A73E8; padding: 18px 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 14px;">
+            <div>
+              <div style="font-size: 0.8rem; font-weight: bold; text-transform: uppercase; color: #1A73E8; letter-spacing: 0.05em; margin-bottom: 4px;">
+                Team Invitation &bull; <%= inv.event_name %>
+              </div>
+              <h3 style="margin: 0 0 6px 0; font-size: 1.25rem; border: none; padding: 0;">
+                Team: <%= inv.team_name %>
+              </h3>
+              <div style="font-size: 0.9rem; color: #555;">
+                Invited by <strong><%= inv.inviter_name %></strong> (<%= inv.inviter_email %>)
+              </div>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+              <button onclick="handleTeamInvite('<%= inv.id %>', 'accept', this)" data-team="<%= inv.team_name %>" data-event-id="<%= inv.event_id %>"
+                style="background: #E6F4EA; border: 2px solid #34A853; color: #137333; font-weight: bold; font-size: 0.9rem; padding: 8px 18px; cursor: pointer;">
+                ✓ Accept
+              </button>
+              <button onclick="handleTeamInvite('<%= inv.id %>', 'decline', this)" data-team="<%= inv.team_name %>"
+                style="background: #FDECEA; border: 2px solid #EA4335; color: #c5221f; font-weight: bold; font-size: 0.9rem; padding: 8px 18px; cursor: pointer;">
+                ✗ Decline
+              </button>
+            </div>
+          </div>
+        </div>
+      <% } %>
+    <% } %>
+  </div>
+</div>
+
+<!-- All Hackathons List -->
+<div id="events-section">
+  <% if (!events || events.length === 0) { %>
+    <p>No hackathons are currently listed.</p>
+  <% } else { %>
+    <div style="display: flex; flex-direction: column; gap: 20px;">
+      <% for (const evt of events) { %>
+        <div id="event-card-<%= evt.id %>" class="event-card" style="border-left: 6px solid <%= evt.statusInfo.status === 'running' ? '#34a853' : (evt.statusInfo.status === 'upcoming' ? '#4285f4' : '#888888') %>;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; margin-bottom: 14px;">
+            <div>
+              <h2 style="margin: 0 0 6px 0; border: none; padding: 0; font-size: 1.4rem;">
+                <%= evt.name %>
+              </h2>
+              <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <span class="status-badge <%= evt.statusInfo.badgeClass %>"><%= evt.statusInfo.label %></span>
+                <span style="font-weight: bold; font-size: 0.9rem; color: <%= evt.statusInfo.status === 'running' ? '#137333' : '#555' %>;">
+                  ⏱ <%= evt.statusInfo.timeText %>
+                </span>
+                <% if (evt.userTeam) { %>
+                  <span style="background: #E8F0FE; color: #1A73E8; border: 1px solid #1A73E8; font-size: 0.78rem; font-weight: bold; padding: 2px 8px;">
+                    Team: <%= evt.userTeam.name %> <%= evt.userTeam.isLeader ? '(Leader)' : '(Member)' %>
+                  </span>
+                <% } else { %>
+                  <span style="background: #F1F3F4; color: #5F6368; border: 1px solid #DADCE0; font-size: 0.78rem; padding: 2px 8px;">
+                    No team yet
+                  </span>
+                <% } %>
+              </div>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+              <% if (evt.userTeam) { %>
+                <a href="/team?event_id=<%= evt.id %>" class="btn-action" style="font-size: 0.95rem; padding: 10px 18px; text-decoration: none;">
+                  Manage Team &rarr;
+                </a>
+                <% if (evt.statusInfo.status === 'running' && !evt.userTeam.project) { %>
+                  <a href="/submissions/new?event_id=<%= evt.id %>" style="background: #34A853; color: #fff; font-weight: bold; font-size: 0.9rem; padding: 10px 18px; text-decoration: none; border: 2px solid #137333;">
+                    + Submit Project
+                  </a>
+                <% } %>
+              <% } else { %>
+                <a href="/team?event_id=<%= evt.id %>" class="btn-action" style="background: #1A73E8; font-size: 0.95rem; padding: 10px 20px; text-decoration: none;">
+                  Participate &rarr;
+                </a>
+              <% } %>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 24px; flex-wrap: wrap; margin-top: 14px; padding-top: 12px; border-top: 1px solid #eee; font-size: 0.9rem; color: #444;">
+            <div>
+              <strong>Tracks:</strong> <%= evt.trackCount %> track<%= evt.trackCount === 1 ? '' : 's' %>
+            </div>
+            <% if (evt.userTeam) { %>
+              <div>
+                <strong>Team Members:</strong> <%= evt.userTeam.memberCount %>
+              </div>
+              <div>
+                <strong>Project:</strong>
+                <% if (evt.userTeam.project) { %>
+                  <a href="/projects/<%= evt.userTeam.project.id %>" style="color: #1A73E8; font-weight: bold;">
+                    <%= evt.userTeam.project.title %>
+                  </a>
+                  <span style="color: #137333; font-size: 0.8rem; margin-left: 4px;">(Submitted)</span>
+                <% } else { %>
+                  <span style="color: #666;">Not submitted</span>
+                <% } %>
+              </div>
+            <% } %>
+            <div>
+              <strong>Deadline:</strong> <%= evt.submissions_close ? new Date(evt.submissions_close).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : 'No deadline' %>
+            </div>
+          </div>
+        </div>
+      <% } %>
+    </div>
+  <% } %>
+</div>
+
+<script>
+function handleTeamInvite(id, action, btn) {
+  var teamName = btn ? btn.getAttribute('data-team') : 'team';
+  var box = document.getElementById('team-invite-' + id);
+  var btns = box ? box.querySelectorAll('button') : [];
+  btns.forEach(function(b) { b.disabled = true; });
+
+  fetch('/team/invitation/' + id + '/' + action, {
+    method: 'POST',
+    headers: { 'Accept': 'application/json' }
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (data.error) {
+      btns.forEach(function(b) { b.disabled = false; });
+      if (window.showToast) window.showToast(data.error, 'error');
+    } else {
+      if (action === 'accept') {
+        if (window.showToast) window.showToast('✓ Joined team "' + teamName + '"!', 'success');
+        box.style.borderColor = '#34A853';
+        box.style.background = '#E6F4EA';
+        box.innerHTML = '<div style="color:#137333; font-weight:bold; padding:6px 0;">✓ Accepted! You are now a member of ' + teamName + '. Reloading...</div>';
+        setTimeout(function() {
+          var evtId = btn ? btn.getAttribute('data-event-id') : '';
+          window.location.href = evtId ? '/team?event_id=' + evtId : '/team';
+        }, 1200);
+      } else {
+        if (window.showToast) window.showToast('Declined team invitation.', 'info');
+        box.style.borderColor = '#EA4335';
+        box.style.background = '#FDECEA';
+        box.innerHTML = '<div style="color:#c5221f; font-weight:bold; padding:6px 0;">✗ Invitation declined.</div>';
+        setTimeout(function() {
+          if (box) box.remove();
+          var remaining = document.querySelectorAll('#pending-invites-list > div');
+          if (remaining.length === 0) {
+            var sec = document.getElementById('pending-invites-section');
+            if (sec) sec.style.display = 'none';
+          }
+        }, 1200);
+      }
+    }
+  })
+  .catch(function() {
+    btns.forEach(function(b) { b.disabled = false; });
+    if (window.showToast) window.showToast('Network error. Please try again.', 'error');
+  });
+}
+</script>
+
+<%- include('../layouts/footer') %>
