@@ -1,4 +1,5 @@
 'use strict';
+require('dotenv').config();
 const express      = require('express');
 const cookieParser = require('cookie-parser');
 const path         = require('path');
@@ -17,6 +18,7 @@ const organizerRouter     = require('./routes/organizer');
 const exportRouter        = require('./routes/export');
 const normalizationRouter = require('./routes/normalization');
 const judgePagesRouter    = require('./routes/judge-pages');
+const githubRouter        = require('./routes/github');
 
 const app  = express();
 const PORT = process.env.PORT || 8080;
@@ -34,6 +36,7 @@ app.use(auth);
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 app.use('/projects',              galleryRouter);
+app.use('/api/projects',          galleryRouter);
 app.use('/auth',                  authRouter);
 app.use('/events',                eventsRouter);
 app.use('/team',                  teamsRouter);
@@ -49,6 +52,7 @@ app.use('/organizer',             organizerRouter);
 app.use('/api/organizer',         organizerRouter);
 app.use('/api/export.csv',        exportRouter);
 app.use('/api/normalization',     normalizationRouter);
+app.use('/',                      githubRouter);
 
 // ─── Login convenience route ──────────────────────────────────────────────
 // /login renders the login page; actual form posts go to /auth/login

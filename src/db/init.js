@@ -22,6 +22,30 @@ function initDb() {
   const schema = fs.readFileSync(SCHEMA_PATH, 'utf8');
   db.exec(schema);
 
+  // ─── Migrations ──────────────────────────────────────────────────────────
+  // ALTER TABLE is idempotent via try/catch since SQLite has no IF NOT EXISTS for columns
+  const migrations = [
+    "ALTER TABLE teams ADD COLUMN leader_id TEXT",
+    // ─── Gallery / project-detail columns ────────────────────────────────────
+    "ALTER TABLE projects ADD COLUMN difficulty TEXT",
+    "ALTER TABLE projects ADD COLUMN build_time TEXT",
+    "ALTER TABLE projects ADD COLUMN open_source INTEGER DEFAULT 0",
+    "ALTER TABLE projects ADD COLUMN license TEXT",
+    "ALTER TABLE projects ADD COLUMN live_demo_url TEXT",
+    "ALTER TABLE projects ADD COLUMN looking_for_contributors INTEGER DEFAULT 0",
+    "ALTER TABLE projects ADD COLUMN problem_statement TEXT",
+    "ALTER TABLE projects ADD COLUMN solution TEXT",
+    "ALTER TABLE projects ADD COLUMN required_skills TEXT",
+    "ALTER TABLE projects ADD COLUMN technologies TEXT",
+    "ALTER TABLE projects ADD COLUMN tags TEXT",
+    "ALTER TABLE projects ADD COLUMN thumbnail_url TEXT",
+    "ALTER TABLE projects ADD COLUMN view_count INTEGER DEFAULT 0",
+    "ALTER TABLE projects ADD COLUMN updated_at TEXT",
+  ];
+  for (const m of migrations) {
+    try { db.exec(m); } catch (_) { /* column already exists — skip */ }
+  }
+
   db.close();
   console.log('[init] Schema applied to', DB_PATH);
 }

@@ -115,6 +115,118 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* ── How It Works (Z-Score Normalization Engine) ── */}
+        <section id="how-it-works" className="py-32 px-6 border-t border-white/5">
+          <div className="max-w-5xl mx-auto">
+            <motion.div 
+              initial={{ opacity: 0, y: 50 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-100px" }}
+              transition={{ duration: 0.8 }}
+              className="text-center mb-24"
+            >
+              <h2 className="text-3xl md:text-5xl font-light tracking-widest uppercase mb-6">
+                The Transparency Engine
+              </h2>
+              <p className="text-white/60 text-lg md:text-xl max-w-2xl mx-auto tracking-wide">
+                We believe hackathons should be won on pure merit, not luck. Discover how our backend mathematically eliminates judge bias.
+              </p>
+            </motion.div>
+
+            <div className="space-y-32">
+              {/* Step 1 */}
+              <motion.div 
+                initial={{ opacity: 0, y: 40 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-100px" }}
+                className="flex flex-col md:flex-row items-center gap-12"
+              >
+                <div className="flex-1 space-y-6">
+                  <div className="text-sm font-bold tracking-[0.2em] text-white/50 uppercase">Phase 01</div>
+                  <h3 className="text-3xl md:text-4xl font-medium tracking-wide">Raw Evaluation</h3>
+                  <p className="text-white/70 text-lg leading-relaxed">
+                    Judges are strictly isolated to projects within their assigned tracks. They evaluate submissions using a standardized, weighted rubric: <strong>Functionality (50%)</strong>, <strong>Quality (30%)</strong>, and <strong>Presentation (20%)</strong>.
+                  </p>
+                </div>
+                <div className="flex-1 w-full relative">
+                  <div className="absolute inset-0 bg-gradient-to-r from-sky-500/10 to-transparent blur-3xl" />
+                  <div className="relative bg-black/60 backdrop-blur-2xl border border-white/10 rounded-2xl p-8 font-mono text-sm text-sky-300 shadow-2xl">
+                    <div className="text-white/40 mb-4">// POST /api/judge/scores</div>
+                    &#123;<br/>
+                    &nbsp;&nbsp;"project_id": "prj_41",<br/>
+                    &nbsp;&nbsp;"criteria_scores": &#123;<br/>
+                    &nbsp;&nbsp;&nbsp;&nbsp;"functionality": 4,<br/>
+                    &nbsp;&nbsp;&nbsp;&nbsp;"quality": 5,<br/>
+                    &nbsp;&nbsp;&nbsp;&nbsp;"presentation": 3<br/>
+                    &nbsp;&nbsp;&#125;,<br/>
+                    &nbsp;&nbsp;"weighted_score": 4.1<br/>
+                    &#125;
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Step 2 */}
+              <motion.div 
+                initial={{ opacity: 0, y: 40 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-100px" }}
+                className="flex flex-col md:flex-row-reverse items-center gap-12"
+              >
+                <div className="flex-1 space-y-6">
+                  <div className="text-sm font-bold tracking-[0.2em] text-white/50 uppercase">Phase 02</div>
+                  <h3 className="text-3xl md:text-4xl font-medium tracking-wide">Z-Score Normalization</h3>
+                  <p className="text-white/70 text-lg leading-relaxed">
+                    This is our killer feature. The platform calculates the mean (<span className="italic">μ</span>) and standard deviation (<span className="italic">σ</span>) for every individual judge. By converting raw scores into Z-scores, a mathematically identical scale is created. A 3 from a strict judge carries the exact same weight as a 5 from a generous judge.
+                  </p>
+                </div>
+                <div className="flex-1 w-full relative">
+                  <div className="absolute inset-0 bg-gradient-to-l from-fuchsia-500/10 to-transparent blur-3xl" />
+                  <div className="relative bg-black/60 backdrop-blur-2xl border border-white/10 rounded-2xl p-8 font-mono text-sm text-fuchsia-300 shadow-2xl flex flex-col items-center justify-center py-12">
+                    <div className="text-3xl mb-4">z = (x - μ) / σ</div>
+                    <div className="text-white/50 text-xs tracking-widest uppercase mt-4">Cross-Judge Equalization</div>
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Step 3 */}
+              <motion.div 
+                initial={{ opacity: 0, y: 40 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-100px" }}
+                className="flex flex-col md:flex-row items-center gap-12"
+              >
+                <div className="flex-1 space-y-6">
+                  <div className="text-sm font-bold tracking-[0.2em] text-white/50 uppercase">Phase 03</div>
+                  <h3 className="text-3xl md:text-4xl font-medium tracking-wide">Public Audit Trail</h3>
+                  <p className="text-white/70 text-lg leading-relaxed">
+                    Once the judging window closes, the platform automatically locks and renders the public gallery. Every normalized score, track assignment, and mathematical adjustment is published for 100% transparent verification.
+                  </p>
+                </div>
+                <div className="flex-1 w-full relative">
+                  <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/10 to-transparent blur-3xl" />
+                  <div className="relative bg-black/60 backdrop-blur-2xl border border-white/10 rounded-2xl p-8 font-mono text-sm text-emerald-300 shadow-2xl">
+                    <div className="text-white/40 mb-4">SELECT * FROM normalized_scores;</div>
+                    <table className="w-full text-left">
+                      <thead>
+                        <tr className="text-white/40 border-b border-white/10">
+                          <th className="pb-3 font-normal">project</th>
+                          <th className="pb-3 font-normal">raw</th>
+                          <th className="pb-3 font-normal">z_score</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr><td className="py-3 border-b border-white/5">prj_41</td><td className="py-3 border-b border-white/5">4.1</td><td className="py-3 border-b border-white/5 text-white">+1.24</td></tr>
+                        <tr><td className="py-3 border-b border-white/5">prj_12</td><td className="py-3 border-b border-white/5">2.8</td><td className="py-3 border-b border-white/5 text-white">-0.82</td></tr>
+                        <tr><td className="py-3">prj_07</td><td className="py-3">3.5</td><td className="py-3 text-white">+0.15</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          </div>
+        </section>
+
         {/* ── Portal Access Section ── */}
         <section id="access" className="py-32 px-6">
           <div className="max-w-4xl mx-auto">

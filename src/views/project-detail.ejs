@@ -1,41 +1,419 @@
-<%- include('layouts/header', { title: project.title, session }) %>
+<%- include('layouts/header', { title: project.title }) %>
 
-<div class="breadcrumb">
-  <a href="/projects">Gallery</a> / <%= project.title %>
+<!-- ═══════════════════════════════════════════════════════════════
+     PROJECT DETAIL PAGE
+     ═══════════════════════════════════════════════════════════════ -->
+
+<%
+  var userLoggedIn = (typeof session !== 'undefined' && session);
+  var statusClass = {
+    'idea': 'badge-purple',
+    'in_development': 'badge-orange',
+    'submitted': 'badge-blue',
+    'completed': 'badge-green',
+    'live': 'badge-bright-green',
+    'open_for_contributors': 'badge-teal'
+  }[project.status] || 'badge-gray';
+  var statusLabel = {
+    'idea': 'Idea',
+    'in_development': 'In Development',
+    'submitted': 'Submitted',
+    'completed': 'Completed',
+    'live': 'Live',
+    'open_for_contributors': 'Open for Contributors'
+  }[project.status] || project.status;
+  var diffClass = {
+    'beginner': 'badge-green',
+    'intermediate': 'badge-orange',
+    'advanced': 'badge-red'
+  }[project.difficulty] || 'badge-gray';
+  var diffLabel = project.difficulty
+    ? (project.difficulty.charAt(0).toUpperCase() + project.difficulty.slice(1))
+    : 'Unknown';
+  var techs    = (project.technologies && Array.isArray(project.technologies)) ? project.technologies : [];
+  var tags     = (project.tags && Array.isArray(project.tags)) ? project.tags : [];
+  var skills   = (project.required_skills && Array.isArray(project.required_skills)) ? project.required_skills : [];
+  var trackHue = project.track_id ? ((project.track_id * 47) % 360) : 210;
+%>
+
+<!-- Breadcrumb -->
+<nav class="breadcrumb" aria-label="Breadcrumb">
+  <a href="/projects">Gallery</a>
+  <span class="breadcrumb-sep">›</span>
+  <span><%= project.title %></span>
+</nav>
+
+<!-- ── Project Header ─────────────────────────────────────────────── -->
+<div class="detail-header">
+  <!-- Track colour strip -->
+  <div class="detail-track-banner" style="background:hsl(<%= trackHue %>,55%,50%)"></div>
+
+  <div class="detail-header-body">
+    <h1 class="detail-title"><%= project.title %></h1>
+
+    <!-- Badges -->
+    <div class="detail-badges">
+      <span class="badge badge-track" style="background:hsl(<%= trackHue %>,55%,92%);color:hsl(<%= trackHue %>,55%,30%)"><%= project.track_name || 'General' %></span>
+      <span class="badge <%= diffClass %>"><%= diffLabel %></span>
+      <span class="badge <%= statusClass %>"><%= statusLabel %></span>
+    </div>
+
+    <!-- Description -->
+    <% if (project.summary) { %>
+    <p class="detail-description"><%= project.summary %></p>
+    <% } %>
+
+    <!-- Stats row -->
+    <div class="detail-stats">
+      <span title="Views">👁 <strong><%= project.view_count || 0 %></strong> Views</span>
+      <span class="stats-sep">·</span>
+      <span title="Votes">👍 <strong id="detail-vote-count"><%= project.vote_count || 0 %></strong> Votes</span>
+      <span class="stats-sep">·</span>
+      <span title="Saves">🔖 <strong id="detail-save-count"><%= project.save_count || 0 %></strong> Saves</span>
+      <span class="stats-sep">·</span>
+      <span title="Comments">💬 <strong><%= (comments && comments.length) || 0 %></strong> Comments</span>
+    </div>
+
+    <!-- Action buttons -->
+    <div class="detail-actions">
+      <button
+        id="detailVoteBtn"
+        class="btn-vote-detail <%= project.user_voted ? 'active' : '' %>"
+        data-id="<%= project.id %>"
+        data-action="vote"
+        title="<%= userLoggedIn ? 'Vote for this project' : 'Login to vote' %>"
+      ><span class="action-icon"><%= project.user_voted ? '👍' : '👍' %></span> <span id="detail-vote-label"><%= project.user_voted ? 'Voted' : 'Vote' %></span></button>
+
+      <button
+        id="detailSaveBtn"
+        class="btn-save-detail <%= project.user_saved ? 'active' : '' %>"
+        data-id="<%= project.id %>"
+        data-action="save"
+        title="<%= userLoggedIn ? 'Save this project' : 'Login to save' %>"
+      ><span class="action-icon">🔖</span> <span id="detail-save-label"><%= project.user_saved ? 'Saved' : 'Save' %></span></button>
+
+      <% if (project.live_demo_url) { %>
+      <a href="<%= project.live_demo_url %>" target="_blank" rel="noopener" class="btn-action-outline btn-demo">🔗 Live Demo</a>
+      <% } %>
+
+      <% if (project.repo_url) { %>
+      <a href="<%= project.repo_url %>" target="_blank" rel="noopener" class="btn-action-outline btn-github">⬛ GitHub</a>
+      <% } %>
+    </div>
+
+    <!-- Open source indicator -->
+    <% if (project.open_source) { %>
+    <div class="detail-opensource">
+      🔓 <strong>Open Source</strong><% if (project.license) { %> · License: <code><%= project.license %></code><% } %>
+    </div>
+    <% } %>
+  </div>
 </div>
 
-<h1><%= project.title %></h1>
+<!-- ── Main + Sidebar two-column ─────────────────────────────────── -->
+<div class="detail-layout">
+  <div class="detail-content">
 
-<table class="detail-table">
-  <tr>
-    <th>Team</th>
-    <td><%= project.team_name %></td>
-  </tr>
-  <tr>
-    <th>Track</th>
-    <td><%= project.track_name %></td>
-  </tr>
-  <tr>
-    <th>Status</th>
-    <td><%= project.status %></td>
-  </tr>
-  <tr>
-    <th>Submitted</th>
-    <td><%= project.submitted_at ? project.submitted_at.slice(0, 10) : 'N/A' %></td>
-  </tr>
-  <% if (project.repo_url) { %>
-  <tr>
-    <th>Repository</th>
-    <td><a href="<%= project.repo_url %>" target="_blank" rel="noopener noreferrer"><%= project.repo_url %></a></td>
-  </tr>
-  <% } %>
-</table>
+    <!-- Problem Statement -->
+    <% if (project.problem_statement) { %>
+    <section class="detail-section">
+      <h2>Problem Statement</h2>
+      <p><%= project.problem_statement %></p>
+    </section>
+    <% } %>
 
-<h2>Summary</h2>
-<p><%= project.summary || 'No summary provided.' %></p>
+    <!-- Solution -->
+    <% if (project.solution) { %>
+    <section class="detail-section">
+      <h2>Solution</h2>
+      <p><%= project.solution %></p>
+    </section>
+    <% } %>
 
-<div class="actions">
-  <a href="/projects">Back to Gallery</a>
-</div>
+    <!-- Technologies -->
+    <% if (techs.length > 0) { %>
+    <section class="detail-section">
+      <h2>Technologies</h2>
+      <div class="badge-group">
+        <% techs.forEach(function(t) { %><span class="badge badge-tech"><%= t %></span><% }) %>
+      </div>
+    </section>
+    <% } %>
+
+    <!-- Required Skills -->
+    <% if (skills.length > 0) { %>
+    <section class="detail-section">
+      <h2>Required Skills</h2>
+      <div class="badge-group">
+        <% skills.forEach(function(s) { %><span class="badge badge-skill"><%= s %></span><% }) %>
+      </div>
+    </section>
+    <% } %>
+
+    <!-- Tags -->
+    <% if (tags.length > 0) { %>
+    <section class="detail-section">
+      <h2>Tags</h2>
+      <div class="badge-group">
+        <% tags.forEach(function(tag) { %><span class="tag-chip">#<%= tag %></span><% }) %>
+      </div>
+    </section>
+    <% } %>
+
+    <!-- Repository -->
+    <% if (project.repo_url) { %>
+    <section class="detail-section">
+      <h2>Repository</h2>
+      <div class="repo-block">
+        <a href="<%= project.repo_url %>" target="_blank" rel="noopener" class="repo-link">⬛ <%= project.repo_url %></a>
+        <% if (project.open_source) { %>
+        <span class="badge badge-green" style="margin-left:12px">Open Source</span>
+        <% if (project.license) { %><code style="margin-left:8px"><%= project.license %></code><% } %>
+        <% } %>
+      </div>
+    </section>
+    <% } %>
+
+    <!-- Discussions / Comments -->
+    <section class="detail-section" id="comments">
+      <h2>Discussions (<%= (comments && comments.length) || 0 %>)</h2>
+
+      <% if (comments && comments.length > 0) { %>
+      <div class="comments-list" id="commentsList">
+        <% comments.forEach(function(c) { %>
+        <div class="comment-card">
+          <div class="comment-meta">
+            <strong class="comment-author"><%= c.author_name || 'Anonymous' %></strong>
+            <span class="comment-date"><%= new Date(c.created_at).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' }) %></span>
+          </div>
+          <p class="comment-content"><%= c.content %></p>
+        </div>
+        <% }) %>
+      </div>
+      <% } else { %>
+      <div class="comments-empty">No comments yet. Be the first to start a discussion!</div>
+      <% } %>
+
+      <!-- Add comment -->
+      <% if (userLoggedIn) { %>
+      <div class="comment-form-wrap">
+        <h3>Add a Comment</h3>
+        <form id="commentForm" class="comment-form">
+          <textarea
+            id="commentText"
+            name="content"
+            rows="3"
+            placeholder="Share your thoughts, feedback, or questions…"
+            required
+          ></textarea>
+          <div id="commentError" class="comment-error" aria-live="polite"></div>
+          <button type="submit" class="btn-comment-submit">Post Comment</button>
+        </form>
+      </div>
+      <% } else { %>
+      <div class="comment-login-prompt">
+        <a href="/login">Login</a> to join the discussion.
+      </div>
+      <% } %>
+    </section>
+
+  </div><!-- /.detail-content -->
+
+  <!-- ── Detail Sidebar ─────────────────────────────────────────── -->
+  <aside class="detail-sidebar">
+    <!-- Project Information table -->
+    <div class="detail-info-card">
+      <div class="detail-info-title">Project Information</div>
+      <table class="detail-table">
+        <tbody>
+          <tr><th>Track</th><td><%= project.track_name || '—' %></td></tr>
+          <tr><th>Difficulty</th><td><span class="badge <%= diffClass %>"><%= diffLabel %></span></td></tr>
+          <tr><th>Team Size</th><td><%= (teamMembers && teamMembers.length) ? teamMembers.length + ' member' + (teamMembers.length !== 1 ? 's' : '') : '—' %></td></tr>
+          <tr><th>Status</th><td><span class="badge <%= statusClass %>"><%= statusLabel %></span></td></tr>
+          <% if (project.build_time) { %><tr><th>Build Time</th><td><%= project.build_time %></td></tr><% } %>
+          <tr><th>License</th><td><%= project.license || '—' %></td></tr>
+          <tr><th>Contributors</th><td><%= project.looking_for_contributors ? '✅ Yes' : '❌ No' %></td></tr>
+          <tr><th>Submitted</th><td><%= project.submitted_at ? new Date(project.submitted_at).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' }) : '—' %></td></tr>
+          <tr><th>Updated</th><td><%= project.updated_at ? new Date(project.updated_at).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' }) : '—' %></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Team Members -->
+    <% if (teamMembers && teamMembers.length > 0) { %>
+    <div class="detail-info-card">
+      <div class="detail-info-title">Team Members</div>
+      <ul class="team-list">
+        <% teamMembers.forEach(function(m) { %>
+        <li class="team-member">
+          <span class="team-avatar"><%= (m.name || 'U').charAt(0).toUpperCase() %></span>
+          <div class="team-member-info">
+            <strong><%= m.name %></strong>
+            <% if (m.email) { %><span class="team-email"><%= m.email %></span><% } %>
+          </div>
+        </li>
+        <% }) %>
+      </ul>
+    </div>
+    <% } %>
+  </aside>
+</div><!-- /.detail-layout -->
+
+<!-- ── Similar Projects ───────────────────────────────────────────── -->
+<% if (similarProjects && similarProjects.length > 0) { %>
+<section class="detail-section similar-section">
+  <h2>Similar Projects</h2>
+  <div class="similar-grid">
+    <% similarProjects.forEach(function(sp, si) { %>
+    <%
+      var spHue = sp.track_id ? ((sp.track_id * 47) % 360) : (si * 60 % 360);
+      var spStatusClass = {
+        'idea':'badge-purple','in_development':'badge-orange','submitted':'badge-blue',
+        'completed':'badge-green','live':'badge-bright-green','open_for_contributors':'badge-teal'
+      }[sp.status] || 'badge-gray';
+    %>
+    <a href="/projects/<%= sp.id %>" class="similar-card">
+      <div class="track-banner" style="background:hsl(<%= spHue %>,55%,50%);height:4px"></div>
+      <div class="similar-card-body">
+        <div class="similar-card-title"><%= sp.title %></div>
+        <div class="similar-card-meta">
+          <span class="badge badge-track" style="background:hsl(<%= spHue %>,55%,92%);color:hsl(<%= spHue %>,55%,30%)"><%= sp.track_name || 'General' %></span>
+          <span class="badge <%= spStatusClass %>"><%= sp.status || '' %></span>
+        </div>
+        <div class="similar-card-stats">
+          <span>👍 <%= sp.vote_count || 0 %></span>
+          <span>👁 <%= sp.view_count || 0 %></span>
+        </div>
+      </div>
+    </a>
+    <% }) %>
+  </div>
+</section>
+<% } %>
+
+<!-- ── Tooltip ────────────────────────────────────────────────────── -->
+<div class="vote-tooltip" id="voteTooltip" role="alert" aria-live="polite"></div>
+
+<script>
+(function () {
+  var PROJECT_ID  = '<%= project.id %>';
+  var loggedIn    = <%= userLoggedIn ? 'true' : 'false' %>;
+
+  var tooltip = document.getElementById('voteTooltip');
+  function showTooltip(msg, x, y) {
+    tooltip.textContent = msg;
+    tooltip.style.left  = x + 'px';
+    tooltip.style.top   = (y - 44) + 'px';
+    tooltip.classList.add('visible');
+    clearTimeout(tooltip._t);
+    tooltip._t = setTimeout(function () { tooltip.classList.remove('visible'); }, 2200);
+  }
+
+  /* ── Vote button ── */
+  var voteBtn   = document.getElementById('detailVoteBtn');
+  var voteCount = document.getElementById('detail-vote-count');
+  var voteLabel = document.getElementById('detail-vote-label');
+  if (voteBtn) {
+    voteBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      var rect = voteBtn.getBoundingClientRect();
+      if (!loggedIn) { showTooltip('Login to vote', rect.left + window.scrollX, rect.top + window.scrollY); return; }
+      fetch('/api/projects/' + PROJECT_ID + '/vote', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'same-origin'
+      }).then(function(r) { return r.json(); }).then(function(data) {
+        voteBtn.classList.toggle('active', !!data.active);
+        if (voteCount) voteCount.textContent = data.count;
+        if (voteLabel) voteLabel.textContent  = data.active ? 'Voted' : 'Vote';
+      }).catch(function () { showTooltip('Something went wrong.', rect.left + window.scrollX, rect.top + window.scrollY); });
+    });
+  }
+
+  /* ── Save button ── */
+  var saveBtn   = document.getElementById('detailSaveBtn');
+  var saveCount = document.getElementById('detail-save-count');
+  var saveLabel = document.getElementById('detail-save-label');
+  if (saveBtn) {
+    saveBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      var rect = saveBtn.getBoundingClientRect();
+      if (!loggedIn) { showTooltip('Login to save', rect.left + window.scrollX, rect.top + window.scrollY); return; }
+      fetch('/api/projects/' + PROJECT_ID + '/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'same-origin'
+      }).then(function(r) { return r.json(); }).then(function(data) {
+        saveBtn.classList.toggle('active', !!data.active);
+        if (saveCount) saveCount.textContent = data.count;
+        if (saveLabel) saveLabel.textContent  = data.active ? 'Saved' : 'Save';
+      }).catch(function () { showTooltip('Something went wrong.', rect.left + window.scrollX, rect.top + window.scrollY); });
+    });
+  }
+
+  /* ── Comment form ── */
+  var commentForm = document.getElementById('commentForm');
+  var commentText = document.getElementById('commentText');
+  var commentList = document.getElementById('commentsList');
+  var commentErr  = document.getElementById('commentError');
+
+  if (commentForm) {
+    commentForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var content = commentText.value.trim();
+      if (!content) { commentErr.textContent = 'Comment cannot be empty.'; return; }
+      commentErr.textContent = '';
+      var submitBtn = commentForm.querySelector('button[type="submit"]');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Posting…';
+
+      fetch('/api/projects/' + PROJECT_ID + '/comment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ content: content })
+      })
+      .then(function (r) {
+        if (!r.ok) throw new Error('Failed');
+        return r.json();
+      })
+      .then(function (data) {
+        /* Append the new comment */
+        if (!commentList) {
+          var emptyMsg = document.querySelector('.comments-empty');
+          if (emptyMsg) emptyMsg.remove();
+          var newList = document.createElement('div');
+          newList.className = 'comments-list';
+          newList.id = 'commentsList';
+          commentForm.closest('.detail-section').insertBefore(newList, document.querySelector('.comment-form-wrap'));
+          commentList = newList;
+        }
+        var card = document.createElement('div');
+        card.className = 'comment-card comment-card-new';
+        var author = data.author_name || '<%= userLoggedIn && session ? session.name || "You" : "You" %>';
+        card.innerHTML =
+          '<div class="comment-meta">' +
+            '<strong class="comment-author">' + author + '</strong>' +
+            '<span class="comment-date">Just now</span>' +
+          '</div>' +
+          '<p class="comment-content">' + content.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</p>';
+        commentList.appendChild(card);
+        commentText.value = '';
+
+        /* Update comment count in stats */
+        var statsComment = document.querySelector('.detail-stats span[title="Comments"] strong');
+        if (statsComment) statsComment.textContent = parseInt(statsComment.textContent || '0') + 1;
+      })
+      .catch(function () {
+        commentErr.textContent = 'Failed to post comment. Please try again.';
+      })
+      .finally(function () {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Post Comment';
+      });
+    });
+  }
+})();
+</script>
 
 <%- include('layouts/footer') %>
