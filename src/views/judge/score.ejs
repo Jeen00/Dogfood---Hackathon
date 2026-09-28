@@ -1,7 +1,13 @@
-<%- include('../layouts/header', { title: 'Score: ' + project.title, session }) %>
+<%- include('../layouts/header', { title: 'Score: ' + project.title, session, selectedJudgeEvent: typeof selectedEvent !== 'undefined' ? selectedEvent : null }) %>
 
 <div class="breadcrumb">
-  <a href="/judge/dashboard">Dashboard</a> / Score Project
+  <a href="/judge/events">All Events</a>
+  <% if (typeof selectedEvent !== 'undefined' && selectedEvent) { %>
+    / <a href="/judge/dashboard?event_id=<%= selectedEvent.id %>"><%= selectedEvent.name %></a>
+  <% } else { %>
+    / <a href="/judge/dashboard">Dashboard</a>
+  <% } %>
+  / Score Project
 </div>
 
 <h1>Score: <%= project.title %></h1>

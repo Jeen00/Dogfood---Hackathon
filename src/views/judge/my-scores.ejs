@@ -1,10 +1,25 @@
-<%- include('../layouts/header', { title: 'My Scores', session }) %>
+<%- include('../layouts/header', { title: 'My Scores', session, selectedJudgeEvent: typeof selectedEvent !== 'undefined' ? selectedEvent : null }) %>
 
-<h1>My Submitted Scores</h1>
+<div style="margin-bottom: 20px;">
+  <% if (typeof selectedEvent !== 'undefined' && selectedEvent) { %>
+    <div style="margin-bottom: 6px;">
+      <a href="/judge/events" style="text-decoration: none; font-size: 0.9rem; font-weight: bold; color: #1a73e8;">&larr; All Events</a>
+    </div>
+    <h1 style="margin: 0; padding: 0; border: none;">My Scores — <%= selectedEvent.name %></h1>
+  <% } else { %>
+    <h1>My Submitted Scores</h1>
+  <% } %>
+</div>
 
 <% if (scores.length === 0) { %>
-  <p>You have not submitted any scores yet.</p>
-  <p><a href="/judge/dashboard">Go to your assignments</a></p>
+  <p>You have not submitted any scores yet
+    <% if (typeof selectedEvent !== 'undefined' && selectedEvent) { %> for this event<% } %>.
+  </p>
+  <% if (typeof selectedEvent !== 'undefined' && selectedEvent) { %>
+    <p><a href="/judge/dashboard?event_id=<%= selectedEvent.id %>">&larr; Go to your assignments</a></p>
+  <% } else { %>
+    <p><a href="/judge/events">Go to All Events</a></p>
+  <% } %>
 <% } else { %>
   <p><%= scores.length %> score<%= scores.length === 1 ? '' : 's' %> submitted.</p>
   <table>
