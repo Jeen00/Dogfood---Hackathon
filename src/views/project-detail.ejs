@@ -228,7 +228,7 @@
         <tbody>
           <tr><th>Track</th><td><%= project.track_name || '—' %></td></tr>
           <tr><th>Difficulty</th><td><span class="badge <%= diffClass %>"><%= diffLabel %></span></td></tr>
-          <tr><th>Team Size</th><td><%= (teamMembers && teamMembers.length) ? teamMembers.length + ' member' + (teamMembers.length !== 1 ? 's' : '') : '—' %></td></tr>
+          <tr><th>Team Size</th><td><%= (members && members.length) ? members.length + ' member' + (members.length !== 1 ? 's' : '') : '—' %></td></tr>
           <tr><th>Status</th><td><span class="badge <%= statusClass %>"><%= statusLabel %></span></td></tr>
           <% if (project.build_time) { %><tr><th>Build Time</th><td><%= project.build_time %></td></tr><% } %>
           <tr><th>License</th><td><%= project.license || '—' %></td></tr>
@@ -240,11 +240,11 @@
     </div>
 
     <!-- Team Members -->
-    <% if (teamMembers && teamMembers.length > 0) { %>
+    <% if (members && members.length > 0) { %>
     <div class="detail-info-card">
       <div class="detail-info-title">Team Members</div>
       <ul class="team-list">
-        <% teamMembers.forEach(function(m) { %>
+        <% members.forEach(function(m) { %>
         <li class="team-member">
           <span class="team-avatar"><%= (m.name || 'U').charAt(0).toUpperCase() %></span>
           <div class="team-member-info">
@@ -260,11 +260,11 @@
 </div><!-- /.detail-layout -->
 
 <!-- ── Similar Projects ───────────────────────────────────────────── -->
-<% if (similarProjects && similarProjects.length > 0) { %>
+<% if (similar && similar.length > 0) { %>
 <section class="detail-section similar-section">
   <h2>Similar Projects</h2>
   <div class="similar-grid">
-    <% similarProjects.forEach(function(sp, si) { %>
+    <% similar.forEach(function(sp, si) { %>
     <%
       var spHue = sp.track_id ? ((sp.track_id * 47) % 360) : (si * 60 % 360);
       var spStatusClass = {

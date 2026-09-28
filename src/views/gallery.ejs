@@ -115,12 +115,12 @@
         <label for="sortSelect" class="sort-label">Sort by:</label>
         <select name="sort" id="sortSelect" class="sort-select">
           <% var currentSort = (typeof sort !== 'undefined' && sort) ? sort : 'newest'; %>
-          <option value="newest"           <%= currentSort === 'newest'           ? 'selected' : '' %>>Newest</option>
-          <option value="updated"          <%= currentSort === 'updated'          ? 'selected' : '' %>>Recently Updated</option>
-          <option value="most_viewed"      <%= currentSort === 'most_viewed'      ? 'selected' : '' %>>Most Viewed</option>
-          <option value="most_voted"       <%= currentSort === 'most_voted'       ? 'selected' : '' %>>Most Voted</option>
-          <option value="most_saved"       <%= currentSort === 'most_saved'       ? 'selected' : '' %>>Most Saved</option>
-          <option value="trending"         <%= currentSort === 'trending'         ? 'selected' : '' %>>Trending</option>
+          <option value="newest"   <%= currentSort === 'newest'   ? 'selected' : '' %>>Newest</option>
+          <option value="updated"  <%= currentSort === 'updated'  ? 'selected' : '' %>>Recently Updated</option>
+          <option value="views"    <%= currentSort === 'views'    ? 'selected' : '' %>>Most Viewed</option>
+          <option value="votes"    <%= currentSort === 'votes'    ? 'selected' : '' %>>Most Voted</option>
+          <option value="saves"    <%= currentSort === 'saves'    ? 'selected' : '' %>>Most Saved</option>
+          <option value="trending" <%= currentSort === 'trending' ? 'selected' : '' %>>Trending</option>
         </select>
       </div>
     </div>
@@ -375,23 +375,72 @@
     });
   });
 
-  /* ── Sort select auto-submit ── */
+  /* ── Sort select: navigate preserving all active filters ── */
   var sortSelect = document.getElementById('sortSelect');
-  var hiddenSort = document.getElementById('hiddenSort');
-  var filterForm = document.getElementById('filterForm');
-  if (sortSelect && filterForm) {
+  if (sortSelect) {
     sortSelect.addEventListener('change', function () {
-      hiddenSort.value = sortSelect.value;
-      filterForm.submit();
+      var params = new URLSearchParams(window.location.search);
+      params.set('sort', sortSelect.value);
+      params.delete('page'); // reset to page 1 on sort change
+      window.location.href = '/projects?' + params.toString();
     });
   }
 
   /* ── Filter form: auto-submit on radio/checkbox change ── */
+  var filterForm = document.getElementById('filterForm');
   if (filterForm) {
+    /* Sync sort value into the hidden input before submitting */
     filterForm.querySelectorAll('input[type="radio"], input[type="checkbox"]').forEach(function (el) {
-      el.addEventListener('change', function () { filterForm.submit(); });
+      el.addEventListener('change', function () {
+        var hiddenSort = document.getElementById('hiddenSort');
+        if (hiddenSort && sortSelect) hiddenSort.value = sortSelect.value;
+        filterForm.submit();
+      });
     });
   }
+
+  /* ── Vote / Save toggle buttons ── */
+  document.querySelectorAll('.btn-vote, .btn-save').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      var id     = btn.dataset.id;
+      var action = btn.dataset.action; // 'vote' or 'save'
+      var rect   = btn.getBoundingClientRect();
+
+      if (!loggedIn) {
+        showTooltip('Login to ' + action, rect.left + window.scrollX, rect.top + window.scrollY);
+        return;
+      }
+
+      fetch('/api/projects/' + id + '/' + action, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        credentials: 'same-origin'
+      })
+      .then(function (res) {
+        if (!res.ok) throw new Error('Request failed');
+        return res.json();
+      })
+      .then(function (data) {
+        // API returns { voted: bool, count } or { saved: bool, count }
+        var isActive = action === 'vote' ? data.voted : data.saved;
+        btn.classList.toggle('active', !!isActive);
+        var countEl = btn.querySelector('.' + action + '-count');
+        if (countEl && typeof data.count !== 'undefined') countEl.textContent = data.count;
+        /* Also update the stats row count inside the same card */
+        var card = btn.closest('.project-card');
+        if (card) {
+          card.querySelectorAll('.card-stats span').forEach(function (s) {
+            if (action === 'vote' && s.title === 'Votes') s.textContent = '👍 ' + data.count;
+            if (action === 'save' && s.title === 'Saves') s.textContent = '🔖 ' + data.count;
+          });
+        }
+      })
+      .catch(function () {
+        showTooltip('Something went wrong. Try again.', rect.left + window.scrollX, rect.top + window.scrollY);
+      });
+    });
+  });
 
   /* ── Search debounce (400 ms) ── */
   var searchInput = document.getElementById('searchInput');
