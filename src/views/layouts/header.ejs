@@ -22,6 +22,7 @@
           <a href="/judge/scores?event_id=<%= selectedJudgeEvent.id %>">My Scores</a>
         <% } else { %>
           <a href="/judge/events" style="font-weight: bold;">All Events</a>
+          <a href="/judge/invites">My Invites</a>
         <% } %>
       <% } %>
       <% if (session.role === 'organizer' || session.role === 'admin') { %>
@@ -29,6 +30,7 @@
           <a href="/organizer/events" style="color: #4CAF50; font-weight: bold;">&larr; All Hackathons</a>
           <a href="/organizer/dashboard?event_id=<%= selectedEvent.id %>">Dashboard</a>
           <a href="/organizer/assignments?event_id=<%= selectedEvent.id %>">Assignments</a>
+          <a href="/organizer/invites?event_id=<%= selectedEvent.id %>">Invite Judges</a>
           <a href="/organizer/normalization?event_id=<%= selectedEvent.id %>">Normalization</a>
           <a href="/organizer/results?event_id=<%= selectedEvent.id %>">Leaderboard</a>
           <a href="/organizer/rubric?event_id=<%= selectedEvent.id %>">Rubric</a>
@@ -42,9 +44,137 @@
         <a href="/team">My Team</a>
         <a href="/submissions/new">Submit Project</a>
       <% } %>
+
+      <!-- Notification bell (all logged-in users) -->
+      <div class="notif-bell-wrap" style="margin-left:auto; position:relative;">
+        <button id="notif-bell" title="Notifications"
+          style="background:none; border:none; color:#F5F5F0; cursor:pointer; font-size:1.25rem; padding:4px 6px; position:relative; line-height:1;">
+          🔔
+          <span id="notif-count"
+            style="display:none; position:absolute; top:-4px; right:-4px; background:#EA4335; color:#fff;
+                   font-size:0.65rem; font-weight:bold; padding:2px 5px; min-width:16px; text-align:center;">0</span>
+        </button>
+        <div id="notif-dropdown"
+          style="display:none; position:absolute; right:0; top:40px; width:340px; max-height:420px; overflow-y:auto;
+                 background:#fff; border:2px solid #1A1A1A; z-index:9999; box-shadow:none;">
+          <div style="padding:10px 14px; border-bottom:1px solid #ddd; display:flex; justify-content:space-between; align-items:center;">
+            <strong style="color:#1A1A1A; font-size:0.95rem;">Notifications</strong>
+            <button onclick="markAllRead()"
+              style="background:none; border:none; color:#1a73e8; cursor:pointer; font-size:0.8rem; font-weight:bold; padding:0;">
+              Mark all read
+            </button>
+          </div>
+          <div id="notif-list" style="padding:0;"></div>
+        </div>
+      </div>
+
       <a href="/auth/logout">Logout</a>
     <% } else { %>
       <a href="/login">Login</a>
     <% } %>
   </nav>
   <main>
+
+<% if (typeof session !== 'undefined' && session) { %>
+<script>
+(function() {
+  var bell  = document.getElementById('notif-bell');
+  var drop  = document.getElementById('notif-dropdown');
+  var list  = document.getElementById('notif-list');
+  var badge = document.getElementById('notif-count');
+  var open  = false;
+
+  // Poll for unread count every 4 seconds
+  function pollCount() {
+    fetch('/api/notifications/poll')
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        if (d.unread > 0) {
+          badge.style.display = 'block';
+          badge.textContent = d.unread > 99 ? '99+' : d.unread;
+        } else {
+          badge.style.display = 'none';
+        }
+        if (open) {
+          loadNotifications();
+        }
+      })
+      .catch(function(){});
+  }
+  pollCount();
+  setInterval(pollCount, 4000);
+
+  // Toggle dropdown
+  bell.addEventListener('click', function(e) {
+    e.stopPropagation();
+    open = !open;
+    drop.style.display = open ? 'block' : 'none';
+    if (open) loadNotifications();
+  });
+
+  // Close on outside click
+  document.addEventListener('click', function(e) {
+    if (!drop.contains(e.target) && e.target !== bell) {
+      drop.style.display = 'none';
+      open = false;
+    }
+  });
+
+  function loadNotifications() {
+    list.innerHTML = '<div style="padding:14px; color:#555; font-size:0.9rem;">Loading…</div>';
+    fetch('/api/notifications')
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        var notifs = d.notifications || [];
+        if (notifs.length === 0) {
+          list.innerHTML = '<div style="padding:16px 14px; color:#555; font-size:0.9rem;">No notifications yet.</div>';
+          return;
+        }
+        var html = '';
+        notifs.forEach(function(n) {
+          var bg = n.read ? '#fff' : '#EFF6FF';
+          var dot = n.read ? '' : '<span style="display:inline-block;width:8px;height:8px;background:#1a73e8;vertical-align:middle;margin-right:6px;"></span>';
+          var typeIcon = n.type === 'judge_invite' ? '📩' :
+                         n.type === 'invite_accepted' ? '✅' :
+                         n.type === 'invite_rejected' ? '❌' : '🔔';
+          html += '<div data-id="' + n.id + '" onclick="readNotif(this, \'' + n.id + '\')" ' +
+            'style="padding:12px 14px; border-bottom:1px solid #eee; cursor:pointer; background:' + bg + ';">' +
+            '<div style="font-weight:bold; font-size:0.88rem; margin-bottom:3px;">' + dot + typeIcon + ' ' + n.title + '</div>' +
+            '<div style="font-size:0.82rem; color:#444; line-height:1.4;">' + n.body + '</div>' +
+            '<div style="font-size:0.75rem; color:#888; margin-top:4px;">' + (n.created_at || '').slice(0,16).replace('T',' ') + '</div>' +
+            '</div>';
+        });
+        list.innerHTML = html;
+        badge.style.display = d.unread > 0 ? 'block' : 'none';
+        badge.textContent = d.unread > 99 ? '99+' : d.unread;
+      })
+      .catch(function() {
+        list.innerHTML = '<div style="padding:14px; color:#c5221f; font-size:0.9rem;">Failed to load.</div>';
+      });
+  }
+
+  window.readNotif = function(el, id) {
+    el.style.background = '#fff';
+    var dot = el.querySelector('span[style*="background:#1a73e8"]');
+    if (dot) dot.remove();
+    fetch('/api/notifications/' + id + '/read', { method: 'POST' }).catch(function(){});
+    // If it's a judge invite, navigate to invites page
+    setTimeout(function() {
+      var role = '<%= session.role %>';
+      if (role === 'judge') {
+        window.location.href = '/judge/invites';
+      }
+    }, 200);
+  };
+
+  window.markAllRead = function() {
+    fetch('/api/notifications/read-all', { method: 'POST' })
+      .then(function() {
+        badge.style.display = 'none';
+        loadNotifications();
+      })
+      .catch(function(){});
+  };
+})();
+</script>
+<% } %>

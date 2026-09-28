@@ -115,3 +115,28 @@ CREATE TABLE IF NOT EXISTS audit_log (
   detail     TEXT,
   created_at TEXT NOT NULL
 );
+
+-- Judge invite system
+CREATE TABLE IF NOT EXISTS judge_invites (
+  id           TEXT PRIMARY KEY,
+  event_id     TEXT NOT NULL,
+  organizer_id TEXT NOT NULL,
+  judge_email  TEXT NOT NULL,
+  judge_id     TEXT,
+  status       TEXT NOT NULL DEFAULT 'pending',  -- pending | accepted | rejected
+  created_at   TEXT NOT NULL,
+  responded_at TEXT,
+  UNIQUE (event_id, judge_email)
+);
+
+-- Real-time notifications
+CREATE TABLE IF NOT EXISTS notifications (
+  id         TEXT PRIMARY KEY,
+  user_id    TEXT NOT NULL,
+  type       TEXT NOT NULL,
+  title      TEXT NOT NULL,
+  body       TEXT NOT NULL,
+  data       TEXT,
+  read       INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL
+);

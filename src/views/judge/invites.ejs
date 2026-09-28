@@ -1,0 +1,127 @@
+<%- include('../layouts/header', { title: 'My Invites', session, selectedJudgeEvent: null }) %>
+
+<h1>Hackathon Invites</h1>
+<p style="color:#666; margin-bottom:24px;">Invitations from organizers to judge hackathons.</p>
+
+<% const pending = invites.filter(i => i.status === 'pending'); %>
+<% const past    = invites.filter(i => i.status !== 'pending'); %>
+
+<% if (invites.length === 0) { %>
+  <p>You have no invites at the moment.</p>
+<% } %>
+
+<% if (pending.length > 0) { %>
+  <h2 style="font-size:1.1rem; margin-bottom:14px;">Pending Invites (<%= pending.length %>)</h2>
+  <div style="display:flex; flex-direction:column; gap:16px; margin-bottom:32px;">
+    <% for (const inv of pending) { %>
+      <div style="background:#fff; border:2px solid #1A1A1A; padding:20px;" id="invite-card-<%= inv.id %>">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
+          <div>
+            <h3 style="margin:0 0 6px 0; font-size:1.2rem; border:none; padding:0;"><%= inv.event_name %></h3>
+            <table style="border:none; font-size:0.9rem; margin-bottom:8px;">
+              <tr>
+                <td style="color:#555; padding:2px 16px 2px 0;"><strong>Organizer:</strong></td>
+                <td><%= inv.organizer_name %></td>
+              </tr>
+              <tr>
+                <td style="color:#555; padding:2px 16px 2px 0;"><strong>Starts:</strong></td>
+                <td><%= inv.submissions_open ? new Date(inv.submissions_open).toLocaleString('en-US', {dateStyle:'medium',timeStyle:'short'}) : 'TBD' %></td>
+              </tr>
+              <tr>
+                <td style="color:#555; padding:2px 16px 2px 0;"><strong>Ends:</strong></td>
+                <td><%= inv.submissions_close ? new Date(inv.submissions_close).toLocaleString('en-US', {dateStyle:'medium',timeStyle:'short'}) : 'TBD' %></td>
+              </tr>
+              <tr>
+                <td style="color:#555; padding:2px 16px 2px 0;"><strong>Invited:</strong></td>
+                <td><%= inv.created_at ? inv.created_at.slice(0,16).replace('T',' ') : '—' %></td>
+              </tr>
+            </table>
+          </div>
+          <div style="display:flex; gap:10px; align-items:flex-start; flex-wrap:wrap;">
+            <button onclick="respondInvite('<%= inv.id %>', 'accept')"
+              style="background:#E6F4EA; border:2px solid #34A853; color:#137333; font-weight:bold; font-size:0.95rem; padding:10px 22px; cursor:pointer;">
+              ✓ Accept
+            </button>
+            <button onclick="respondInvite('<%= inv.id %>', 'reject')"
+              style="background:#FDECEA; border:2px solid #EA4335; color:#c5221f; font-weight:bold; font-size:0.95rem; padding:10px 22px; cursor:pointer;">
+              ✗ Decline
+            </button>
+          </div>
+        </div>
+        <div id="invite-msg-<%= inv.id %>" style="margin-top:10px; font-size:0.9rem; display:none;"></div>
+      </div>
+    <% } %>
+  </div>
+<% } %>
+
+<% if (past.length > 0) { %>
+  <h2 style="font-size:1.1rem; margin-bottom:12px;">Past Invites</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Hackathon</th>
+        <th>Organizer</th>
+        <th>Status</th>
+        <th>Responded</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% for (const inv of past) { %>
+        <tr>
+          <td><%= inv.event_name %></td>
+          <td><%= inv.organizer_name %></td>
+          <td>
+            <% if (inv.status === 'accepted') { %>
+              <span style="color:#137333; font-weight:bold;">✓ Accepted</span>
+            <% } else { %>
+              <span style="color:#c5221f; font-weight:bold;">✗ Declined</span>
+            <% } %>
+          </td>
+          <td style="font-size:0.85rem;"><%= inv.responded_at ? inv.responded_at.slice(0,16).replace('T',' ') : '—' %></td>
+        </tr>
+      <% } %>
+    </tbody>
+  </table>
+<% } %>
+
+<script>
+function respondInvite(id, action) {
+  var card = document.getElementById('invite-card-' + id);
+  var msg  = document.getElementById('invite-msg-' + id);
+
+  fetch('/api/judge-invites/' + id + '/' + action, { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.error) {
+        msg.style.display = 'block';
+        msg.style.color = '#c5221f';
+        msg.textContent = data.error;
+      } else {
+        if (action === 'accept') {
+          card.style.borderColor = '#34A853';
+          card.style.background = '#E6F4EA';
+          msg.style.display = 'block';
+          msg.style.color = '#137333';
+          msg.textContent = 'Accepted! This hackathon now appears in your events list.';
+        } else {
+          card.style.borderColor = '#EA4335';
+          card.style.background = '#FDECEA';
+          msg.style.display = 'block';
+          msg.style.color = '#c5221f';
+          msg.textContent = 'Declined.';
+        }
+        // Hide buttons
+        var btns = card.querySelectorAll('button');
+        btns.forEach(function(b) { b.style.display = 'none'; });
+        setTimeout(function() { location.reload(); }, 1500);
+      }
+    })
+    .catch(function() {
+      msg.style.display = 'block';
+      msg.style.color = '#c5221f';
+      msg.textContent = 'Network error. Please try again.';
+    });
+}
+</script>
+
+<%- include('../layouts/footer') %>

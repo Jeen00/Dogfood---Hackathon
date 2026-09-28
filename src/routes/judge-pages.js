@@ -5,6 +5,7 @@ const { getDb } = require('../db/db');
 const { getRubric } = require('../lib/rubric');
 const { getEventStatus } = require('../lib/event-status');
 const { ACTIVE_EVENT_ID } = require('../lib/config');
+const { getNotifications, getUnreadCount } = require('../lib/notifications');
 
 const router = express.Router();
 
@@ -85,9 +86,24 @@ router.get('/events', requireRole('judge'), (req, res) => {
       }
     }
 
+    const judgeEmail = db.prepare('SELECT email FROM users WHERE id = ?').get(judgeId)?.email?.toLowerCase();
+    const pendingInvites = db.prepare(`
+      SELECT ji.*,
+        e.name AS event_name,
+        e.submissions_open,
+        e.submissions_close,
+        u.name AS organizer_name
+      FROM judge_invites ji
+      JOIN events e ON e.id = ji.event_id
+      JOIN users  u ON u.id = ji.organizer_id
+      WHERE ji.status = 'pending' AND (ji.judge_id = ? OR LOWER(ji.judge_email) = ?)
+      ORDER BY ji.created_at DESC
+    `).all(judgeId, judgeEmail || '');
+
     return res.render('judge/events', {
       events,
       otherEvents,
+      pendingInvites,
       session: req.session,
       selectedJudgeEvent: null
     });
@@ -246,6 +262,40 @@ router.get('/scores', requireRole('judge'), (req, res) => {
   } catch (err) {
     console.error('[judge:my-scores]', err.message);
     return res.status(500).render('error', { message: 'Failed to load scores.', session: req.session });
+  }
+});
+
+/**
+ * GET /judge/invites
+ * Shows judge's pending/past hackathon invites.
+ */
+router.get('/invites', requireRole('judge'), (req, res) => {
+  try {
+    const db = getDb();
+    const judgeId = req.session.userId;
+    const judgeEmail = db.prepare('SELECT email FROM users WHERE id = ?').get(judgeId)?.email?.toLowerCase();
+
+    const invites = db.prepare(`
+      SELECT ji.*,
+        e.name AS event_name,
+        e.submissions_open,
+        e.submissions_close,
+        u.name AS organizer_name
+      FROM judge_invites ji
+      JOIN events e ON e.id = ji.event_id
+      JOIN users  u ON u.id = ji.organizer_id
+      WHERE (ji.judge_id = ? OR LOWER(ji.judge_email) = ?)
+      ORDER BY ji.created_at DESC
+    `).all(judgeId, judgeEmail || '');
+
+    return res.render('judge/invites', {
+      invites,
+      session: req.session,
+      selectedJudgeEvent: null
+    });
+  } catch (err) {
+    console.error('[judge:invites]', err.message);
+    return res.status(500).render('error', { message: 'Failed to load invites.', session: req.session });
   }
 });
 

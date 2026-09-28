@@ -9,6 +9,79 @@
 
 <hr style="margin-bottom: 28px;">
 
+<% if (typeof pendingInvites !== 'undefined' && pendingInvites && pendingInvites.length > 0) { %>
+  <div style="margin-bottom: 32px;">
+    <h2 style="font-size: 1.15rem; margin-bottom: 12px; color: #1A1A1A;">Pending Judging Invitations</h2>
+    <div style="display: flex; flex-direction: column; gap: 14px;">
+      <% for (const inv of pendingInvites) { %>
+        <div id="home-invite-<%= inv.id %>" style="background: #FFFFFF; border: 2px solid #1A1A1A; border-left: 6px solid #1A73E8; padding: 18px 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 14px;">
+            <div>
+              <div style="font-size: 0.8rem; font-weight: bold; text-transform: uppercase; color: #1A73E8; letter-spacing: 0.05em; margin-bottom: 4px;">
+                Judging Invitation
+              </div>
+              <h3 style="margin: 0 0 6px 0; font-size: 1.25rem; border: none; padding: 0;">
+                <%= inv.event_name %>
+              </h3>
+              <div style="font-size: 0.9rem; color: #555;">
+                Invited by <strong><%= inv.organizer_name %></strong> &bull; Starts: <%= inv.submissions_open ? new Date(inv.submissions_open).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'TBD' %>
+              </div>
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+              <button onclick="handleHomeInvite('<%= inv.id %>', 'accept')"
+                style="background: #E6F4EA; border: 2px solid #34A853; color: #137333; font-weight: bold; font-size: 0.9rem; padding: 8px 18px; cursor: pointer;">
+                ✓ Accept
+              </button>
+              <button onclick="handleHomeInvite('<%= inv.id %>', 'reject')"
+                style="background: #FDECEA; border: 2px solid #EA4335; color: #c5221f; font-weight: bold; font-size: 0.9rem; padding: 8px 18px; cursor: pointer;">
+                ✗ Reject
+              </button>
+            </div>
+          </div>
+          <div id="home-invite-msg-<%= inv.id %>" style="margin-top: 10px; font-size: 0.88rem; display: none;"></div>
+        </div>
+      <% } %>
+    </div>
+  </div>
+<% } %>
+
+<script>
+function handleHomeInvite(id, action) {
+  var box = document.getElementById('home-invite-' + id);
+  var msg = document.getElementById('home-invite-msg-' + id);
+  fetch('/api/judge-invites/' + id + '/' + action, { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.error) {
+        msg.style.display = 'block';
+        msg.style.color = '#c5221f';
+        msg.textContent = data.error;
+      } else {
+        msg.style.display = 'block';
+        if (action === 'accept') {
+          box.style.borderColor = '#34A853';
+          box.style.background = '#E6F4EA';
+          msg.style.color = '#137333';
+          msg.textContent = 'Invitation accepted! Reloading hackathons...';
+        } else {
+          box.style.borderColor = '#EA4335';
+          box.style.background = '#FDECEA';
+          msg.style.color = '#c5221f';
+          msg.textContent = 'Invitation rejected.';
+        }
+        var btns = box.querySelectorAll('button');
+        btns.forEach(function(b) { b.style.display = 'none'; });
+        setTimeout(function() { location.reload(); }, 1200);
+      }
+    })
+    .catch(function() {
+      msg.style.display = 'block';
+      msg.style.color = '#c5221f';
+      msg.textContent = 'Network error. Please try again.';
+    });
+}
+</script>
+
 <% if (!events || events.length === 0) { %>
   <p>No hackathons found with assignments for you.</p>
 <% } else { %>

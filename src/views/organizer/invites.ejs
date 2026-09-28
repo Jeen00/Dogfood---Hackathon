@@ -1,0 +1,136 @@
+<%- include('../layouts/header', { title: 'Judge Invites — ' + selectedEvent.name, session, selectedEvent }) %>
+
+<div style="margin-bottom: 16px;">
+  <a href="/organizer/events" style="font-size:0.9rem; font-weight:bold; color:#1a73e8;">&larr; All Hackathons</a>
+</div>
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
+  <div>
+    <h1 style="margin:0; padding:0; border:none;">Invite Judges — <%= selectedEvent.name %></h1>
+    <div style="margin-top:6px; display:flex; gap:10px; align-items:center;">
+      <span class="status-badge <%= statusInfo.badgeClass %>"><%= statusInfo.label %></span>
+      <span style="font-size:0.9rem; color:#555;">⏱ <%= statusInfo.timeText %></span>
+    </div>
+  </div>
+</div>
+
+<% if (canInvite) { %>
+  <div style="background:#fff; border:2px solid #1A1A1A; padding:20px; margin-bottom:28px;">
+    <h2 style="margin:0 0 14px 0; font-size:1.1rem;">Send New Invite</h2>
+    <p style="color:#555; margin:0 0 14px 0; font-size:0.9rem;">
+      Enter a judge's email address. They must have an account with the <strong>judge</strong> role.
+      Invites can be sent until the hackathon starts.
+    </p>
+    <form id="invite-form" style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+      <div style="flex:1; min-width:220px;">
+        <label for="judge_email" style="display:block; font-weight:bold; margin-bottom:6px; font-size:0.9rem;">Judge Email</label>
+        <input type="email" id="judge_email" placeholder="judge@example.com"
+          style="width:100%; padding:9px 12px; border:1px solid #1A1A1A; font-size:0.95rem; background:#F5F5F0;">
+      </div>
+      <button type="submit" class="btn-action" style="white-space:nowrap;">Send Invite</button>
+    </form>
+    <div id="invite-msg" style="margin-top:10px; font-size:0.9rem; display:none;"></div>
+  </div>
+<% } else { %>
+  <div style="background:#FFF3CD; border:1px solid #FFC107; padding:14px 18px; margin-bottom:24px; font-size:0.95rem;">
+    ⚠️ <strong><%= inviteBlockReason %></strong>
+  </div>
+<% } %>
+
+<h2 style="font-size:1.1rem; margin-bottom:12px;">Sent Invites (<%= invites.length %>)</h2>
+
+<% if (invites.length === 0) { %>
+  <p style="color:#666;">No invites sent yet for this hackathon.</p>
+<% } else { %>
+  <table>
+    <thead>
+      <tr>
+        <th>Email</th>
+        <th>Judge Name</th>
+        <th>Status</th>
+        <th>Sent</th>
+        <th>Responded</th>
+        <% if (canInvite) { %><th>Action</th><% } %>
+      </tr>
+    </thead>
+    <tbody>
+      <% for (const inv of invites) { %>
+        <tr>
+          <td><%= inv.judge_email %></td>
+          <td><%= inv.judge_name || '—' %></td>
+          <td>
+            <% if (inv.status === 'accepted') { %>
+              <span style="color:#137333; font-weight:bold;">✓ Accepted</span>
+            <% } else if (inv.status === 'rejected') { %>
+              <span style="color:#c5221f; font-weight:bold;">✗ Rejected</span>
+            <% } else { %>
+              <span style="color:#854d0e; font-weight:bold;">⏳ Pending</span>
+            <% } %>
+          </td>
+          <td style="font-size:0.85rem;"><%= inv.created_at ? inv.created_at.slice(0,16).replace('T',' ') : '—' %></td>
+          <td style="font-size:0.85rem;"><%= inv.responded_at ? inv.responded_at.slice(0,16).replace('T',' ') : '—' %></td>
+          <% if (canInvite) { %>
+            <td>
+              <% if (inv.status === 'pending') { %>
+                <button onclick="cancelInvite('<%= inv.id %>', this)"
+                  style="background:#fee2e2; border:1px solid #c5221f; color:#c5221f; font-weight:bold; cursor:pointer; padding:4px 10px; font-size:0.82rem;">
+                  Cancel
+                </button>
+              <% } else { %>—<% } %>
+            </td>
+          <% } %>
+        </tr>
+      <% } %>
+    </tbody>
+  </table>
+<% } %>
+
+<script>
+(function() {
+  var form = document.getElementById('invite-form');
+  var msg  = document.getElementById('invite-msg');
+  if (!form) return;
+
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    var email = document.getElementById('judge_email').value.trim();
+    if (!email) return;
+
+    fetch('/api/invites', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event_id: '<%= selectedEvent.id %>', judge_email: email })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      msg.style.display = 'block';
+      if (data.error) {
+        msg.style.color = '#c5221f';
+        msg.textContent = data.error;
+      } else {
+        msg.style.color = '#137333';
+        msg.textContent = data.message + (data.judge_found ? '' : ' (Judge will see invite when they join the platform.)');
+        document.getElementById('judge_email').value = '';
+        setTimeout(function() { location.reload(); }, 1500);
+      }
+    })
+    .catch(function() {
+      msg.style.display = 'block';
+      msg.style.color = '#c5221f';
+      msg.textContent = 'Network error. Please try again.';
+    });
+  });
+})();
+
+function cancelInvite(id, btn) {
+  if (!confirm('Cancel this invite?')) return;
+  fetch('/api/invites/' + id, { method: 'DELETE' })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.message) location.reload();
+      else alert(data.error || 'Failed to cancel');
+    });
+}
+</script>
+
+<%- include('../layouts/footer') %>

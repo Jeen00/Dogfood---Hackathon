@@ -22,6 +22,7 @@
   <a href="/api/export.csv<%= typeof selectedEvent !== 'undefined' && selectedEvent ? '?event_id=' + selectedEvent.id : '' %>" class="btn-action">Download CSV</a>
   <a href="/organizer/normalization<%= typeof selectedEvent !== 'undefined' && selectedEvent ? '?event_id=' + selectedEvent.id : '' %>" class="btn-action">Run Normalization</a>
   <a href="/organizer/assignments<%= typeof selectedEvent !== 'undefined' && selectedEvent ? '?event_id=' + selectedEvent.id : '' %>" class="btn-action">View Assignments</a>
+  <a href="/organizer/invites<%= typeof selectedEvent !== 'undefined' && selectedEvent ? '?event_id=' + selectedEvent.id : '' %>" class="btn-action">Invite Judges</a>
   <a href="/organizer/rubric<%= typeof selectedEvent !== 'undefined' && selectedEvent ? '?event_id=' + selectedEvent.id : '' %>" class="btn-action">Rubric</a>
 </div>
 
