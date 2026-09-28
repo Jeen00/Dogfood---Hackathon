@@ -87,6 +87,11 @@ CREATE TABLE IF NOT EXISTS judge_assignments (
   id         TEXT PRIMARY KEY,
   judge_id   TEXT NOT NULL,
   project_id TEXT NOT NULL,
+  status     TEXT NOT NULL DEFAULT 'pending',
+  started_at TEXT,
+  flagged_at TEXT,
+  conflict_reason TEXT,
+  notes      TEXT,
   UNIQUE (judge_id, project_id)
 );
 

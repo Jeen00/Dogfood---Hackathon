@@ -251,6 +251,7 @@ router.get('/:id', (req, res) => {
   try {
     const db      = getDb();
     const userId  = req.session ? req.session.userId : null;
+    const role    = req.session ? req.session.role   : null;
 
     // ── Load project ───────────────────────────────────────────────────────
     const project = db.prepare(`
@@ -286,6 +287,40 @@ router.get('/:id', (req, res) => {
       project.user_saved = !!db.prepare(
         'SELECT 1 FROM project_saves WHERE project_id = ? AND user_id = ?'
       ).get(req.params.id, userId);
+    }
+
+    // ── Judge context: is this judge assigned to this project? ─────────────
+    let judgeAssignment = null;
+    let judgeScore      = null;
+    let selectedJudgeEvent = null;
+
+    if (role === 'judge' && userId) {
+      judgeAssignment = db.prepare(
+        'SELECT * FROM judge_assignments WHERE judge_id = ? AND project_id = ?'
+      ).get(userId, req.params.id);
+
+      if (judgeAssignment) {
+        judgeScore = db.prepare(
+          'SELECT * FROM scores WHERE judge_id = ? AND project_id = ?'
+        ).get(userId, req.params.id);
+        if (judgeScore && judgeScore.criteria_scores) {
+          try { judgeScore.criteria_scores = JSON.parse(judgeScore.criteria_scores); } catch (_) {}
+        }
+
+        // Load the event for this project to set judge nav context
+        selectedJudgeEvent = db.prepare('SELECT * FROM events WHERE id = ?').get(project.event_id) || null;
+        if (req.session && selectedJudgeEvent) {
+          req.session.selectedJudgeEventId = selectedJudgeEvent.id;
+        }
+        res.locals.selectedJudgeEvent = selectedJudgeEvent;
+
+        // Auto-mark as in_progress when judge opens a pending project
+        if (judgeAssignment.status === 'pending') {
+          db.prepare("UPDATE judge_assignments SET status = 'in_progress', started_at = ? WHERE judge_id = ? AND project_id = ?")
+            .run(new Date().toISOString(), userId, req.params.id);
+          judgeAssignment.status = 'in_progress';
+        }
+      }
     }
 
     // ── Team members ───────────────────────────────────────────────────────
@@ -355,6 +390,9 @@ router.get('/:id', (req, res) => {
       members,
       comments,
       similar,
+      judgeAssignment,
+      judgeScore,
+      selectedJudgeEvent,
       session: req.session,
     });
   } catch (err) {
@@ -365,6 +403,7 @@ router.get('/:id', (req, res) => {
     });
   }
 });
+
 
 // ─── POST /api/projects/:id/vote ─────────────────────────────────────────────
 /**

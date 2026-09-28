@@ -20,13 +20,17 @@
       <% if (session.role === 'judge') { %>
         <% if (typeof selectedJudgeEvent !== 'undefined' && selectedJudgeEvent) { %>
           <a href="/judge/events" style="color: #4CAF50; font-weight: bold;">&larr; All Events</a>
-          <a href="/judge/dashboard?event_id=<%= selectedJudgeEvent.id %>">My Assignments</a>
+          <a href="/judge/dashboard?event_id=<%= selectedJudgeEvent.id %>">Dashboard</a>
+          <a href="/judge/assignments?event_id=<%= selectedJudgeEvent.id %>">My Assignments</a>
           <a href="/judge/scores?event_id=<%= selectedJudgeEvent.id %>">My Scores</a>
+          <a href="/judge/profile">Profile</a>
         <% } else { %>
           <a href="/judge/events" style="font-weight: bold;">All Events</a>
           <a href="/judge/invites">My Invites</a>
+          <a href="/judge/profile">Profile</a>
         <% } %>
       <% } %>
+
       <% if (session.role === 'organizer' || session.role === 'admin') { %>
         <% if (typeof selectedEvent !== 'undefined' && selectedEvent) { %>
           <a href="/organizer/events" style="color: #4CAF50; font-weight: bold;">&larr; All Hackathons</a>
