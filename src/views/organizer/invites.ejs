@@ -34,7 +34,7 @@
           <% } %>
         </datalist>
       </div>
-      <button type="submit" class="btn-action" style="white-space:nowrap;">Send Invite</button>
+      <button type="submit" id="btn-submit-invite" class="btn-action" style="white-space:nowrap;">Send Invite</button>
     </form>
 
     <% if (typeof availableJudges !== 'undefined' && availableJudges && availableJudges.length > 0) { %>
@@ -57,100 +57,203 @@
   </div>
 <% } %>
 
-<h2 style="font-size:1.1rem; margin-bottom:12px;">Sent Invites (<%= invites.length %>)</h2>
+<h2 id="invites-heading" style="font-size:1.1rem; margin-bottom:12px;">Sent Invites (<span id="invites-count"><%= invites.length %></span>)</h2>
 
-<% if (invites.length === 0) { %>
-  <p style="color:#666;">No invites sent yet for this hackathon.</p>
-<% } else { %>
-  <table>
-    <thead>
-      <tr>
-        <th>Email</th>
-        <th>Judge Name</th>
-        <th>Status</th>
-        <th>Sent</th>
-        <th>Responded</th>
-        <% if (canInvite) { %><th>Action</th><% } %>
-      </tr>
-    </thead>
-    <tbody>
-      <% for (const inv of invites) { %>
+<div id="invites-container">
+  <% if (invites.length === 0) { %>
+    <p id="no-invites-msg" style="color:#666;">No invites sent yet for this hackathon.</p>
+  <% } else { %>
+    <table id="invites-table">
+      <thead>
         <tr>
-          <td><%= inv.judge_email %></td>
-          <td><%= inv.judge_name || '—' %></td>
-          <td>
-            <% if (inv.status === 'accepted') { %>
-              <span style="color:#137333; font-weight:bold;">✓ Accepted</span>
-            <% } else if (inv.status === 'rejected') { %>
-              <span style="color:#c5221f; font-weight:bold;">✗ Rejected</span>
-            <% } else { %>
-              <span style="color:#854d0e; font-weight:bold;">⏳ Pending</span>
-            <% } %>
-          </td>
-          <td style="font-size:0.85rem;"><%= inv.created_at ? inv.created_at.slice(0,16).replace('T',' ') : '—' %></td>
-          <td style="font-size:0.85rem;"><%= inv.responded_at ? inv.responded_at.slice(0,16).replace('T',' ') : '—' %></td>
-          <% if (canInvite) { %>
-            <td>
-              <% if (inv.status === 'pending') { %>
-                <button onclick="cancelInvite('<%= inv.id %>', this)"
-                  style="background:#fee2e2; border:1px solid #c5221f; color:#c5221f; font-weight:bold; cursor:pointer; padding:4px 10px; font-size:0.82rem;">
-                  Cancel
-                </button>
-              <% } else { %>—<% } %>
-            </td>
-          <% } %>
+          <th>Email</th>
+          <th>Judge Name</th>
+          <th>Status</th>
+          <th>Sent</th>
+          <th>Responded</th>
+          <% if (canInvite) { %><th>Action</th><% } %>
         </tr>
-      <% } %>
-    </tbody>
-  </table>
-<% } %>
+      </thead>
+      <tbody id="invites-tbody">
+        <% for (const inv of invites) { %>
+          <tr id="row-inv-<%= inv.id %>">
+            <td><%= inv.judge_email %></td>
+            <td><%= inv.judge_name || '—' %></td>
+            <td id="status-cell-<%= inv.id %>">
+              <% if (inv.status === 'accepted') { %>
+                <span style="color:#137333; font-weight:bold;">✓ Accepted</span>
+              <% } else if (inv.status === 'rejected') { %>
+                <span style="color:#c5221f; font-weight:bold;">✗ Rejected</span>
+              <% } else { %>
+                <span style="color:#854d0e; font-weight:bold;">⏳ Pending</span>
+              <% } %>
+            </td>
+            <td style="font-size:0.85rem;"><%= inv.created_at ? inv.created_at.slice(0,16).replace('T',' ') : '—' %></td>
+            <td id="resp-cell-<%= inv.id %>" style="font-size:0.85rem;"><%= inv.responded_at ? inv.responded_at.slice(0,16).replace('T',' ') : '—' %></td>
+            <% if (canInvite) { %>
+              <td id="action-cell-<%= inv.id %>">
+                <% if (inv.status === 'pending') { %>
+                  <button onclick="cancelInvite('<%= inv.id %>')"
+                    style="background:#fee2e2; border:1px solid #c5221f; color:#c5221f; font-weight:bold; cursor:pointer; padding:4px 10px; font-size:0.82rem;">
+                    Cancel
+                  </button>
+                <% } else { %>—<% } %>
+              </td>
+            <% } %>
+          </tr>
+        <% } %>
+      </tbody>
+    </table>
+  <% } %>
+</div>
 
 <script>
 (function() {
-  var form = document.getElementById('invite-form');
-  var msg  = document.getElementById('invite-msg');
-  if (!form) return;
+  var form      = document.getElementById('invite-form');
+  var msg       = document.getElementById('invite-msg');
+  var submitBtn = document.getElementById('btn-submit-invite');
+  var eventId   = '<%= selectedEvent.id %>';
+  var canInvite = <%= canInvite ? 'true' : 'false' %>;
 
-  form.addEventListener('submit', function(e) {
-    e.preventDefault();
-    var email = document.getElementById('judge_email').value.trim();
-    if (!email) return;
+  // Track known statuses to fire real-time toast alerts on state change
+  var knownStatuses = {};
+  <% for (const inv of invites) { %>
+    knownStatuses['<%= inv.id %>'] = '<%= inv.status %>';
+  <% } %>
 
-    fetch('/api/invites', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ event_id: '<%= selectedEvent.id %>', judge_email: email })
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      msg.style.display = 'block';
-      if (data.error) {
+  if (form) {
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      var input = document.getElementById('judge_email');
+      var email = input.value.trim();
+      if (!email) return;
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Sending...';
+
+      fetch('/api/invites', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event_id: eventId, judge_email: email })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Send Invite';
+
+        if (data.error) {
+          msg.style.display = 'block';
+          msg.style.color = '#c5221f';
+          msg.textContent = data.error;
+          if (window.showToast) window.showToast(data.error, 'error');
+        } else {
+          msg.style.display = 'block';
+          msg.style.color = '#137333';
+          msg.textContent = data.message;
+          if (window.showToast) window.showToast(data.message, 'success');
+          input.value = '';
+
+          // Real-time refresh without page reload
+          fetchInvites();
+        }
+      })
+      .catch(function() {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Send Invite';
+        msg.style.display = 'block';
         msg.style.color = '#c5221f';
-        msg.textContent = data.error;
-      } else {
-        msg.style.color = '#137333';
-        msg.textContent = data.message + (data.judge_found ? '' : ' (Judge will see invite when they join the platform.)');
-        document.getElementById('judge_email').value = '';
-        setTimeout(function() { location.reload(); }, 1500);
-      }
-    })
-    .catch(function() {
-      msg.style.display = 'block';
-      msg.style.color = '#c5221f';
-      msg.textContent = 'Network error. Please try again.';
+        msg.textContent = 'Network error. Please try again.';
+      });
     });
-  });
-})();
+  }
 
-function cancelInvite(id, btn) {
-  if (!confirm('Cancel this invite?')) return;
-  fetch('/api/invites/' + id, { method: 'DELETE' })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      if (data.message) location.reload();
-      else alert(data.error || 'Failed to cancel');
+  // Real-time live poll every 3 seconds for updates without refresh
+  function fetchInvites() {
+    fetch('/api/invites?event_id=' + encodeURIComponent(eventId))
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var invites = data.invites || [];
+        renderInvitesTable(invites);
+
+        // Check if any status changed in real-time
+        invites.forEach(function(inv) {
+          var prev = knownStatuses[inv.id];
+          if (prev && prev === 'pending' && inv.status !== 'pending') {
+            if (inv.status === 'accepted') {
+              if (window.showToast) window.showToast('Judge ' + (inv.judge_name || inv.judge_email) + ' accepted your invite!', 'success');
+            } else if (inv.status === 'rejected') {
+              if (window.showToast) window.showToast('Judge ' + (inv.judge_name || inv.judge_email) + ' declined your invite.', 'error');
+            }
+          }
+          knownStatuses[inv.id] = inv.status;
+        });
+      })
+      .catch(function(){});
+  }
+
+  setInterval(fetchInvites, 3500);
+
+  function renderInvitesTable(invites) {
+    document.getElementById('invites-count').textContent = invites.length;
+    var container = document.getElementById('invites-container');
+
+    if (invites.length === 0) {
+      container.innerHTML = '<p id="no-invites-msg" style="color:#666;">No invites sent yet for this hackathon.</p>';
+      return;
+    }
+
+    var html = '<table id="invites-table">' +
+      '<thead><tr><th>Email</th><th>Judge Name</th><th>Status</th><th>Sent</th><th>Responded</th>' +
+      (canInvite ? '<th>Action</th>' : '') + '</tr></thead><tbody id="invites-tbody">';
+
+    invites.forEach(function(inv) {
+      var statusBadge = '';
+      if (inv.status === 'accepted') {
+        statusBadge = '<span style="color:#137333; font-weight:bold;">✓ Accepted</span>';
+      } else if (inv.status === 'rejected') {
+        statusBadge = '<span style="color:#c5221f; font-weight:bold;">✗ Rejected</span>';
+      } else {
+        statusBadge = '<span style="color:#854d0e; font-weight:bold;">⏳ Pending</span>';
+      }
+
+      var actionHtml = '';
+      if (canInvite) {
+        actionHtml = inv.status === 'pending'
+          ? '<button onclick="cancelInvite(\'' + inv.id + '\')" style="background:#fee2e2; border:1px solid #c5221f; color:#c5221f; font-weight:bold; cursor:pointer; padding:4px 10px; font-size:0.82rem;">Cancel</button>'
+          : '—';
+      }
+
+      html += '<tr id="row-inv-' + inv.id + '">' +
+        '<td>' + (inv.judge_email || '') + '</td>' +
+        '<td>' + (inv.judge_name || '—') + '</td>' +
+        '<td>' + statusBadge + '</td>' +
+        '<td style="font-size:0.85rem;">' + (inv.created_at ? inv.created_at.slice(0,16).replace('T',' ') : '—') + '</td>' +
+        '<td style="font-size:0.85rem;">' + (inv.responded_at ? inv.responded_at.slice(0,16).replace('T',' ') : '—') + '</td>' +
+        (canInvite ? '<td>' + actionHtml + '</td>' : '') +
+        '</tr>';
     });
-}
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+  }
+
+  window.cancelInvite = function(id) {
+    fetch('/api/invites/' + id, { method: 'DELETE' })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.message) {
+          if (window.showToast) window.showToast('Invite cancelled.', 'info');
+          delete knownStatuses[id];
+          fetchInvites();
+        } else {
+          alert(data.error || 'Failed to cancel');
+        }
+      })
+      .catch(function() {
+        alert('Network error. Failed to cancel invite.');
+      });
+  };
+})();
 </script>
 
 <%- include('../layouts/footer') %>

@@ -6,13 +6,13 @@
 <% const pending = invites.filter(i => i.status === 'pending'); %>
 <% const past    = invites.filter(i => i.status !== 'pending'); %>
 
-<% if (invites.length === 0) { %>
+<div id="no-invites-msg" style="<%= invites.length === 0 ? 'display:block;' : 'display:none;' %>">
   <p>You have no invites at the moment.</p>
-<% } %>
+</div>
 
-<% if (pending.length > 0) { %>
-  <h2 style="font-size:1.1rem; margin-bottom:14px;">Pending Invites (<%= pending.length %>)</h2>
-  <div style="display:flex; flex-direction:column; gap:16px; margin-bottom:32px;">
+<div id="pending-section" style="<%= pending.length > 0 ? 'display:block;' : 'display:none;' %> margin-bottom:32px;">
+  <h2 id="pending-heading" style="font-size:1.1rem; margin-bottom:14px;">Pending Invites (<span id="pending-count"><%= pending.length %></span>)</h2>
+  <div id="pending-list" style="display:flex; flex-direction:column; gap:16px;">
     <% for (const inv of pending) { %>
       <div style="background:#fff; border:2px solid #1A1A1A; padding:20px;" id="invite-card-<%= inv.id %>">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
@@ -38,11 +38,11 @@
             </table>
           </div>
           <div style="display:flex; gap:10px; align-items:flex-start; flex-wrap:wrap;">
-            <button onclick="respondInvite('<%= inv.id %>', 'accept')"
+            <button onclick="respondInvite('<%= inv.id %>', 'accept', this)" data-name="<%= inv.event_name %>" data-organizer="<%= inv.organizer_name %>"
               style="background:#E6F4EA; border:2px solid #34A853; color:#137333; font-weight:bold; font-size:0.95rem; padding:10px 22px; cursor:pointer;">
               ✓ Accept
             </button>
-            <button onclick="respondInvite('<%= inv.id %>', 'reject')"
+            <button onclick="respondInvite('<%= inv.id %>', 'reject', this)" data-name="<%= inv.event_name %>" data-organizer="<%= inv.organizer_name %>"
               style="background:#FDECEA; border:2px solid #EA4335; color:#c5221f; font-weight:bold; font-size:0.95rem; padding:10px 22px; cursor:pointer;">
               ✗ Decline
             </button>
@@ -52,9 +52,9 @@
       </div>
     <% } %>
   </div>
-<% } %>
+</div>
 
-<% if (past.length > 0) { %>
+<div id="past-section" style="<%= past.length > 0 ? 'display:block;' : 'display:none;' %>">
   <h2 style="font-size:1.1rem; margin-bottom:12px;">Past Invites</h2>
   <table>
     <thead>
@@ -65,7 +65,7 @@
         <th>Responded</th>
       </tr>
     </thead>
-    <tbody>
+    <tbody id="past-tbody">
       <% for (const inv of past) { %>
         <tr>
           <td><%= inv.event_name %></td>
@@ -82,44 +82,82 @@
       <% } %>
     </tbody>
   </table>
-<% } %>
+</div>
 
 <script>
-function respondInvite(id, action) {
+function respondInvite(id, action, btn) {
+  var eventName = btn ? btn.getAttribute('data-name') : 'hackathon';
+  var organizerName = btn ? btn.getAttribute('data-organizer') : 'Organizer';
   var card = document.getElementById('invite-card-' + id);
-  var msg  = document.getElementById('invite-msg-' + id);
+  var btns = card ? card.querySelectorAll('button') : [];
+  btns.forEach(function(b) { b.disabled = true; });
 
   fetch('/api/judge-invites/' + id + '/' + action, { method: 'POST' })
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (data.error) {
-        msg.style.display = 'block';
-        msg.style.color = '#c5221f';
-        msg.textContent = data.error;
+        btns.forEach(function(b) { b.disabled = false; });
+        if (window.showToast) window.showToast(data.error, 'error');
       } else {
+        var statusBadge = action === 'accept'
+          ? '<span style="color:#137333; font-weight:bold;">✓ Accepted</span>'
+          : '<span style="color:#c5221f; font-weight:bold;">✗ Declined</span>';
+
         if (action === 'accept') {
+          if (window.showToast) window.showToast('✓ Accepted invite for ' + (eventName || 'hackathon') + '!', 'success');
           card.style.borderColor = '#34A853';
           card.style.background = '#E6F4EA';
-          msg.style.display = 'block';
-          msg.style.color = '#137333';
-          msg.textContent = 'Accepted! This hackathon now appears in your events list.';
         } else {
+          if (window.showToast) window.showToast('Declined invitation.', 'info');
           card.style.borderColor = '#EA4335';
           card.style.background = '#FDECEA';
-          msg.style.display = 'block';
-          msg.style.color = '#c5221f';
-          msg.textContent = 'Declined.';
         }
-        // Hide buttons
-        var btns = card.querySelectorAll('button');
+
+        // Hide action buttons
         btns.forEach(function(b) { b.style.display = 'none'; });
-        setTimeout(function() { location.reload(); }, 1500);
+
+        // Decrement notification bell count
+        var badge = document.getElementById('notif-count');
+        if (badge && badge.textContent) {
+          var count = parseInt(badge.textContent, 10);
+          if (count > 1) {
+            badge.textContent = count - 1;
+          } else {
+            badge.style.display = 'none';
+          }
+        }
+
+        // Append to Past Invites table without reload
+        var pastSec = document.getElementById('past-section');
+        var pastTbody = document.getElementById('past-tbody');
+        if (pastSec) pastSec.style.display = 'block';
+        if (pastTbody) {
+          var nowStr = new Date().toISOString().slice(0, 16).replace('T', ' ');
+          var newRow = '<tr>' +
+            '<td>' + (eventName || '') + '</td>' +
+            '<td>' + (organizerName || 'Organizer') + '</td>' +
+            '<td>' + statusBadge + '</td>' +
+            '<td style="font-size:0.85rem;">' + nowStr + '</td>' +
+            '</tr>';
+          pastTbody.innerHTML = newRow + pastTbody.innerHTML;
+        }
+
+        // Remove card after 1 second without page reload
+        setTimeout(function() {
+          if (card) card.remove();
+          var remaining = document.querySelectorAll('#pending-list > div');
+          var pCount = document.getElementById('pending-count');
+          if (pCount) pCount.textContent = remaining.length;
+          if (remaining.length === 0) {
+            var pSec = document.getElementById('pending-section');
+            if (pSec) pSec.style.display = 'none';
+          }
+        }, 1100);
       }
     })
     .catch(function() {
-      msg.style.display = 'block';
-      msg.style.color = '#c5221f';
-      msg.textContent = 'Network error. Please try again.';
+      btns.forEach(function(b) { b.disabled = false; });
+      if (window.showToast) window.showToast('Network error. Please try again.', 'error');
     });
 }
 </script>

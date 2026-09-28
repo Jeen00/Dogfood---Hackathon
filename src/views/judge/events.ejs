@@ -9,10 +9,11 @@
 
 <hr style="margin-bottom: 28px;">
 
-<% if (typeof pendingInvites !== 'undefined' && pendingInvites && pendingInvites.length > 0) { %>
-  <div style="margin-bottom: 32px;">
-    <h2 style="font-size: 1.15rem; margin-bottom: 12px; color: #1A1A1A;">Pending Judging Invitations</h2>
-    <div style="display: flex; flex-direction: column; gap: 14px;">
+<!-- Pending Invitations Section (Live reactive without page reload) -->
+<div id="pending-invites-section" style="<%= (typeof pendingInvites !== 'undefined' && pendingInvites && pendingInvites.length > 0) ? 'display:block;' : 'display:none;' %> margin-bottom: 32px;">
+  <h2 style="font-size: 1.15rem; margin-bottom: 12px; color: #1A1A1A;">Pending Judging Invitations</h2>
+  <div id="pending-invites-list" style="display: flex; flex-direction: column; gap: 14px;">
+    <% if (typeof pendingInvites !== 'undefined' && pendingInvites) { %>
       <% for (const inv of pendingInvites) { %>
         <div id="home-invite-<%= inv.id %>" style="background: #FFFFFF; border: 2px solid #1A1A1A; border-left: 6px solid #1A73E8; padding: 18px 20px;">
           <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 14px;">
@@ -28,11 +29,11 @@
               </div>
             </div>
             <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-              <button onclick="handleHomeInvite('<%= inv.id %>', 'accept')"
+              <button onclick="handleHomeInvite('<%= inv.id %>', 'accept', this)" data-name="<%= inv.event_name %>"
                 style="background: #E6F4EA; border: 2px solid #34A853; color: #137333; font-weight: bold; font-size: 0.9rem; padding: 8px 18px; cursor: pointer;">
                 ✓ Accept
               </button>
-              <button onclick="handleHomeInvite('<%= inv.id %>', 'reject')"
+              <button onclick="handleHomeInvite('<%= inv.id %>', 'reject', this)" data-name="<%= inv.event_name %>"
                 style="background: #FDECEA; border: 2px solid #EA4335; color: #c5221f; font-weight: bold; font-size: 0.9rem; padding: 8px 18px; cursor: pointer;">
                 ✗ Reject
               </button>
@@ -41,97 +42,62 @@
           <div id="home-invite-msg-<%= inv.id %>" style="margin-top: 10px; font-size: 0.88rem; display: none;"></div>
         </div>
       <% } %>
-    </div>
-  </div>
-<% } %>
-
-<script>
-function handleHomeInvite(id, action) {
-  var box = document.getElementById('home-invite-' + id);
-  var msg = document.getElementById('home-invite-msg-' + id);
-  fetch('/api/judge-invites/' + id + '/' + action, { method: 'POST' })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      if (data.error) {
-        msg.style.display = 'block';
-        msg.style.color = '#c5221f';
-        msg.textContent = data.error;
-      } else {
-        msg.style.display = 'block';
-        if (action === 'accept') {
-          box.style.borderColor = '#34A853';
-          box.style.background = '#E6F4EA';
-          msg.style.color = '#137333';
-          msg.textContent = 'Invitation accepted! Reloading hackathons...';
-        } else {
-          box.style.borderColor = '#EA4335';
-          box.style.background = '#FDECEA';
-          msg.style.color = '#c5221f';
-          msg.textContent = 'Invitation rejected.';
-        }
-        var btns = box.querySelectorAll('button');
-        btns.forEach(function(b) { b.style.display = 'none'; });
-        setTimeout(function() { location.reload(); }, 1200);
-      }
-    })
-    .catch(function() {
-      msg.style.display = 'block';
-      msg.style.color = '#c5221f';
-      msg.textContent = 'Network error. Please try again.';
-    });
-}
-</script>
-
-<% if (!events || events.length === 0) { %>
-  <p>No hackathons found with assignments for you.</p>
-<% } else { %>
-  <div style="display: flex; flex-direction: column; gap: 20px;">
-    <% for (const evt of events) { %>
-      <div class="event-card" style="border-left: 6px solid <%= evt.statusInfo.status === 'running' ? '#34a853' : (evt.statusInfo.status === 'upcoming' ? '#4285f4' : '#888888') %>;">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; margin-bottom: 12px;">
-          <div>
-            <h2 style="margin: 0 0 6px 0; border: none; padding: 0; font-size: 1.4rem;">
-              <%= evt.name %>
-            </h2>
-            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-              <span class="status-badge <%= evt.statusInfo.badgeClass %>"><%= evt.statusInfo.label %></span>
-              <span style="font-weight: bold; font-size: 0.9rem; color: <%= evt.statusInfo.status === 'running' ? '#137333' : '#555' %>;">
-                ⏱ <%= evt.statusInfo.timeText %>
-              </span>
-            </div>
-          </div>
-          <div>
-            <a href="/judge/dashboard?event_id=<%= evt.id %>" class="btn-action" style="font-size: 0.95rem; padding: 10px 20px;">
-              View My Assignments &rarr;
-            </a>
-          </div>
-        </div>
-
-        <div style="display: flex; gap: 24px; flex-wrap: wrap; margin-top: 16px; padding-top: 14px; border-top: 1px solid #eee; font-size: 0.9rem; color: #444;">
-          <div>
-            <strong>Assigned to me:</strong> <%= evt.assigned_count %> project<%= evt.assigned_count === 1 ? '' : 's' %>
-          </div>
-          <div>
-            <strong>Scored:</strong> <%= evt.scored_count %> / <%= evt.assigned_count %>
-          </div>
-          <div>
-            <strong>Pending:</strong> <span style="color: <%= evt.pending_count > 0 ? '#c5221f' : '#137333' %>; font-weight: bold;"><%= evt.pending_count %></span>
-          </div>
-          <div>
-            <strong>Close Date:</strong> <%= evt.submissions_close ? new Date(evt.submissions_close).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : 'No deadline' %>
-          </div>
-        </div>
-      </div>
     <% } %>
   </div>
-<% } %>
+</div>
+
+<div id="events-section">
+  <% if (!events || events.length === 0) { %>
+    <p id="no-events-msg">No hackathons found with assignments for you.</p>
+  <% } else { %>
+    <div id="events-list" style="display: flex; flex-direction: column; gap: 20px;">
+      <% for (const evt of events) { %>
+        <div id="event-card-<%= evt.id %>" class="event-card" style="border-left: 6px solid <%= evt.statusInfo.status === 'running' ? '#34a853' : (evt.statusInfo.status === 'upcoming' ? '#4285f4' : '#888888') %>;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; margin-bottom: 12px;">
+            <div>
+              <h2 style="margin: 0 0 6px 0; border: none; padding: 0; font-size: 1.4rem;">
+                <%= evt.name %>
+              </h2>
+              <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <span class="status-badge <%= evt.statusInfo.badgeClass %>"><%= evt.statusInfo.label %></span>
+                <span style="font-weight: bold; font-size: 0.9rem; color: <%= evt.statusInfo.status === 'running' ? '#137333' : '#555' %>;">
+                  ⏱ <%= evt.statusInfo.timeText %>
+                </span>
+              </div>
+            </div>
+            <div>
+              <a href="/judge/dashboard?event_id=<%= evt.id %>" class="btn-action" style="font-size: 0.95rem; padding: 10px 20px;">
+                View My Assignments &rarr;
+              </a>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 24px; flex-wrap: wrap; margin-top: 16px; padding-top: 14px; border-top: 1px solid #eee; font-size: 0.9rem; color: #444;">
+            <div>
+              <strong>Assigned to me:</strong> <%= evt.assigned_count %> project<%= evt.assigned_count === 1 ? '' : 's' %>
+            </div>
+            <div>
+              <strong>Scored:</strong> <%= evt.scored_count %> / <%= evt.assigned_count %>
+            </div>
+            <div>
+              <strong>Pending:</strong> <span style="color: <%= evt.pending_count > 0 ? '#c5221f' : '#137333' %>; font-weight: bold;"><%= evt.pending_count %></span>
+            </div>
+            <div>
+              <strong>Close Date:</strong> <%= evt.submissions_close ? new Date(evt.submissions_close).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : 'No deadline' %>
+            </div>
+          </div>
+        </div>
+      <% } %>
+    </div>
+  <% } %>
+</div>
 
 <% if (otherEvents && otherEvents.length > 0) { %>
   <hr style="margin: 36px 0 24px;">
   <h2 style="color: #888; font-size: 1rem; font-weight: normal;">Other Hackathons (no assignments yet)</h2>
   <div style="display: flex; flex-direction: column; gap: 12px;">
     <% for (const evt of otherEvents) { %>
-      <div style="background: #fafafa; border: 1px solid #ddd; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+      <div id="other-card-<%= evt.id %>" style="background: #fafafa; border: 1px solid #ddd; padding: 14px 18px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
         <div>
           <strong><%= evt.name %></strong>
           <span class="status-badge <%= evt.statusInfo.badgeClass %>" style="margin-left: 10px;"><%= evt.statusInfo.label %></span>
@@ -142,5 +108,60 @@ function handleHomeInvite(id, action) {
     <% } %>
   </div>
 <% } %>
+
+<script>
+function handleHomeInvite(id, action, btn) {
+  var eventName = btn ? btn.getAttribute('data-name') : 'hackathon';
+  var box = document.getElementById('home-invite-' + id);
+  var btns = box ? box.querySelectorAll('button') : [];
+  btns.forEach(function(b) { b.disabled = true; });
+
+  fetch('/api/judge-invites/' + id + '/' + action, { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.error) {
+        btns.forEach(function(b) { b.disabled = false; });
+        if (window.showToast) window.showToast(data.error, 'error');
+      } else {
+        if (action === 'accept') {
+          if (window.showToast) window.showToast('✓ Accepted judging invitation for ' + (eventName || 'hackathon') + '!', 'success');
+          box.style.borderColor = '#34A853';
+          box.style.background = '#E6F4EA';
+          box.innerHTML = '<div style="color:#137333; font-weight:bold; padding:6px 0;">✓ Accepted! You are now a judge for ' + (eventName || 'this event') + '.</div>';
+        } else {
+          if (window.showToast) window.showToast('Declined invitation.', 'info');
+          box.style.borderColor = '#EA4335';
+          box.style.background = '#FDECEA';
+          box.innerHTML = '<div style="color:#c5221f; font-weight:bold; padding:6px 0;">✗ Invitation declined.</div>';
+        }
+
+        // Decrement bell badge
+        var badge = document.getElementById('notif-count');
+        if (badge && badge.textContent) {
+          var count = parseInt(badge.textContent, 10);
+          if (count > 1) {
+            badge.textContent = count - 1;
+          } else {
+            badge.style.display = 'none';
+          }
+        }
+
+        // Seamlessly remove the invite card after 1 second without page reload
+        setTimeout(function() {
+          if (box) box.remove();
+          var remaining = document.querySelectorAll('#pending-invites-list > div');
+          if (remaining.length === 0) {
+            var sec = document.getElementById('pending-invites-section');
+            if (sec) sec.style.display = 'none';
+          }
+        }, 1200);
+      }
+    })
+    .catch(function() {
+      btns.forEach(function(b) { b.disabled = false; });
+      if (window.showToast) window.showToast('Network error. Please try again.', 'error');
+    });
+}
+</script>
 
 <%- include('../layouts/footer') %>

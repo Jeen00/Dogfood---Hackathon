@@ -175,6 +175,49 @@
       })
       .catch(function(){});
   };
+
+  // Modern Toast Notification Utility (no refresh required)
+  window.showToast = function(message, type, duration) {
+    duration = duration || 4000;
+    var container = document.getElementById('toast-container');
+    if (!container) return;
+
+    var toast = document.createElement('div');
+    var bg = '#ffffff';
+    var border = '#1A1A1A';
+    var text = '#1A1A1A';
+    var icon = '🔔';
+
+    if (type === 'success') {
+      bg = '#E6F4EA';
+      border = '#34A853';
+      text = '#137333';
+      icon = '✅';
+    } else if (type === 'error') {
+      bg = '#FDECEA';
+      border = '#EA4335';
+      text = '#c5221f';
+      icon = '❌';
+    } else if (type === 'info') {
+      bg = '#E8F0FE';
+      border = '#1A73E8';
+      text = '#1A73E8';
+      icon = '📩';
+    }
+
+    toast.style.cssText = 'background:' + bg + '; border:2px solid ' + border + '; color:' + text +
+      '; padding:12px 18px; font-size:0.92rem; font-weight:bold; box-shadow:0 4px 14px rgba(0,0,0,0.15);' +
+      'display:flex; align-items:center; justify-content:space-between; gap:14px; min-width:280px;';
+    toast.innerHTML = '<div><span style="margin-right:8px;">' + icon + '</span>' + message + '</div>' +
+      '<button onclick="this.parentElement.remove()" style="background:none;border:none;color:' + text + ';font-size:1.2rem;cursor:pointer;line-height:1;padding:0;">&times;</button>';
+
+    container.appendChild(toast);
+    setTimeout(function() {
+      if (toast && toast.parentElement) toast.remove();
+    }, duration);
+  };
 })();
 </script>
+
+<div id="toast-container" style="position:fixed; bottom:24px; right:24px; z-index:99999; display:flex; flex-direction:column; gap:10px; max-width:400px;"></div>
 <% } %>
