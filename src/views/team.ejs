@@ -132,11 +132,18 @@
 
 <!-- ── My Teams ─────────────────────────────────────────────────────────── -->
 <% if (teams.length === 0) { %>
-  <div style="background: #fff; border: 2px dashed #999; padding: 24px; text-align: center; margin-bottom: 24px;">
-    <h3 style="margin-top: 0;">You don't have a team in <%= typeof selectedEvent !== 'undefined' && selectedEvent ? selectedEvent.name : 'this hackathon' %> yet.</h3>
-    <p style="color: #666; margin-bottom: 16px;">You can create a new team below or join an existing team using an invite code.</p>
-    <a href="/invite" class="btn-action" style="font-size: 0.95rem; padding: 8px 18px; text-decoration: none;">Join Team with Code</a>
-  </div>
+  <% if (typeof userConflict !== 'undefined' && userConflict && userConflict.conflict) { %>
+    <div style="background: #FFF3CD; border: 2px solid #856404; padding: 20px 24px; margin-bottom: 24px;">
+      <h3 style="margin-top: 0; color: #856404;">⚠️ Schedule Conflict</h3>
+      <p style="margin: 0; color: #533f03; line-height: 1.5;"><%= userConflict.message %></p>
+    </div>
+  <% } else { %>
+    <div style="background: #fff; border: 2px dashed #999; padding: 24px; text-align: center; margin-bottom: 24px;">
+      <h3 style="margin-top: 0;">You don't have a team in <%= typeof selectedEvent !== 'undefined' && selectedEvent ? selectedEvent.name : 'this hackathon' %> yet.</h3>
+      <p style="color: #666; margin-bottom: 16px;">You can create a new team below or join an existing team using an invite code.</p>
+      <a href="/invite" class="btn-action" style="font-size: 0.95rem; padding: 8px 18px; text-decoration: none;">Join Team with Code</a>
+    </div>
+  <% } %>
 <% } else { %>
   <% for (const team of teams) { %>
     <section style="border:1px solid #ddd;border-radius:6px;padding:20px;margin-bottom:24px">
@@ -298,18 +305,28 @@
 
 <hr style="margin:32px 0;border:0;border-top:1px solid #ccc">
 
-<div style="margin-bottom:20px">
-  <a href="/invite" class="btn-action">+ Join Team with Code</a>
-</div>
-
-<h2>Create a New Team</h2>
-<form method="POST" action="/team" class="form-narrow">
-  <input type="hidden" name="event_id" value="<%= typeof eventId !== 'undefined' ? eventId : 'evt_01' %>">
-  <div class="form-group">
-    <label for="name">Team Name</label>
-    <input type="text" id="name" name="name" required maxlength="100" placeholder="e.g. Pixel Pioneers">
+<% if (teams.length > 0) { %>
+  <div style="background: #F8F9FA; border: 1px solid #CCC; padding: 16px 20px;">
+    <strong>Notice:</strong> You are already participating in this hackathon as a member of <strong><%= teams[0].name %></strong>. Each participant can only belong to 1 team per hackathon.
   </div>
-  <button type="submit">Create Team</button>
-</form>
+<% } else if (typeof userConflict !== 'undefined' && userConflict && userConflict.conflict) { %>
+  <div style="background: #FFF3CD; border: 2px solid #856404; padding: 16px 20px; color: #533f03;">
+    <strong>Notice:</strong> You cannot create or join a team for this hackathon due to a schedule conflict with <strong><%= userConflict.conflictingEvent.name %></strong>.
+  </div>
+<% } else { %>
+  <div style="margin-bottom:20px">
+    <a href="/invite" class="btn-action">+ Join Team with Code</a>
+  </div>
+
+  <h2>Create a New Team</h2>
+  <form method="POST" action="/team" class="form-narrow">
+    <input type="hidden" name="event_id" value="<%= typeof eventId !== 'undefined' ? eventId : 'evt_01' %>">
+    <div class="form-group">
+      <label for="name">Team Name</label>
+      <input type="text" id="name" name="name" required maxlength="100" placeholder="e.g. Pixel Pioneers">
+    </div>
+    <button type="submit">Create Team</button>
+  </form>
+<% } %>
 
 <%- include('layouts/footer') %>
