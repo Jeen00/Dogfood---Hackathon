@@ -5,6 +5,7 @@ const requireRole = require('../middleware/requireRole');
 const { ACTIVE_EVENT_ID } = require('../lib/config');
 const { getRubric } = require('../lib/rubric');
 const { getEventStatus } = require('../lib/event-status');
+const { createNotification } = require('../lib/notifications');
 
 const router = express.Router();
 
@@ -602,6 +603,60 @@ router.get('/results', requireRole('organizer', 'admin'), (req, res) => {
       message: 'Failed to load results leaderboard.',
       session: req.session
     });
+  }
+});
+
+/**
+ * GET /organizer/invites
+ * Organizer manages judge invites for a selected event.
+ */
+router.get('/invites', requireRole('organizer', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const selectedEvent = resolveSelectedEvent(db, req);
+    res.locals.selectedEvent = selectedEvent;
+    const statusInfo = getEventStatus(selectedEvent);
+
+    // Check invite window
+    const now = new Date();
+    let canInvite = true;
+    let inviteBlockReason = null;
+    if (selectedEvent.submissions_open) {
+      const open = new Date(selectedEvent.submissions_open);
+      const sixHoursBefore = new Date(open.getTime() - 6 * 60 * 60 * 1000);
+      if (now >= open) {
+        canInvite = false;
+        inviteBlockReason = 'The hackathon has already started. Judge invites are closed.';
+      } else if (now >= sixHoursBefore) {
+        canInvite = false;
+        inviteBlockReason = 'Judge invites close 6 hours before the hackathon begins.';
+      }
+    }
+
+    const invites = db.prepare(`
+      SELECT ji.*, u.name AS judge_name
+      FROM judge_invites ji
+      LEFT JOIN users u ON u.id = ji.judge_id
+      WHERE ji.event_id = ?
+      ORDER BY ji.created_at DESC
+    `).all(selectedEvent.id);
+
+    const availableJudges = db.prepare("SELECT id, name, email FROM users WHERE role = 'judge' ORDER BY name ASC").all();
+
+    return res.render('organizer/invites', {
+      selectedEvent,
+      statusInfo,
+      invites,
+      availableJudges,
+      canInvite,
+      inviteBlockReason,
+      session: req.session,
+      error: null,
+      success: null
+    });
+  } catch (err) {
+    console.error('[organizer:invites GET]', err.message);
+    return res.status(500).render('error', { message: 'Failed to load invites.', session: req.session });
   }
 });
 

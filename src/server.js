@@ -19,6 +19,7 @@ const organizerRouter     = require('./routes/organizer');
 const exportRouter        = require('./routes/export');
 const normalizationRouter = require('./routes/normalization');
 const githubRouter        = require('./routes/github');
+const invitesRouter       = require('./routes/invites');
 
 const app  = express();
 const PORT = process.env.PORT || 8080;
@@ -48,6 +49,7 @@ app.use('/organizer',             organizerRouter);
 app.use('/api/organizer',         organizerRouter);
 app.use('/api/export.csv',        exportRouter);
 app.use('/api/normalization',     normalizationRouter);
+app.use('/api',                   invitesRouter);
 app.use('/',                      githubRouter);
 
 // ─── Login convenience route ──────────────────────────────────────────────
