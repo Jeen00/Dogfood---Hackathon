@@ -1,0 +1,19 @@
+﻿<%- include('../layouts/header', { title: 'Re-evaluation', session, selectedEvent }) %>
+<% locals._page = 'judging-reeval'; %>
+<div class="org-layout">
+  <%- include('_sidebar') %>
+  <main class="org-content">
+    <div class="org-page-header">
+      <div>
+        <h1 class="org-page-title">🔄 Re-evaluation</h1>
+        <p class="org-page-sub"><%= selectedEvent ? selectedEvent.name : 'Organizer' %></p>
+      </div>
+    </div>
+    <div class="org-stub">
+      <div class="org-stub-icon">🔄</div>
+      <p class="org-stub-title">Re-evaluation</p>
+      <p class="org-stub-msg">Request and track score re-evaluations. — Coming soon.</p>
+    </div>
+  </main>
+</div>
+<%- include('../layouts/footer') %>

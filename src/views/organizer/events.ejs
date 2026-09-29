@@ -1,60 +1,567 @@
-<%- include('../layouts/header', { title: 'All Hackathons', session }) %>
+<%- include('../layouts/header', { title: 'Hackathons Management', session, selectedEvent }) %>
+<%
+  var activeTab = typeof tab !== 'undefined' ? tab : 'all';
+  var eid = (typeof selectedEvent !== 'undefined' && selectedEvent) ? selectedEvent.id : '';
+  locals._page = 'hackathons-' + (activeTab === 'all' ? 'all' : activeTab);
+%>
 
-<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-  <div>
-    <h1 style="margin: 0 0 8px 0; border: none; padding: 0;">All Hackathons</h1>
-    <p style="color: #666; margin: 0;">Select a hackathon to manage its dashboard, judge assignments, rubric, and results.</p>
-  </div>
-  <div>
-    <a href="/events/new" class="btn-action" style="margin: 0;">+ Create New Hackathon</a>
-  </div>
-</div>
+<div class="org-layout">
+  <%- include('_sidebar') %>
 
-<hr style="margin-bottom: 28px;">
+  <main class="org-content">
 
-<% if (!events || events.length === 0) { %>
-  <p>No hackathons found.</p>
-  <p><a href="/events/new">Create your first hackathon</a></p>
-<% } else { %>
-  <div style="display: flex; flex-direction: column; gap: 20px;">
-    <% for (const evt of events) { %>
-      <div class="event-card" style="border-left: 6px solid <%= evt.statusInfo.status === 'running' ? '#34a853' : (evt.statusInfo.status === 'upcoming' ? '#4285f4' : '#888888') %>;">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; margin-bottom: 12px;">
-          <div>
-            <h2 style="margin: 0 0 6px 0; border: none; padding: 0; font-size: 1.4rem;">
-              <%= evt.name %>
-            </h2>
-            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-              <span class="status-badge <%= evt.statusInfo.badgeClass %>"><%= evt.statusInfo.label %></span>
-              <span style="font-weight: bold; font-size: 0.9rem; color: <%= evt.statusInfo.status === 'running' ? '#137333' : '#555' %>;">
-                ⏱ <%= evt.statusInfo.timeText %>
-              </span>
-            </div>
-          </div>
-          <div>
-            <a href="/organizer/dashboard?event_id=<%= evt.id %>" class="btn-action" style="font-size: 0.95rem; padding: 10px 20px;">
-              Manage Hackathon &rarr;
-            </a>
-          </div>
-        </div>
+    <!-- ── Page Header ──────────────────────────────────────── -->
+    <div class="org-page-header">
+      <div>
+        <h1 class="org-page-title">🏆 Hackathons Management</h1>
+        <p class="org-page-sub">
+          <% if (selectedEvent && (activeTab === 'overview' || activeTab === 'details' || activeTab === 'timeline' || activeTab === 'settings')) { %>
+            Managing: <strong><%= selectedEvent.name %></strong>
+          <% } else { %>
+            Discover, configure, publish and manage all your hackathons
+          <% } %>
+        </p>
+      </div>
 
-        <div style="display: flex; gap: 24px; flex-wrap: wrap; margin-top: 16px; padding-top: 14px; border-top: 1px solid #eee; font-size: 0.9rem; color: #444;">
-          <div>
-            <strong>Projects:</strong> <%= evt.project_count %> submitted
-          </div>
-          <div>
-            <strong>Tracks:</strong> <%= evt.track_count %> tracks
-          </div>
-          <div>
-            <strong>Close Date:</strong> <%= evt.submissions_close ? new Date(evt.submissions_close).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : 'No deadline' %>
-          </div>
-          <div>
-            <strong>Event ID:</strong> <code><%= evt.id %></code>
-          </div>
-        </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <% if (selectedEvent) { %>
+          <form method="POST" action="/organizer/events/publish" style="display:inline;margin:0;">
+            <input type="hidden" name="event_id" value="<%= selectedEvent.id %>">
+            <% if (selectedEvent.is_published === 0 || selectedEvent.status === 'draft') { %>
+              <button type="submit" class="org-action-btn org-btn-success" title="Publish hackathon to public gallery">
+                🚀 Publish Hackathon
+              </button>
+            <% } else { %>
+              <button type="submit" class="org-action-btn org-action-btn-outline" style="border-color:#d93025;color:#d93025;" title="Unpublish and return to draft">
+                🛑 Unpublish
+              </button>
+            <% } %>
+          </form>
+
+          <form method="POST" action="/organizer/events/duplicate" style="display:inline;margin:0;" onsubmit="return confirm('Clone this hackathon, tracks, and rubric criteria?');">
+            <input type="hidden" name="event_id" value="<%= selectedEvent.id %>">
+            <button type="submit" class="org-action-btn org-btn-secondary">
+              📋 Duplicate
+            </button>
+          </form>
+        <% } %>
+
+        <a href="/organizer/event/new" class="org-action-btn" style="height:fit-content;">+ Create Hackathon</a>
+      </div>
+    </div>
+
+    <!-- Alert Banners -->
+    <% if (typeof success !== 'undefined' && success) { %>
+      <div style="background:#e6f4ea;color:#137333;border:1px solid #34a853;border-radius:6px;padding:12px 16px;margin-bottom:18px;font-size:0.9rem;">
+        ✅ <%= success %>
       </div>
     <% } %>
-  </div>
-<% } %>
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div class="error" style="margin-bottom:18px;">
+        ⚠️ <%= error %>
+      </div>
+    <% } %>
+
+    <!-- ── Sub-Navigation Tabs (All Hackathon Sub-Options) ────── -->
+    <nav class="org-tabs">
+      <a href="/organizer/events?tab=all<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item <%= activeTab === 'all' ? 'active' : '' %>">
+        All Hackathons <span class="org-tab-badge"><%= counts.all %></span>
+      </a>
+      <a href="/organizer/event/new" class="org-tab-item">
+        + Create Hackathon
+      </a>
+      <a href="/organizer/events?tab=drafts<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item <%= activeTab === 'drafts' ? 'active' : '' %>">
+        Drafts <span class="org-tab-badge"><%= counts.drafts %></span>
+      </a>
+      <a href="/organizer/events?tab=active<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item <%= activeTab === 'active' ? 'active' : '' %>">
+        Active Hackathons <span class="org-tab-badge"><%= counts.active %></span>
+      </a>
+      <a href="/organizer/events?tab=upcoming<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item <%= activeTab === 'upcoming' ? 'active' : '' %>">
+        Upcoming Hackathons <span class="org-tab-badge"><%= counts.upcoming %></span>
+      </a>
+      <a href="/organizer/events?tab=completed<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item <%= activeTab === 'completed' ? 'active' : '' %>">
+        Completed Hackathons <span class="org-tab-badge"><%= counts.completed %></span>
+      </a>
+      <a href="/organizer/events?tab=archived<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item <%= activeTab === 'archived' ? 'active' : '' %>">
+        Archived Hackathons <span class="org-tab-badge"><%= counts.archived %></span>
+      </a>
+      <a href="/organizer/events?tab=overview<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item <%= activeTab === 'overview' ? 'active' : '' %>">
+        👁️ Hackathon Overview
+      </a>
+      <a href="/organizer/events?tab=details<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item <%= activeTab === 'details' ? 'active' : '' %>">
+        📝 Event Details
+      </a>
+      <a href="/organizer/events?tab=timeline<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item <%= activeTab === 'timeline' ? 'active' : '' %>">
+        📅 Event Timeline
+      </a>
+      <a href="/organizer/events?tab=settings<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item <%= activeTab === 'settings' ? 'active' : '' %>">
+        ⚙️ Event Settings
+      </a>
+    </nav>
+
+    <!-- ════════════════════════════════════════════════════════
+         TAB 1-6: LIST VIEWS (All, Drafts, Active, Upcoming, Completed, Archived)
+    ════════════════════════════════════════════════════════ -->
+    <% if (['all', 'drafts', 'active', 'upcoming', 'completed', 'archived'].includes(activeTab)) { %>
+
+      <!-- Filter bar -->
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+        <div style="font-size:0.9rem;color:#666;">
+          Showing <strong><%= events.length %></strong> <%= activeTab.replace(/s$/,'') %> hackathon<%= events.length !== 1 ? 's' : '' %>
+        </div>
+        <div style="display:flex;gap:10px;">
+          <input type="text" id="eventSearchInput" placeholder="Quick filter by name..." oninput="filterEventCards(this.value)"
+                 style="padding:6px 12px;border:1px solid #ccc;border-radius:4px;font-size:0.85rem;min-width:220px;">
+        </div>
+      </div>
+
+      <% if (events.length === 0) { %>
+        <div class="org-empty-state" style="background:#fff;border:1px solid #e0e0e0;border-radius:8px;padding:48px 24px;">
+          <div style="font-size:3rem;margin-bottom:12px;">🏛️</div>
+          <h3 style="margin:0 0 6px;color:#333;">No <%= activeTab %> hackathons found</h3>
+          <p style="color:#777;margin:0 0 16px;">Create a new hackathon or switch tabs to see other events.</p>
+          <a href="/organizer/event/new" class="org-action-btn">+ Create Hackathon</a>
+        </div>
+      <% } else { %>
+        <div class="org-event-grid" id="eventsGrid">
+          <% events.forEach(function(evt) { %>
+            <div class="org-event-card" data-name="<%= evt.name.toLowerCase() %>">
+              <div class="org-event-card-header">
+                <div>
+                  <h3 class="org-event-name" style="margin-bottom:4px;"><%= evt.name %></h3>
+                  <div style="display:flex;gap:6px;align-items:center;">
+                    <span class="status-badge <%= evt.statusInfo ? evt.statusInfo.badgeClass : '' %>">
+                      <%= evt.statusInfo ? evt.statusInfo.label : evt.computedStatus %>
+                    </span>
+                    <% if (evt.is_published === 0 || evt.status === 'draft') { %>
+                      <span class="status-badge badge-draft">Draft / Unpublished</span>
+                    <% } else { %>
+                      <span class="status-badge badge-published">Published</span>
+                    <% } %>
+                    <% if (evt.is_archived) { %>
+                      <span class="status-badge badge-archived">Archived</span>
+                    <% } %>
+                  </div>
+                </div>
+              </div>
+
+              <% if (evt.description) { %>
+                <p style="font-size:0.84rem;color:#666;margin:4px 0;line-height:1.4;">
+                  <%= evt.description.slice(0, 110) %><%= evt.description.length > 110 ? '...' : '' %>
+                </p>
+              <% } %>
+
+              <!-- Metrics -->
+              <div class="org-event-meta" style="background:#f8f9fa;padding:8px 12px;border-radius:6px;gap:12px;">
+                <span>📁 <strong><%= evt.project_count %></strong> projects</span>
+                <span>👥 <strong><%= evt.team_count %></strong> teams</span>
+                <span>🎯 <strong><%= evt.track_count %></strong> tracks</span>
+                <span>⚖️ <strong><%= evt.judge_count %></strong> judges</span>
+              </div>
+
+              <!-- Date windows -->
+              <div class="org-event-dates" style="background:#fafafa;padding:8px 12px;border-radius:6px;">
+                <div><strong>Submissions:</strong> <%= evt.submissions_open ? evt.submissions_open.slice(0,10) : 'TBD' %> → <%= evt.submissions_close ? evt.submissions_close.slice(0,10) : 'TBD' %></div>
+                <div><strong>Judging:</strong> <%= evt.judging_open ? evt.judging_open.slice(0,10) : 'TBD' %> → <%= evt.judging_close ? evt.judging_close.slice(0,10) : 'TBD' %></div>
+              </div>
+
+              <!-- Action buttons matching user's tree -->
+              <div class="org-event-actions" style="margin-top:auto;padding-top:10px;border-top:1px solid #eee;">
+                <a href="/organizer/dashboard?event_id=<%= evt.id %>" class="org-action-btn" title="Open Organizer Dashboard">Dashboard</a>
+                <a href="/organizer/events?tab=overview&event_id=<%= evt.id %>" class="org-action-btn org-action-btn-outline" title="View Overview & KPIs">Overview</a>
+                <a href="/organizer/events?tab=details&event_id=<%= evt.id %>" class="org-action-btn org-action-btn-outline" title="Edit Event Details">Details</a>
+
+                <!-- Publish / Unpublish -->
+                <form method="POST" action="/organizer/events/publish" style="display:inline;margin:0;">
+                  <input type="hidden" name="event_id" value="<%= evt.id %>">
+                  <button type="submit" class="org-action-btn org-action-btn-outline" style="padding:6px 10px;font-size:0.8rem;" title="<%= evt.is_published ? 'Unpublish' : 'Publish' %>">
+                    <%= evt.is_published ? '🛑' : '🚀' %>
+                  </button>
+                </form>
+
+                <!-- Duplicate -->
+                <form method="POST" action="/organizer/events/duplicate" style="display:inline;margin:0;" onsubmit="return confirm('Clone this hackathon?');">
+                  <input type="hidden" name="event_id" value="<%= evt.id %>">
+                  <button type="submit" class="org-action-btn org-action-btn-outline" style="padding:6px 10px;font-size:0.8rem;" title="Duplicate Hackathon">
+                    📋
+                  </button>
+                </form>
+
+                <!-- Archive -->
+                <form method="POST" action="/organizer/events/archive" style="display:inline;margin:0;" onsubmit="return confirm('<%= evt.is_archived ? 'Restore this event?' : 'Archive this event?' %>');">
+                  <input type="hidden" name="event_id" value="<%= evt.id %>">
+                  <button type="submit" class="org-action-btn org-action-btn-outline" style="padding:6px 10px;font-size:0.8rem;" title="<%= evt.is_archived ? 'Restore' : 'Archive' %>">
+                    <%= evt.is_archived ? '📥' : '📦' %>
+                  </button>
+                </form>
+              </div>
+            </div>
+          <% }); %>
+        </div>
+      <% } %>
+
+    <!-- ════════════════════════════════════════════════════════
+         TAB 7: HACKATHON OVERVIEW (Deep Dive)
+    ════════════════════════════════════════════════════════ -->
+    <% } else if (activeTab === 'overview') { %>
+
+      <% if (!selectedEvent) { %>
+        <p class="org-empty">Please select a hackathon from the All Hackathons tab.</p>
+      <% } else { %>
+        <!-- Event switcher -->
+        <div style="margin-bottom:20px;display:flex;align-items:center;gap:12px;background:#fff;padding:12px 18px;border:1px solid #e0e0e0;border-radius:8px;">
+          <span style="font-weight:600;font-size:0.88rem;color:#555;">Selected Hackathon:</span>
+          <select onchange="window.location.href='/organizer/events?tab=overview&event_id=' + this.value" class="org-select" style="min-width:280px;font-weight:600;">
+            <% allEvents.forEach(function(e) { %>
+              <option value="<%= e.id %>" <%= e.id === selectedEvent.id ? 'selected' : '' %>><%= e.name %></option>
+            <% }); %>
+          </select>
+          <a href="/organizer/dashboard?event_id=<%= selectedEvent.id %>" class="org-action-btn" style="margin-left:auto;">Go to Full Dashboard →</a>
+        </div>
+
+        <!-- KPI Grid -->
+        <div class="org-stat-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px;">
+          <div class="org-stat-card">
+            <div class="org-stat-icon" style="background:#e8f0fe">📁</div>
+            <div class="org-stat-body">
+              <div class="org-stat-value"><%= (selectedEvent && selectedEvent.project_count !== undefined) ? selectedEvent.project_count : 0 %></div>
+              <div class="org-stat-label">Submitted Projects</div>
+            </div>
+          </div>
+          <div class="org-stat-card">
+            <div class="org-stat-icon" style="background:#e6f4ea">🎯</div>
+            <div class="org-stat-body">
+              <div class="org-stat-value"><%= selectedEventTracks.length %></div>
+              <div class="org-stat-label">Tracks Configured</div>
+            </div>
+          </div>
+          <div class="org-stat-card">
+            <div class="org-stat-icon" style="background:#fce8e6">⚖️</div>
+            <div class="org-stat-body">
+              <div class="org-stat-value"><%= selectedEventJudges.length %></div>
+              <div class="org-stat-label">Assigned Judges</div>
+            </div>
+          </div>
+          <div class="org-stat-card">
+            <div class="org-stat-icon" style="background:#fff3e0">🏆</div>
+            <div class="org-stat-body">
+              <div class="org-stat-value"><%= selectedEventPrizes.length %></div>
+              <div class="org-stat-label">Prizes Listed</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Event Summary Card -->
+        <div class="org-two-col">
+          <div class="org-card">
+            <div class="org-card-header">
+              <h3 class="org-card-title">📌 Event Summary</h3>
+              <a href="/organizer/events?tab=details&event_id=<%= selectedEvent.id %>" class="org-card-link">Edit Details →</a>
+            </div>
+            <table class="org-table">
+              <tbody>
+                <tr><td><strong>ID</strong></td><td><code><%= selectedEvent.id %></code></td></tr>
+                <tr><td><strong>Name</strong></td><td><%= selectedEvent.name %></td></tr>
+                <tr><td><strong>Status</strong></td><td>
+                  <span class="status-badge <%= selectedEvent.is_published ? 'badge-published' : 'badge-draft' %>">
+                    <%= selectedEvent.is_published ? 'Published' : 'Draft / Unpublished' %>
+                  </span>
+                </td></tr>
+                <tr><td><strong>Description</strong></td><td><%= selectedEvent.description || 'No description provided yet.' %></td></tr>
+                <tr><td><strong>Contact Email</strong></td><td><%= selectedEvent.contact_email || '—' %></td></tr>
+                <tr><td><strong>Website</strong></td><td>
+                  <% if (selectedEvent.website_url) { %><a href="<%= selectedEvent.website_url %>" target="_blank"><%= selectedEvent.website_url %></a><% } else { %>—<% } %>
+                </td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="org-card">
+            <div class="org-card-header">
+              <h3 class="org-card-title">🎯 Configured Tracks</h3>
+              <a href="/organizer/tracks?event_id=<%= selectedEvent.id %>" class="org-card-link">Manage Tracks →</a>
+            </div>
+            <% if (selectedEventTracks.length === 0) { %>
+              <p class="org-empty">No tracks configured yet. <a href="/organizer/tracks?event_id=<%= selectedEvent.id %>">+ Add Track</a></p>
+            <% } else { %>
+              <ul style="margin:0;padding-left:18px;font-size:0.88rem;color:#444;line-height:1.8;">
+                <% selectedEventTracks.forEach(function(t) { %>
+                  <li><strong><%= t.name %></strong> <code style="font-size:0.75rem;color:#888;"><%= t.id %></code></li>
+                <% }); %>
+              </ul>
+            <% } %>
+
+            <div style="margin-top:16px;padding-top:14px;border-top:1px solid #f0f0f0;">
+              <h4 style="margin:0 0 8px;font-size:0.88rem;">⚖️ Rubric Criteria (<%= selectedEventCriteria.length %>)</h4>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                <% selectedEventCriteria.forEach(function(c) { %>
+                  <span class="badge badge-tech"><%= c.name %> (<%= Math.round(c.weight * 100) %>%)</span>
+                <% }); %>
+              </div>
+            </div>
+          </div>
+        </div>
+      <% } %>
+
+    <!-- ════════════════════════════════════════════════════════
+         TAB 8: EVENT DETAILS (Edit form)
+    ════════════════════════════════════════════════════════ -->
+    <% } else if (activeTab === 'details') { %>
+
+      <% if (!selectedEvent) { %>
+        <p class="org-empty">Please select a hackathon to edit details.</p>
+      <% } else { %>
+        <div class="org-card" style="max-width:850px;">
+          <div class="org-card-header">
+            <h3 class="org-card-title">📝 Edit Event Details: <%= selectedEvent.name %></h3>
+            <span style="font-size:0.8rem;color:#666;">ID: <%= selectedEvent.id %></span>
+          </div>
+
+          <form method="POST" action="/organizer/events/details">
+            <input type="hidden" name="event_id" value="<%= selectedEvent.id %>">
+
+            <div class="org-form-group">
+              <label class="org-form-label">Event Name *</label>
+              <input type="text" name="name" class="org-input" required value="<%= selectedEvent.name %>">
+            </div>
+
+            <div class="org-form-group">
+              <label class="org-form-label">Short Description</label>
+              <input type="text" name="description" class="org-input" value="<%= selectedEvent.description || '' %>" placeholder="A brief one-sentence hook for the event">
+            </div>
+
+            <div class="org-form-group">
+              <label class="org-form-label">About Hackathon</label>
+              <textarea name="about" class="org-textarea" rows="4" placeholder="Detailed background, goals, theme and schedule of the event"><%= selectedEvent.about || '' %></textarea>
+            </div>
+
+            <div class="org-form-grid">
+              <div class="org-form-group">
+                <label class="org-form-label">Problem Statement</label>
+                <textarea name="problem_statement" class="org-textarea" rows="3" placeholder="Challenge description or prompt for builders"><%= selectedEvent.problem_statement || '' %></textarea>
+              </div>
+
+              <div class="org-form-group">
+                <label class="org-form-label">Rules & Guidelines</label>
+                <textarea name="rules" class="org-textarea" rows="3" placeholder="Submission rules, code of conduct, originality requirements"><%= selectedEvent.rules || '' %></textarea>
+              </div>
+            </div>
+
+            <div class="org-form-grid">
+              <div class="org-form-group">
+                <label class="org-form-label">Eligibility Criteria</label>
+                <input type="text" name="eligibility" class="org-input" value="<%= selectedEvent.eligibility || '' %>" placeholder="e.g. Open to students, professionals, worldwide">
+              </div>
+
+              <div class="org-form-group">
+                <label class="org-form-label">Banner Image URL</label>
+                <input type="url" name="banner_url" class="org-input" value="<%= selectedEvent.banner_url || '' %>" placeholder="https://example.com/banner.png">
+              </div>
+            </div>
+
+            <div class="org-form-grid">
+              <div class="org-form-group">
+                <label class="org-form-label">Contact Email</label>
+                <input type="email" name="contact_email" class="org-input" value="<%= selectedEvent.contact_email || '' %>" placeholder="organizers@example.org">
+              </div>
+
+              <div class="org-form-group">
+                <label class="org-form-label">Official Website URL</label>
+                <input type="url" name="website_url" class="org-input" value="<%= selectedEvent.website_url || '' %>" placeholder="https://hackathon.example.com">
+              </div>
+            </div>
+
+            <div style="display:flex;gap:12px;margin-top:20px;">
+              <button type="submit" class="org-action-btn">Save Event Details</button>
+              <a href="/organizer/events?tab=overview&event_id=<%= selectedEvent.id %>" class="org-action-btn org-action-btn-outline">Cancel</a>
+            </div>
+          </form>
+        </div>
+      <% } %>
+
+    <!-- ════════════════════════════════════════════════════════
+         TAB 9: EVENT TIMELINE (Milestone editor)
+    ════════════════════════════════════════════════════════ -->
+    <% } else if (activeTab === 'timeline') { %>
+
+      <% if (!selectedEvent) { %>
+        <p class="org-empty">Please select a hackathon to view timeline.</p>
+      <% } else { %>
+        <div class="org-two-col">
+          <!-- Timeline editor -->
+          <div class="org-card">
+            <div class="org-card-header">
+              <h3 class="org-card-title">📅 Configure Milestones: <%= selectedEvent.name %></h3>
+            </div>
+            <form method="POST" action="/organizer/events/timeline">
+              <input type="hidden" name="event_id" value="<%= selectedEvent.id %>">
+
+              <div class="org-form-group">
+                <label class="org-form-label">Submissions Open</label>
+                <input type="datetime-local" name="submissions_open" class="org-input"
+                       value="<%= selectedEvent.submissions_open ? selectedEvent.submissions_open.slice(0,16) : '' %>">
+              </div>
+
+              <div class="org-form-group">
+                <label class="org-form-label">Submissions Deadline (Close)</label>
+                <input type="datetime-local" name="submissions_close" class="org-input"
+                       value="<%= selectedEvent.submissions_close ? selectedEvent.submissions_close.slice(0,16) : '' %>">
+              </div>
+
+              <div class="org-form-group">
+                <label class="org-form-label">Judging Window Opens</label>
+                <input type="datetime-local" name="judging_open" class="org-input"
+                       value="<%= selectedEvent.judging_open ? selectedEvent.judging_open.slice(0,16) : '' %>">
+              </div>
+
+              <div class="org-form-group">
+                <label class="org-form-label">Judging Window Closes</label>
+                <input type="datetime-local" name="judging_close" class="org-input"
+                       value="<%= selectedEvent.judging_close ? selectedEvent.judging_close.slice(0,16) : '' %>">
+              </div>
+
+              <div class="org-form-group">
+                <label class="org-form-label">Community Voting Opens</label>
+                <input type="datetime-local" name="voting_open" class="org-input"
+                       value="<%= selectedEvent.voting_open ? selectedEvent.voting_open.slice(0,16) : '' %>">
+              </div>
+
+              <div class="org-form-group">
+                <label class="org-form-label">Community Voting Closes</label>
+                <input type="datetime-local" name="voting_close" class="org-input"
+                       value="<%= selectedEvent.voting_close ? selectedEvent.voting_close.slice(0,16) : '' %>">
+              </div>
+
+              <div class="org-form-group">
+                <label class="org-form-label">Winners & Results Announced</label>
+                <input type="datetime-local" name="results_date" class="org-input"
+                       value="<%= selectedEvent.results_date ? selectedEvent.results_date.slice(0,16) : '' %>">
+              </div>
+
+              <button type="submit" class="org-action-btn">Update Timeline</button>
+            </form>
+          </div>
+
+          <!-- Graphical Milestone Visualizer -->
+          <div class="org-card">
+            <div class="org-card-header">
+              <h3 class="org-card-title">⏱️ Milestone Sequence</h3>
+            </div>
+            <%
+              var nowStr = new Date().toISOString();
+              var milestones = [
+                { title: 'Submissions Open', dt: selectedEvent.submissions_open },
+                { title: 'Submissions Close', dt: selectedEvent.submissions_close },
+                { title: 'Judging Window', dt: selectedEvent.judging_open },
+                { title: 'Judging Closes', dt: selectedEvent.judging_close },
+                { title: 'Public Voting', dt: selectedEvent.voting_open },
+                { title: 'Voting Closes', dt: selectedEvent.voting_close },
+                { title: 'Results Published', dt: selectedEvent.results_date }
+              ].filter(function(m){ return m.dt; });
+            %>
+            <% if (milestones.length === 0) { %>
+              <p class="org-empty">No milestone dates set yet. Fill in the dates on the left and submit.</p>
+            <% } else { %>
+              <div class="dash-timeline">
+                <% milestones.forEach(function(m, idx) {
+                     var isDone = m.dt <= nowStr;
+                     var isNext = !isDone && (idx === 0 || milestones[idx-1].dt <= nowStr);
+                   %>
+                  <div class="dash-tl-item <%= isDone ? 'dash-tl-done' : (isNext ? 'dash-tl-current' : 'dash-tl-future') %>">
+                    <div class="dash-tl-dot"></div>
+                    <div class="dash-tl-line"></div>
+                    <div class="dash-tl-content">
+                      <div class="dash-tl-label"><%= m.title %></div>
+                      <div class="dash-tl-date"><%= m.dt.replace('T', ' ').slice(0, 16) %> UTC</div>
+                      <span class="dash-tl-badge <%= isDone ? 'dash-tl-badge-done' : (isNext ? 'dash-tl-badge-current' : 'dash-tl-badge-future') %>">
+                        <%= isDone ? '✅ Completed' : (isNext ? '▶ Current / Upcoming' : '⌛ Scheduled') %>
+                      </span>
+                    </div>
+                  </div>
+                <% }); %>
+              </div>
+            <% } %>
+          </div>
+        </div>
+      <% } %>
+
+    <!-- ════════════════════════════════════════════════════════
+         TAB 10: EVENT SETTINGS
+    ════════════════════════════════════════════════════════ -->
+    <% } else if (activeTab === 'settings') { %>
+
+      <% if (!selectedEvent) { %>
+        <p class="org-empty">Please select a hackathon to view settings.</p>
+      <% } else { %>
+        <div class="org-card" style="max-width:850px;">
+          <div class="org-card-header">
+            <h3 class="org-card-title">⚙️ Event Configuration & Settings: <%= selectedEvent.name %></h3>
+          </div>
+
+          <form method="POST" action="/organizer/events/settings">
+            <input type="hidden" name="event_id" value="<%= selectedEvent.id %>">
+
+            <div class="org-form-group">
+              <label class="org-form-label">Prizes & Awards Summary</label>
+              <textarea name="prizes_summary" class="org-textarea" rows="3" placeholder="e.g. 1st Place: $10,000 | 2nd Place: $5,000 | Best AI Track: $2,500"><%= selectedEvent.prizes_summary || '' %></textarea>
+            </div>
+
+            <div class="org-form-group">
+              <label class="org-form-label">Frequently Asked Questions (FAQs)</label>
+              <textarea name="faqs" class="org-textarea" rows="4" placeholder="Q: Who can participate?&#10;A: Anyone aged 18+ worldwide.&#10;&#10;Q: Can I participate solo?&#10;A: Yes, teams can be 1-4 members."><%= selectedEvent.faqs || '' %></textarea>
+              <span class="org-form-hint">Displayed on the public event page FAQ section</span>
+            </div>
+
+            <div class="org-form-grid">
+              <div class="org-form-group">
+                <label class="org-form-label">Sponsors (comma or newline separated)</label>
+                <textarea name="sponsors" class="org-textarea" rows="3" placeholder="Google Cloud, AWS, GitHub"><%= selectedEvent.sponsors || '' %></textarea>
+              </div>
+
+              <div class="org-form-group">
+                <label class="org-form-label">Partners & Community Organizers</label>
+                <textarea name="partners" class="org-textarea" rows="3" placeholder="Devpost, Major League Hacking"><%= selectedEvent.partners || '' %></textarea>
+              </div>
+            </div>
+
+            <div style="padding-top:16px;border-top:1px solid #eee;margin-top:16px;display:flex;gap:12px;">
+              <button type="submit" class="org-action-btn">Save Settings</button>
+              <a href="/organizer/events?tab=overview&event_id=<%= selectedEvent.id %>" class="org-action-btn org-action-btn-outline">Cancel</a>
+            </div>
+          </form>
+
+          <!-- Danger actions in settings -->
+          <div style="margin-top:32px;padding:16px;border:1px solid #fce8e6;background:#fff9f9;border-radius:6px;">
+            <h4 style="margin:0 0 6px;color:#c5221f;">⚠️ Danger Zone</h4>
+            <p style="font-size:0.84rem;color:#666;margin:0 0 12px;">Archive this hackathon to hide it from general organizer views without deleting data.</p>
+            <form method="POST" action="/organizer/events/archive" onsubmit="return confirm('Are you sure you want to toggle archive status?');">
+              <input type="hidden" name="event_id" value="<%= selectedEvent.id %>">
+              <button type="submit" class="org-action-btn org-btn-danger">
+                <%= selectedEvent.is_archived ? 'Restore Hackathon from Archive' : 'Archive this Hackathon' %>
+              </button>
+            </form>
+          </div>
+        </div>
+      <% } %>
+
+    <% } %>
+
+  </main>
+</div>
+
+<script>
+function filterEventCards(query) {
+  var q = (query || '').toLowerCase().trim();
+  var cards = document.querySelectorAll('#eventsGrid .org-event-card');
+  cards.forEach(function(card) {
+    var name = card.dataset.name || '';
+    if (!q || name.indexOf(q) !== -1) {
+      card.style.display = 'flex';
+    } else {
+      card.style.display = 'none';
+    }
+  });
+}
+</script>
 
 <%- include('../layouts/footer') %>

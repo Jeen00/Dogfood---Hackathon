@@ -1,0 +1,19 @@
+﻿<%- include('../layouts/header', { title: 'Integrity Center', session, selectedEvent }) %>
+<% locals._page = 'judging-integrity'; %>
+<div class="org-layout">
+  <%- include('_sidebar') %>
+  <main class="org-content">
+    <div class="org-page-header">
+      <div>
+        <h1 class="org-page-title">🔒 Integrity Center</h1>
+        <p class="org-page-sub"><%= selectedEvent ? selectedEvent.name : 'Organizer' %></p>
+      </div>
+    </div>
+    <div class="org-stub">
+      <div class="org-stub-icon">🔒</div>
+      <p class="org-stub-title">Integrity Center</p>
+      <p class="org-stub-msg">Monitor judging integrity and flag anomalies. — Coming soon.</p>
+    </div>
+  </main>
+</div>
+<%- include('../layouts/footer') %>

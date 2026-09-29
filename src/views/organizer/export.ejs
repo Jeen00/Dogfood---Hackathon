@@ -1,0 +1,147 @@
+<%- include('../layouts/header', { title: 'Export Center', session, selectedEvent }) %>
+<% locals._page = 'export-all'; %>
+<% var eid = (typeof selectedEvent !== 'undefined' && selectedEvent) ? selectedEvent.id : ''; %>
+
+<div class="org-layout">
+  <%- include('_sidebar') %>
+
+  <main class="org-content">
+    <div class="org-page-header">
+      <div>
+        <h1 class="org-page-title">📥 Export Center</h1>
+        <p class="org-page-sub">Export hackathon datasets, scores, rosters, and analytics for <%= selectedEvent ? selectedEvent.name : 'Hackathon' %></p>
+      </div>
+
+      <a href="/api/export.csv<%= eid ? '?event_id=' + eid : '' %>" class="org-action-btn">
+        ⚡ Quick Leaderboard Export
+      </a>
+    </div>
+
+    <!-- 10 Export Cards Grid matching user's tree -->
+    <div class="org-stat-grid" style="grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:20px;">
+
+      <!-- 1. Participants CSV -->
+      <div class="org-card" style="display:flex;flex-direction:column;justify-content:space-between;">
+        <div>
+          <div style="font-size:2rem;margin-bottom:8px;">👥</div>
+          <h3 class="org-card-title">1. Participants CSV</h3>
+          <p style="font-size:0.84rem;color:#666;line-height:1.4;margin:6px 0 14px;">
+            Full roster of registered builders, names, email addresses, registration dates, and team affiliations.
+          </p>
+        </div>
+        <a href="/api/export.csv?type=participants<%= eid ? '&event_id=' + eid : '' %>" class="org-action-btn org-action-btn-outline" style="width:fit-content;">Download Participants CSV</a>
+      </div>
+
+      <!-- 2. Teams CSV -->
+      <div class="org-card" style="display:flex;flex-direction:column;justify-content:space-between;">
+        <div>
+          <div style="font-size:2rem;margin-bottom:8px;">👨‍👩‍👧</div>
+          <h3 class="org-card-title">2. Teams CSV</h3>
+          <p style="font-size:0.84rem;color:#666;line-height:1.4;margin:6px 0 14px;">
+            List of all formed teams, team leaders, member rosters, invite codes, and project associations.
+          </p>
+        </div>
+        <a href="/api/export.csv?type=teams<%= eid ? '&event_id=' + eid : '' %>" class="org-action-btn org-action-btn-outline" style="width:fit-content;">Download Teams CSV</a>
+      </div>
+
+      <!-- 3. Projects CSV -->
+      <div class="org-card" style="display:flex;flex-direction:column;justify-content:space-between;">
+        <div>
+          <div style="font-size:2rem;margin-bottom:8px;">📁</div>
+          <h3 class="org-card-title">3. Projects CSV</h3>
+          <p style="font-size:0.84rem;color:#666;line-height:1.4;margin:6px 0 14px;">
+            All project submissions, summaries, repository URLs, live demo links, tracks, and submission timestamps.
+          </p>
+        </div>
+        <a href="/api/export.csv?type=projects<%= eid ? '&event_id=' + eid : '' %>" class="org-action-btn org-action-btn-outline" style="width:fit-content;">Download Projects CSV</a>
+      </div>
+
+      <!-- 4. Judges CSV -->
+      <div class="org-card" style="display:flex;flex-direction:column;justify-content:space-between;">
+        <div>
+          <div style="font-size:2rem;margin-bottom:8px;">🧑‍⚖️</div>
+          <h3 class="org-card-title">4. Judges CSV</h3>
+          <p style="font-size:0.84rem;color:#666;line-height:1.4;margin:6px 0 14px;">
+            Registered judges, emails, assigned project counts, completed evaluation counts, and response rates.
+          </p>
+        </div>
+        <a href="/api/export.csv?type=judges<%= eid ? '&event_id=' + eid : '' %>" class="org-action-btn org-action-btn-outline" style="width:fit-content;">Download Judges CSV</a>
+      </div>
+
+      <!-- 5. Assignments CSV -->
+      <div class="org-card" style="display:flex;flex-direction:column;justify-content:space-between;">
+        <div>
+          <div style="font-size:2rem;margin-bottom:8px;">🔗</div>
+          <h3 class="org-card-title">5. Assignments CSV</h3>
+          <p style="font-size:0.84rem;color:#666;line-height:1.4;margin:6px 0 14px;">
+            Full matrix linking each judge to their assigned projects with track and status info.
+          </p>
+        </div>
+        <a href="/api/export.csv?type=assignments<%= eid ? '&event_id=' + eid : '' %>" class="org-action-btn org-action-btn-outline" style="width:fit-content;">Download Assignments CSV</a>
+      </div>
+
+      <!-- 6. Scores CSV -->
+      <div class="org-card" style="display:flex;flex-direction:column;justify-content:space-between;">
+        <div>
+          <div style="font-size:2rem;margin-bottom:8px;">⭐</div>
+          <h3 class="org-card-title">6. Scores CSV</h3>
+          <p style="font-size:0.84rem;color:#666;line-height:1.4;margin:6px 0 14px;">
+            Raw criteria scores, judge comments, rubric weights, and submission times per evaluation.
+          </p>
+        </div>
+        <a href="/api/export.csv?type=scores<%= eid ? '&event_id=' + eid : '' %>" class="org-action-btn org-action-btn-outline" style="width:fit-content;">Download Raw Scores CSV</a>
+      </div>
+
+      <!-- 7. Results CSV -->
+      <div class="org-card" style="display:flex;flex-direction:column;justify-content:space-between;">
+        <div>
+          <div style="font-size:2rem;margin-bottom:8px;">🏆</div>
+          <h3 class="org-card-title">7. Results CSV</h3>
+          <p style="font-size:0.84rem;color:#666;line-height:1.4;margin:6px 0 14px;">
+            Final normalized rankings, average weighted scores, review counts, ranks, and track standings.
+          </p>
+        </div>
+        <a href="/api/export.csv<%= eid ? '?event_id=' + eid : '' %>" class="org-action-btn" style="width:fit-content;">Download Official Results CSV</a>
+      </div>
+
+      <!-- 8. Voting CSV -->
+      <div class="org-card" style="display:flex;flex-direction:column;justify-content:space-between;">
+        <div>
+          <div style="font-size:2rem;margin-bottom:8px;">🗳️</div>
+          <h3 class="org-card-title">8. Voting CSV</h3>
+          <p style="font-size:0.84rem;color:#666;line-height:1.4;margin:6px 0 14px;">
+            Community public votes, voter IDs, project tallies, and timestamps for People's Choice awards.
+          </p>
+        </div>
+        <a href="/api/export.csv?type=voting<%= eid ? '&event_id=' + eid : '' %>" class="org-action-btn org-action-btn-outline" style="width:fit-content;">Download Voting CSV</a>
+      </div>
+
+      <!-- 9. Analytics Report -->
+      <div class="org-card" id="analytics" style="display:flex;flex-direction:column;justify-content:space-between;">
+        <div>
+          <div style="font-size:2rem;margin-bottom:8px;">📊</div>
+          <h3 class="org-card-title">9. Analytics Report</h3>
+          <p style="font-size:0.84rem;color:#666;line-height:1.4;margin:6px 0 14px;">
+            Aggregated metric summary covering submission conversion, judge velocity, track distribution.
+          </p>
+        </div>
+        <a href="/organizer/analytics<%= eid ? '?event_id=' + eid : '' %>" class="org-action-btn org-action-btn-outline" style="width:fit-content;">View Analytics Report</a>
+      </div>
+
+      <!-- 10. Complete Event Export -->
+      <div class="org-card" id="complete" style="display:flex;flex-direction:column;justify-content:space-between;border-color:#1a73e8;background:#f8faff;">
+        <div>
+          <div style="font-size:2rem;margin-bottom:8px;">📦</div>
+          <h3 class="org-card-title" style="color:#1a73e8;">10. Complete Event Export</h3>
+          <p style="font-size:0.84rem;color:#555;line-height:1.4;margin:6px 0 14px;">
+            Single package archive containing all event data: projects, scores, rubric criteria, teams, and metadata.
+          </p>
+        </div>
+        <a href="/api/export.csv?type=complete<%= eid ? '&event_id=' + eid : '' %>" class="org-action-btn" style="width:fit-content;">Export Complete Bundle</a>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<%- include('../layouts/footer') %>

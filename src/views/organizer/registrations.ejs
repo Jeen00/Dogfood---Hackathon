@@ -1,0 +1,361 @@
+<%- include('../layouts/header', { title: 'Registrations Management', session, selectedEvent }) %>
+<%
+  var eid = (typeof selectedEvent !== 'undefined' && selectedEvent) ? selectedEvent.id : '';
+  var curTab = typeof tab !== 'undefined' ? tab : 'all';
+  var curStatus = typeof statusFilter !== 'undefined' ? statusFilter : '';
+  var curType = typeof typeFilter !== 'undefined' ? typeFilter : '';
+  var curQ = typeof searchQuery !== 'undefined' ? searchQuery : '';
+  var regList = typeof registrants !== 'undefined' ? registrants : [];
+  var c = (typeof counts !== 'undefined' && counts) ? counts : { all: 0, pending: 0, approved: 0, rejected: 0, waitlisted: 0, individual: 0, team: 0 };
+  var activeFields = [];
+  try {
+    if (typeof regSettings !== 'undefined' && regSettings && regSettings.form_fields) {
+      activeFields = JSON.parse(regSettings.form_fields);
+    }
+  } catch(e) { activeFields = []; }
+  locals._page = 'registrations-' + curTab;
+%>
+
+<div class="org-layout">
+  <%- include('_sidebar') %>
+
+  <main class="org-content">
+    <!-- ── Page Header ──────────────────────────────────────── -->
+    <div class="org-page-header">
+      <div>
+        <h1 class="org-page-title">👥 Registrations Management</h1>
+        <p class="org-page-sub">
+          Review, approve, waitlist and manage participant applications for <strong><%= selectedEvent ? selectedEvent.name : 'Hackathon' %></strong>
+        </p>
+      </div>
+
+      <div style="display:flex;gap:10px;align-items:center;">
+        <a href="#importSection" class="org-action-btn org-action-btn-outline" onclick="document.getElementById('importSection').scrollIntoView({behavior:'smooth'})">
+          📥 Import CSV
+        </a>
+        <a href="/api/export.csv?type=participants<%= eid ? '&event_id=' + eid : '' %>" class="org-action-btn" download>
+          📤 Export CSV
+        </a>
+      </div>
+    </div>
+
+    <!-- Alert Banners -->
+    <% if (typeof success !== 'undefined' && success) { %>
+      <div style="background:#e6f4ea;color:#137333;border:1px solid #34a853;border-radius:6px;padding:12px 16px;margin-bottom:18px;font-size:0.9rem;">
+        ✅ <%= success %>
+      </div>
+    <% } %>
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div class="error" style="margin-bottom:18px;">
+        ⚠️ <%= error %>
+      </div>
+    <% } %>
+
+    <!-- ── Sub-Navigation Tabs (All 13 Tree Items) ────────── -->
+    <nav class="org-tabs">
+      <a href="/organizer/registrations?tab=all<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item <%= curTab === 'all' && !curStatus && !curType ? 'active' : '' %>">
+        All Registrations <span class="org-tab-badge"><%= c.all %></span>
+      </a>
+      <a href="/organizer/registrations?status=pending<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item <%= curStatus === 'pending' || curTab === 'pending' ? 'active' : '' %>">
+        Pending <span class="org-tab-badge" style="background:#fff3e0;color:#b06000;"><%= c.pending %></span>
+      </a>
+      <a href="/organizer/registrations?status=approved<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item <%= curStatus === 'approved' || curTab === 'approved' ? 'active' : '' %>">
+        Approved <span class="org-tab-badge" style="background:#e6f4ea;color:#137333;"><%= c.approved %></span>
+      </a>
+      <a href="/organizer/registrations?status=rejected<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item <%= curStatus === 'rejected' || curTab === 'rejected' ? 'active' : '' %>">
+        Rejected <span class="org-tab-badge" style="background:#fce8e6;color:#c5221f;"><%= c.rejected %></span>
+      </a>
+      <a href="/organizer/registrations?status=waitlisted<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item <%= curStatus === 'waitlisted' || curTab === 'waitlisted' ? 'active' : '' %>">
+        Waitlisted <span class="org-tab-badge" style="background:#e8f0fe;color:#1a73e8;"><%= c.waitlisted %></span>
+      </a>
+      <a href="/organizer/registrations?type=individual<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item <%= curType === 'individual' || curTab === 'individual' ? 'active' : '' %>">
+        Individual (<%= c.individual %>)
+      </a>
+      <a href="/organizer/registrations?type=team<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item <%= curType === 'team' || curTab === 'team' ? 'active' : '' %>">
+        Team (<%= c.team %>)
+      </a>
+      <a href="#formsSection" class="org-tab-item" onclick="document.getElementById('formsSection').scrollIntoView({behavior:'smooth'})">
+        Registration Forms
+      </a>
+      <a href="#verificationSection" class="org-tab-item" onclick="document.getElementById('verificationSection').scrollIntoView({behavior:'smooth'})">
+        Eligibility Verification
+      </a>
+      <a href="#importSection" class="org-tab-item" onclick="document.getElementById('importSection').scrollIntoView({behavior:'smooth'})">
+        Import Participants
+      </a>
+    </nav>
+
+    <!-- ── Search & Filters Bar (Feature: Filters) ────────── -->
+    <div class="org-card" style="margin-bottom:20px;padding:14px 18px;">
+      <form method="GET" action="/organizer/registrations" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:0;">
+        <% if (eid) { %><input type="hidden" name="event_id" value="<%= eid %>"><% } %>
+        <span style="font-weight:600;font-size:0.85rem;color:#555;">🔍 Filters:</span>
+
+        <input type="text" name="q" value="<%= curQ %>" placeholder="Search by name, email or team..."
+               class="org-input" style="padding:6px 12px;font-size:0.85rem;min-width:240px;">
+
+        <select name="status" class="org-select" style="padding:6px 12px;font-size:0.85rem;">
+          <option value="">All Statuses</option>
+          <option value="approved" <%= curStatus === 'approved' ? 'selected' : '' %>>Approved</option>
+          <option value="pending" <%= curStatus === 'pending' ? 'selected' : '' %>>Pending Review</option>
+          <option value="waitlisted" <%= curStatus === 'waitlisted' ? 'selected' : '' %>>Waitlisted</option>
+          <option value="rejected" <%= curStatus === 'rejected' ? 'selected' : '' %>>Rejected</option>
+        </select>
+
+        <select name="type" class="org-select" style="padding:6px 12px;font-size:0.85rem;">
+          <option value="">All Registration Types</option>
+          <option value="individual" <%= curType === 'individual' ? 'selected' : '' %>>Individual (Solo)</option>
+          <option value="team" <%= curType === 'team' ? 'selected' : '' %>>Team Member</option>
+        </select>
+
+        <button type="submit" class="org-action-btn" style="padding:6px 14px;font-size:0.85rem;">Apply Filters</button>
+        <% if (curQ || curStatus || curType) { %>
+          <a href="/organizer/registrations<%= eid ? '?event_id=' + eid : '' %>" class="org-action-btn org-action-btn-outline" style="padding:6px 12px;font-size:0.85rem;">Reset</a>
+        <% } %>
+      </form>
+    </div>
+
+    <!-- ── Bulk Actions & Registrations Table ─────────────── -->
+    <div class="org-card">
+      <form id="bulkForm" method="POST" action="/organizer/registrations/bulk">
+        <input type="hidden" name="action" id="bulkActionInput" value="approve">
+
+        <div class="org-card-header" style="flex-wrap:wrap;gap:12px;">
+          <div>
+            <h3 class="org-card-title">Registered Participants (<%= regList.length %>)</h3>
+            <span style="font-size:0.8rem;color:#777;">Select participants below to execute batch updates</span>
+          </div>
+
+          <!-- Feature: Bulk Actions -->
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span style="font-size:0.8rem;font-weight:600;color:#555;">Bulk Actions:</span>
+            <button type="button" class="org-action-btn org-btn-success org-btn-sm" onclick="submitBulk('approve')">
+              ✅ Bulk Approve
+            </button>
+            <button type="button" class="org-action-btn org-btn-secondary org-btn-sm" onclick="submitBulk('waitlist')">
+              ⏳ Bulk Waitlist
+            </button>
+            <button type="button" class="org-action-btn org-btn-danger org-btn-sm" onclick="submitBulk('reject')">
+              ❌ Bulk Reject
+            </button>
+          </div>
+        </div>
+
+        <% if (regList.length === 0) { %>
+          <p class="org-empty">No participants match the selected filter or query. <a href="/organizer/registrations">Clear filters</a></p>
+        <% } else { %>
+          <table class="org-table">
+            <thead>
+              <tr>
+                <th style="width:32px;">
+                  <input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this)" title="Select all">
+                </th>
+                <th>Participant Name</th>
+                <th>Email Address</th>
+                <th>Team Affiliation</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Verification</th>
+                <th>Quick Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% regList.forEach(function(p) {
+                   var statusBadgeClass = 'org-status-done';
+                   if (p.registration_status === 'pending') statusBadgeClass = 'org-status-pending';
+                   if (p.registration_status === 'waitlisted') statusBadgeClass = 'org-status-partial';
+                   if (p.registration_status === 'rejected') statusBadgeClass = 'badge-completed';
+                 %>
+                <tr>
+                  <td>
+                    <input type="checkbox" name="user_ids" value="<%= p.id %>" class="user-row-checkbox">
+                  </td>
+                  <td>
+                    <strong><%= p.name %></strong>
+                    <div style="font-size:0.75rem;color:#888;">ID: <%= p.id %></div>
+                  </td>
+                  <td><%= p.email %></td>
+                  <td>
+                    <% if (p.team_name) { %>
+                      <span class="badge badge-tech"><%= p.team_name %></span>
+                    <% } else { %>
+                      <span style="color:#888;font-size:0.82rem;">Individual / No team</span>
+                    <% } %>
+                  </td>
+                  <td>
+                    <span style="font-size:0.82rem;text-transform:capitalize;color:#555;">
+                      <%= p.reg_type === 'team' ? '👥 Team' : '👤 Solo' %>
+                    </span>
+                  </td>
+                  <td>
+                    <span class="org-status-chip <%= statusBadgeClass %>" style="text-transform:capitalize;">
+                      <%= p.registration_status %>
+                    </span>
+                  </td>
+                  <td>
+                    <span class="org-status-chip <%= p.verification_status === 'verified' ? 'org-status-done' : 'org-status-pending' %>">
+                      <%= p.verification_status === 'verified' ? '🛡️ Verified' : '⏳ Pending' %>
+                    </span>
+                  </td>
+                  <td>
+                    <!-- Individual quick status change -->
+                    <select onchange="updateSingleStatus('<%= p.id %>', this.value)" class="org-select" style="padding:2px 8px;font-size:0.78rem;">
+                      <option value="approved" <%= p.registration_status === 'approved' ? 'selected' : '' %>>Approve</option>
+                      <option value="pending" <%= p.registration_status === 'pending' ? 'selected' : '' %>>Pending</option>
+                      <option value="waitlisted" <%= p.registration_status === 'waitlisted' ? 'selected' : '' %>>Waitlist</option>
+                      <option value="rejected" <%= p.registration_status === 'rejected' ? 'selected' : '' %>>Reject</option>
+                    </select>
+                  </td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        <% } %>
+      </form>
+    </div>
+
+    <!-- Hidden form for single status updates -->
+    <form id="singleStatusForm" method="POST" action="/organizer/registrations/status" style="display:none;">
+      <input type="hidden" name="user_id" id="singleUserId">
+      <input type="hidden" name="status" id="singleStatus">
+    </form>
+
+    <!-- ── Two-Col: Registration Forms & Eligibility Verification ── -->
+    <div class="org-two-col" style="margin-top:24px;">
+
+      <!-- Feature: Registration Forms -->
+      <div class="org-card" id="formsSection">
+        <div class="org-card-header">
+          <h3 class="org-card-title">📋 Registration Forms Configuration</h3>
+        </div>
+        <p style="font-size:0.85rem;color:#666;margin-bottom:14px;">
+          Select questionnaire fields required on the builder registration form for this hackathon:
+        </p>
+
+        <form method="POST" action="/organizer/registrations/forms">
+          <input type="hidden" name="event_id" value="<%= eid %>">
+          <div style="display:flex;flex-direction:column;gap:10px;font-size:0.87rem;">
+            <label><input type="checkbox" checked disabled> Full Name & Email (Always Mandatory)</label>
+            <label><input type="checkbox" name="form_fields" value="github" <%= activeFields.includes('github') ? 'checked' : '' %>> GitHub Profile URL</label>
+            <label><input type="checkbox" name="form_fields" value="linkedin" <%= activeFields.includes('linkedin') ? 'checked' : '' %>> LinkedIn Profile URL</label>
+            <label><input type="checkbox" name="form_fields" value="portfolio" <%= activeFields.includes('portfolio') ? 'checked' : '' %>> Personal Portfolio / Website</label>
+            <label><input type="checkbox" name="form_fields" value="tshirt" <%= activeFields.includes('tshirt') ? 'checked' : '' %>> T-Shirt / Swag Size Selection</label>
+            <label><input type="checkbox" name="form_fields" value="diet" <%= activeFields.includes('diet') ? 'checked' : '' %>> Dietary Preferences</label>
+            <label><input type="checkbox" name="form_fields" value="resume" <%= activeFields.includes('resume') ? 'checked' : '' %>> Resume / CV Link</label>
+            <label><input type="checkbox" name="form_fields" value="experience" <%= activeFields.includes('experience') ? 'checked' : '' %>> Years of Coding Experience</label>
+          </div>
+          <button type="submit" class="org-action-btn" style="margin-top:16px;padding:8px 16px;font-size:0.85rem;">
+            💾 Save Form Fields
+          </button>
+        </form>
+      </div>
+
+      <!-- Feature: Eligibility Verification -->
+      <div class="org-card" id="verificationSection">
+        <div class="org-card-header">
+          <h3 class="org-card-title">🛡️ Eligibility Verification & Auto-Screening</h3>
+        </div>
+        <p style="font-size:0.85rem;color:#666;margin-bottom:14px;">
+          Set screening rules for incoming builder applications:
+        </p>
+
+        <form method="POST" action="/organizer/registrations/verification">
+          <input type="hidden" name="event_id" value="<%= eid %>">
+
+          <div class="org-form-group">
+            <label class="org-form-label">Auto-Approval Mode</label>
+            <select name="auto_approval" class="org-select">
+              <option value="auto" <%= typeof regSettings !== 'undefined' && regSettings && regSettings.auto_approval === 'auto' ? 'selected' : '' %>>Auto-Approve all valid registrations</option>
+              <option value="manual" <%= typeof regSettings !== 'undefined' && regSettings && regSettings.auto_approval === 'manual' ? 'selected' : '' %>>Manual review required (Mark as Pending)</option>
+              <option value="waitlist" <%= typeof regSettings !== 'undefined' && regSettings && regSettings.auto_approval === 'waitlist' ? 'selected' : '' %>>Auto-Waitlist all new applicants</option>
+            </select>
+          </div>
+
+          <div class="org-form-group">
+            <label class="org-form-label">Allowed Email Domains (Optional)</label>
+            <input type="text" name="allowed_domains" class="org-input"
+                   value="<%= typeof regSettings !== 'undefined' && regSettings ? (regSettings.allowed_domains || '') : '' %>"
+                   placeholder="e.g. .edu, @university.ac.in (comma separated)">
+            <span class="org-form-hint">Leave blank to accept registrations from all email domains</span>
+          </div>
+
+          <button type="submit" class="org-action-btn" style="padding:8px 16px;font-size:0.85rem;">
+            🛡️ Update Verification Rules
+          </button>
+        </form>
+      </div>
+
+    </div>
+
+    <!-- ── Feature: Import Participants (CSV) ─────────────── -->
+    <div class="org-card" id="importSection" style="margin-top:24px;">
+      <div class="org-card-header">
+        <h3 class="org-card-title">📥 Import Participants (CSV)</h3>
+      </div>
+      <p style="font-size:0.85rem;color:#666;margin-bottom:12px;">
+        Add participants in bulk by pasting comma-separated lines (e.g. <code>Full Name, email@domain.com</code>) or uploading a <code>.csv</code> file:
+      </p>
+
+      <form method="POST" action="/organizer/registrations/import">
+        <input type="hidden" name="event_id" value="<%= eid %>">
+
+        <div style="margin-bottom:12px;">
+          <input type="file" id="csvFileInput" accept=".csv,text/csv,text/plain" onchange="readCsvFile(this)" style="font-size:0.85rem;">
+          <span style="font-size:0.75rem;color:#777;margin-left:8px;">Choose a file to populate the box below</span>
+        </div>
+
+        <div class="org-form-group">
+          <textarea name="csv_data" id="csvDataTextarea" class="org-textarea" rows="4"
+                    placeholder="Alice Johnson, alice@university.edu&#10;Bob Smith, bob@tech.io&#10;Charlie Lee, charlie@domain.org" required></textarea>
+        </div>
+
+        <button type="submit" class="org-action-btn">
+          🚀 Run Bulk Import
+        </button>
+      </form>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// Select all checkboxes
+function toggleSelectAll(master) {
+  var boxes = document.querySelectorAll('.user-row-checkbox');
+  boxes.forEach(function(b) { b.checked = master.checked; });
+}
+
+// Bulk action submission
+function submitBulk(actionName) {
+  var checked = document.querySelectorAll('.user-row-checkbox:checked');
+  if (checked.length === 0) {
+    alert('Please select at least one participant using the checkboxes.');
+    return;
+  }
+  if (!confirm('Execute "' + actionName + '" on ' + checked.length + ' selected participant(s)?')) {
+    return;
+  }
+  document.getElementById('bulkActionInput').value = actionName;
+  document.getElementById('bulkForm').submit();
+}
+
+// Single status change
+function updateSingleStatus(userId, newStatus) {
+  document.getElementById('singleUserId').value = userId;
+  document.getElementById('singleStatus').value = newStatus;
+  document.getElementById('singleStatusForm').submit();
+}
+
+// File reader for CSV import
+function readCsvFile(input) {
+  var file = input.files && input.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    document.getElementById('csvDataTextarea').value = e.target.result;
+  };
+  reader.readAsText(file);
+}
+</script>
+
+<%- include('../layouts/footer') %>

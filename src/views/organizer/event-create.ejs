@@ -1,46 +1,75 @@
-<%- include('../layouts/header', { title: 'Create Event', session }) %>
+<%- include('../layouts/header', { title: 'Create Hackathon', session }) %>
+<% locals._page = 'hackathons-create'; %>
 
-<h1>Create New Event</h1>
+<div class="org-layout">
+  <%- include('_sidebar') %>
 
-<% if (typeof error !== 'undefined' && error) { %>
-  <div class="error"><%= error %></div>
-<% } %>
+  <main class="org-content">
+    <div class="org-page-header">
+      <div>
+        <h1 class="org-page-title">✨ Create New Hackathon</h1>
+        <p class="org-page-sub">Configure a new hackathon event, set submission windows, and invite judges</p>
+      </div>
+      <a href="/organizer/events" class="org-action-btn org-action-btn-outline">← Back to Hackathons</a>
+    </div>
 
-<form method="POST" action="/api/events" class="form-narrow">
-  <div class="form-group">
-    <label for="name">Event Name</label>
-    <input type="text" id="name" name="name" required maxlength="200">
-  </div>
-  <div class="form-group">
-    <label for="submissions_open">Submissions Open</label>
-    <input type="datetime-local" id="submissions_open" name="submissions_open">
-  </div>
-  <div class="form-group">
-    <label for="submissions_close">Submissions Close</label>
-    <input type="datetime-local" id="submissions_close" name="submissions_close">
-  </div>
-  <div class="form-group">
-    <label for="voting_open">Voting Open</label>
-    <input type="datetime-local" id="voting_open" name="voting_open">
-  </div>
-  <div class="form-group">
-    <label for="voting_close">Voting Close</label>
-    <input type="datetime-local" id="voting_close" name="voting_close">
-  </div>
+    <% if (typeof error !== 'undefined' && error) { %>
+      <div class="error" style="margin-bottom:20px;"><%= error %></div>
+    <% } %>
 
-  <div class="form-group">
-    <label for="judge_emails">Invite Judges (optional)</label>
-    <p style="color:#555; font-size:0.85rem; margin:4px 0 8px 0;">
-      Enter judge email addresses, one per line. Judges must have an account with the <strong>judge</strong> role.
-      You can also invite judges later from the hackathon's "Invite Judges" section.
-    </p>
-    <textarea id="judge_emails" name="judge_emails" rows="4"
-      style="width:100%; padding:9px 12px; border:1px solid #1A1A1A; font-family:monospace; font-size:0.9rem; background:#F5F5F0;"
-      placeholder="judge1@example.com&#10;judge2@example.com"></textarea>
-  </div>
+    <div class="org-card" style="max-width:800px;">
+      <form method="POST" action="/api/events">
+        
+        <div class="org-form-group">
+          <label for="name" class="org-form-label">Hackathon Name *</label>
+          <input type="text" id="name" name="name" class="org-input" required maxlength="200" placeholder="e.g. Global AI Challenge 2026">
+        </div>
 
-  <button type="submit">Create Event</button>
-  <a href="/organizer/events" style="margin-left: 16px;">Cancel</a>
-</form>
+        <div class="org-form-group">
+          <label for="description" class="org-form-label">Short Description</label>
+          <input type="text" id="description" name="description" class="org-input" placeholder="A brief one-sentence hook for the event">
+        </div>
+
+        <div class="org-form-grid">
+          <div class="org-form-group">
+            <label for="submissions_open" class="org-form-label">Submissions Open</label>
+            <input type="datetime-local" id="submissions_open" name="submissions_open" class="org-input">
+          </div>
+
+          <div class="org-form-group">
+            <label for="submissions_close" class="org-form-label">Submissions Close (Deadline)</label>
+            <input type="datetime-local" id="submissions_close" name="submissions_close" class="org-input">
+          </div>
+        </div>
+
+        <div class="org-form-grid">
+          <div class="org-form-group">
+            <label for="voting_open" class="org-form-label">Community Voting Open</label>
+            <input type="datetime-local" id="voting_open" name="voting_open" class="org-input">
+          </div>
+
+          <div class="org-form-group">
+            <label for="voting_close" class="org-form-label">Community Voting Close</label>
+            <input type="datetime-local" id="voting_close" name="voting_close" class="org-input">
+          </div>
+        </div>
+
+        <div class="org-form-group">
+          <label for="judge_emails" class="org-form-label">Invite Judges (Optional)</label>
+          <p class="org-form-hint">
+            Enter judge email addresses, one per line. Registered judges will receive automatic notifications.
+          </p>
+          <textarea id="judge_emails" name="judge_emails" rows="3" class="org-textarea"
+                    placeholder="judge1@example.org&#10;judge2@example.org"></textarea>
+        </div>
+
+        <div style="display:flex;gap:12px;margin-top:24px;">
+          <button type="submit" class="org-action-btn">🚀 Create Hackathon</button>
+          <a href="/organizer/events" class="org-action-btn org-action-btn-outline">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </main>
+</div>
 
 <%- include('../layouts/footer') %>

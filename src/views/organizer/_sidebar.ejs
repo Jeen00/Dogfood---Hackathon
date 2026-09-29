@@ -1,0 +1,104 @@
+<%
+  var eid = (typeof selectedEvent !== 'undefined' && selectedEvent) ? '?event_id=' + selectedEvent.id : '';
+  var cur = locals._page || '';
+  function isActive(prefix) {
+    return (cur === prefix || cur.startsWith(prefix)) ? 'org-nav-link active' : 'org-nav-link';
+  }
+%>
+<aside class="org-sidebar">
+  <div class="org-sidebar-brand">
+    <span>ORGANIZER</span>
+    <% if (typeof selectedEvent !== 'undefined' && selectedEvent) { %>
+      <span title="Selected: <%= selectedEvent.name %>" style="font-size:0.6rem;color:#8ab4f8;background:#28324a;padding:2px 6px;border-radius:4px;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+        <%= selectedEvent.name %>
+      </span>
+    <% } %>
+  </div>
+
+  <nav class="org-nav">
+    <!-- 1. 🏠 Dashboard -->
+    <a href="/organizer/dashboard<%= eid %>" class="<%= isActive('dashboard') %>">
+      <span class="org-nav-icon">🏠</span> Dashboard
+    </a>
+
+    <!-- 2. 🏆 Hackathons -->
+    <a href="/organizer/events<%= eid %>" class="<%= isActive('hackathons') %>">
+      <span class="org-nav-icon">🏆</span> Hackathons
+    </a>
+
+    <!-- 3. 🎨 Event Page -->
+    <a href="/organizer/event-page<%= eid %>" class="<%= isActive('eventpage') %>">
+      <span class="org-nav-icon">🎨</span> Event Page
+    </a>
+
+    <!-- 4. 🎯 Tracks -->
+    <a href="/organizer/tracks<%= eid %>" class="<%= isActive('tracks') %>">
+      <span class="org-nav-icon">🎯</span> Tracks
+    </a>
+
+    <!-- 5. 👥 Registrations -->
+    <a href="/organizer/registrations<%= eid %>" class="<%= isActive('registrations') %>">
+      <span class="org-nav-icon">👥</span> Registrations
+    </a>
+
+    <!-- 6. 👨‍👩‍👧 Teams -->
+    <a href="/organizer/teams<%= eid %>" class="<%= isActive('teams') %>">
+      <span class="org-nav-icon">👨‍👩‍👧</span> Teams
+    </a>
+
+    <!-- 7. 📁 Projects -->
+    <a href="/organizer/projects<%= eid %>" class="<%= isActive('projects') %>">
+      <span class="org-nav-icon">📁</span> Projects
+    </a>
+
+    <!-- 8. 🧑‍⚖️ Judges -->
+    <a href="/organizer/judges<%= eid %>" class="<%= isActive('judges') %>">
+      <span class="org-nav-icon">🧑‍⚖️</span> Judges
+    </a>
+
+    <!-- 9. ⚖️ Judging -->
+    <a href="/organizer/judging<%= eid %>" class="<%= isActive('judging') %>">
+      <span class="org-nav-icon">⚖️</span> Judging
+    </a>
+
+    <!-- 10. 📊 Analytics -->
+    <a href="/organizer/analytics<%= eid %>" class="<%= isActive('analytics') %>">
+      <span class="org-nav-icon">📊</span> Analytics
+    </a>
+
+    <!-- 11. 🏆 Results -->
+    <a href="/organizer/results<%= eid %>" class="<%= isActive('results') %>">
+      <span class="org-nav-icon">🏆</span> Results
+    </a>
+
+    <!-- 12. 🗳️ Voting -->
+    <a href="/organizer/voting<%= eid %>" class="<%= isActive('voting') %>">
+      <span class="org-nav-icon">🗳️</span> Voting
+    </a>
+
+    <!-- 13. 📢 Communications -->
+    <a href="/organizer/communications<%= eid %>" class="<%= isActive('communications') || isActive('notifications') %>">
+      <span class="org-nav-icon">📢</span> Communications
+    </a>
+
+    <!-- 14. 📜 Audit Log -->
+    <a href="/organizer/audit<%= eid %>" class="<%= isActive('audit') %>">
+      <span class="org-nav-icon">📜</span> Audit Log
+    </a>
+
+    <!-- 15. 🎓 Certificates -->
+    <a href="/organizer/certificates<%= eid %>" class="<%= isActive('certificates') %>">
+      <span class="org-nav-icon">🎓</span> Certificates
+    </a>
+
+    <!-- 16. 📥 Export -->
+    <a href="/organizer/export<%= eid %>" class="<%= isActive('export') %>">
+      <span class="org-nav-icon">📥</span> Export
+    </a>
+
+    <!-- 17. ⚙️ Settings -->
+    <a href="/organizer/settings<%= eid %>" class="<%= isActive('settings') %>">
+      <span class="org-nav-icon">⚙️</span> Settings
+    </a>
+  </nav>
+</aside>
