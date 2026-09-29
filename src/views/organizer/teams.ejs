@@ -1,0 +1,103 @@
+<%- include('../layouts/header', { title: 'Teams Management', session, selectedEvent }) %>
+<% locals._page = 'teams-all'; %>
+<% var eid = (typeof selectedEvent !== 'undefined' && selectedEvent) ? selectedEvent.id : ''; %>
+
+<div class="org-layout">
+  <%- include('_sidebar') %>
+
+  <main class="org-content">
+    <div class="org-page-header">
+      <div>
+        <h1 class="org-page-title">👨‍👩‍👧 Teams Management</h1>
+        <p class="org-page-sub">Monitor teams, member sizes, leadership, invitations, and eligibility for <%= selectedEvent ? selectedEvent.name : 'Hackathon' %></p>
+      </div>
+
+      <div style="display:flex;gap:10px;">
+        <a href="/api/export.csv?type=teams<%= eid ? '&event_id=' + eid : '' %>" class="org-action-btn org-action-btn-outline">📤 Export Teams</a>
+        <button class="org-action-btn" onclick="document.getElementById('createTeamModal').style.display='flex'">+ Create Team</button>
+      </div>
+    </div>
+
+    <!-- Sub-navigation tabs for all 11 Teams items -->
+    <nav class="org-tabs">
+      <a href="/organizer/teams<%= eid ? '?event_id=' + eid : '' %>" class="org-tab-item active">All Teams</a>
+      <a href="javascript:void(0)" onclick="document.getElementById('createTeamModal').style.display='flex'" class="org-tab-item">+ Create Team</a>
+      <a href="/organizer/teams?filter=leaders<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item">Team Leaders</a>
+      <a href="/organizer/teams?filter=members<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item">Team Members</a>
+      <a href="/organizer/teams?filter=invites<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item">Pending Invitations</a>
+      <a href="/organizer/teams?filter=size<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item">Team Size</a>
+      <a href="/organizer/teams?filter=incomplete<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item">Incomplete Teams</a>
+      <a href="/organizer/teams?filter=eligible<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item">Eligible Teams</a>
+      <a href="/organizer/teams?filter=disqualified<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item">Disqualified Teams</a>
+      <a href="#changes" class="org-tab-item">Team Changes</a>
+      <a href="/api/export.csv?type=teams<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item">Export Teams</a>
+    </nav>
+
+    <!-- Teams Table -->
+    <div class="org-card">
+      <div class="org-card-header">
+        <h3 class="org-card-title">Participating Teams (<%= (typeof teamList !== 'undefined' && teamList) ? teamList.length : 42 %>)</h3>
+        <input type="text" placeholder="Filter teams..." class="org-input" style="padding:4px 10px;font-size:0.82rem;width:180px;">
+      </div>
+
+      <% var teams = (typeof teamList !== 'undefined' && teamList) ? teamList : []; %>
+      <% if (teams.length === 0) { %>
+        <p class="org-empty">No teams found for this event.</p>
+      <% } else { %>
+        <table class="org-table">
+          <thead>
+            <tr>
+              <th>Team Name</th>
+              <th>Invite Code</th>
+              <th>Leader</th>
+              <th>Members</th>
+              <th>Project Status</th>
+              <th>Eligibility</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% teams.forEach(function(tm) { %>
+              <tr>
+                <td><strong><%= tm.name %></strong></td>
+                <td><code><%= tm.invite_code %></code></td>
+                <td><%= tm.leader_name || 'Assigned' %></td>
+                <td><span class="badge badge-tech"><%= tm.member_count || 1 %> members</span></td>
+                <td>
+                  <% if (tm.project_title) { %>
+                    <span class="org-status-chip org-status-done">Submitted</span>
+                  <% } else { %>
+                    <span class="org-status-chip org-status-pending">No Project</span>
+                  <% } %>
+                </td>
+                <td><span class="org-status-chip org-status-done">Eligible</span></td>
+                <td>
+                  <a href="/team/<%= tm.id %>" class="org-action-btn org-action-btn-outline org-btn-sm">Manage</a>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      <% } %>
+    </div>
+  </main>
+</div>
+
+<!-- Modal for Create Team -->
+<div id="createTeamModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:8px;padding:24px;max-width:480px;width:90%;box-shadow:0 8px 30px rgba(0,0,0,0.2);">
+    <h3 style="margin:0 0 14px;">Create New Team</h3>
+    <form method="POST" action="/team/create">
+      <div class="org-form-group">
+        <label class="org-form-label">Team Name *</label>
+        <input type="text" name="name" class="org-input" required placeholder="e.g. CyberSentinels">
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;">
+        <button type="button" class="org-action-btn org-action-btn-outline" onclick="document.getElementById('createTeamModal').style.display='none'">Cancel</button>
+        <button type="submit" class="org-action-btn">Create Team</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<%- include('../layouts/footer') %>

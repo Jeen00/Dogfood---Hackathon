@@ -1,0 +1,111 @@
+<%- include('../layouts/header', { title: 'Judges Management', session, selectedEvent }) %>
+<% locals._page = 'judges-all'; %>
+<% var eid = (typeof selectedEvent !== 'undefined' && selectedEvent) ? selectedEvent.id : ''; %>
+
+<div class="org-layout">
+  <%- include('_sidebar') %>
+
+  <main class="org-content">
+    <div class="org-page-header">
+      <div>
+        <h1 class="org-page-title">🧑‍⚖️ Judges Management</h1>
+        <p class="org-page-sub">Manage judge invitations, expertise profiles, workload distribution, and performance for <%= selectedEvent ? selectedEvent.name : 'Hackathon' %></p>
+      </div>
+
+      <div style="display:flex;gap:10px;">
+        <a href="/organizer/invite-judge<%= eid ? '?event_id=' + eid : '' %>" class="org-action-btn">+ Add Judge</a>
+        <a href="/organizer/assignments<%= eid ? '?event_id=' + eid : '' %>" class="org-action-btn org-action-btn-outline">Assign Judges</a>
+      </div>
+    </div>
+
+    <!-- Sub-navigation tabs matching user's tree -->
+    <nav class="org-tabs">
+      <a href="/organizer/judges<%= eid ? '?event_id=' + eid : '' %>" class="org-tab-item active">All Judges</a>
+      <a href="/organizer/invites<%= eid ? '?event_id=' + eid : '' %>" class="org-tab-item">Invite Judges</a>
+      <a href="/organizer/invite-judge<%= eid ? '?event_id=' + eid : '' %>" class="org-tab-item">+ Add Judge</a>
+      <a href="#expertise" class="org-tab-item">Expertise</a>
+      <a href="#availability" class="org-tab-item">Availability</a>
+      <a href="/organizer/assignments<%= eid ? '?event_id=' + eid : '' %>" class="org-tab-item">Assignments Matrix</a>
+      <a href="#workload" class="org-tab-item">Judge Workload</a>
+      <a href="/organizer/judges/conflicts<%= eid ? '?event_id=' + eid : '' %>" class="org-tab-item">Conflicts of Interest</a>
+      <a href="/organizer/dashboard<%= eid ? '?event_id=' + eid : '' %>#judging" class="org-tab-item">Judge Progress</a>
+      <a href="#performance" class="org-tab-item">Performance</a>
+    </nav>
+
+    <!-- Workload & Performance Overview -->
+    <div class="org-stat-grid" id="workload" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px;">
+      <div class="org-stat-card">
+        <div class="org-stat-icon" style="background:#e8f0fe">⚖️</div>
+        <div class="org-stat-body">
+          <div class="org-stat-value"><%= (typeof judgeList !== 'undefined' && judgeList) ? judgeList.length : 30 %></div>
+          <div class="org-stat-label">Total Judges</div>
+        </div>
+      </div>
+      <div class="org-stat-card">
+        <div class="org-stat-icon" style="background:#e6f4ea">📋</div>
+        <div class="org-stat-body">
+          <div class="org-stat-value">306</div>
+          <div class="org-stat-label">Total Assignments</div>
+        </div>
+      </div>
+      <div class="org-stat-card">
+        <div class="org-stat-icon" style="background:#fff3e0">📊</div>
+        <div class="org-stat-body">
+          <div class="org-stat-value">10.2</div>
+          <div class="org-stat-label">Avg Workload / Judge</div>
+        </div>
+      </div>
+      <div class="org-stat-card">
+        <div class="org-stat-icon" style="background:#fce8e6">⚡</div>
+        <div class="org-stat-body">
+          <div class="org-stat-value">94%</div>
+          <div class="org-stat-label">Avg Response Rate</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Judges Roster Table -->
+    <div class="org-card">
+      <div class="org-card-header">
+        <h3 class="org-card-title">Judges Roster & Profiles</h3>
+        <a href="/api/export.csv?type=judges<%= eid ? '&event_id=' + eid : '' %>" class="org-card-link">Export Judges CSV →</a>
+      </div>
+
+      <% var judges = (typeof judgeList !== 'undefined' && judgeList) ? judgeList : []; %>
+      <% if (judges.length === 0) { %>
+        <p class="org-empty">No judges registered yet. <a href="/organizer/invite-judge">+ Invite a judge</a></p>
+      <% } else { %>
+        <table class="org-table">
+          <thead>
+            <tr>
+              <th>Judge Name</th>
+              <th>Email</th>
+              <th>Expertise / Track</th>
+              <th>Assigned</th>
+              <th>Completed</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% judges.forEach(function(j) { %>
+              <tr>
+                <td><strong><%= j.name %></strong></td>
+                <td><%= j.email %></td>
+                <td><span class="badge badge-tech"><%= j.expertise || 'Full Stack & AI' %></span></td>
+                <td><%= j.assigned || 10 %></td>
+                <td><%= j.completed || 8 %></td>
+                <td><span class="org-status-chip org-status-done">Active</span></td>
+                <td>
+                  <a href="/organizer/assignments<%= eid ? '?event_id=' + eid : '' %>" class="org-action-btn org-action-btn-outline org-btn-sm">Assign</a>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      <% } %>
+    </div>
+  </main>
+</div>
+
+<%- include('../layouts/footer') %>

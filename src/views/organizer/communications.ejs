@@ -1,0 +1,175 @@
+<%- include('../layouts/header', { title: 'Communications & Announcements', session, selectedEvent }) %>
+<% locals._page = 'communications-announcements'; %>
+<% var eid = (typeof selectedEvent !== 'undefined' && selectedEvent) ? selectedEvent.id : ''; %>
+
+<div class="org-layout">
+  <%- include('_sidebar') %>
+
+  <main class="org-content">
+    <div class="org-page-header">
+      <div>
+        <h1 class="org-page-title">📢 Communications Center</h1>
+        <p class="org-page-sub">Broadcast announcements, deadline reminders, email campaigns and alerts for <%= selectedEvent ? selectedEvent.name : 'Hackathon' %></p>
+      </div>
+
+      <button class="org-action-btn" onclick="document.getElementById('broadcastModal').style.display='flex'">+ Send Broadcast Announcement</button>
+    </div>
+
+    <!-- Sub-navigation tabs for Communications -->
+    <nav class="org-tabs">
+      <a href="#announcements" class="org-tab-item active">Announcements</a>
+      <a href="/organizer/notifications<%= eid ? '?event_id=' + eid : '' %>" class="org-tab-item">System Notifications</a>
+      <a href="#emails" class="org-tab-item">Email Campaigns</a>
+      <a href="#sms" class="org-tab-item">SMS / WhatsApp</a>
+      <a href="#reminders" class="org-tab-item">Deadline Reminders</a>
+      <a href="#submissions" class="org-tab-item">Submission Alerts</a>
+      <a href="#judges" class="org-tab-item">Judge Notifications</a>
+      <a href="#results" class="org-tab-item">Result Notifications</a>
+      <a href="#templates" class="org-tab-item">Templates</a>
+    </nav>
+
+    <!-- Announcements Section -->
+    <section id="announcements" class="org-card" style="margin-bottom:24px;">
+      <div class="org-card-header">
+        <h3 class="org-card-title">📣 Active Announcements</h3>
+        <span style="font-size:0.8rem;color:#666;">Visible to all logged in participants</span>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div style="padding:14px;border:1px solid #e8f0fe;background:#f8faff;border-radius:6px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+            <strong style="color:#1a73e8;font-size:0.95rem;">🚀 Submissions Open!</strong>
+            <span style="font-size:0.75rem;color:#888;">Broadcasted 1 day ago</span>
+          </div>
+          <p style="margin:0;font-size:0.86rem;color:#444;line-height:1.5;">
+            Welcome builders! You can now submit your projects. Remember that each submission must include a public repository link and track selection.
+          </p>
+        </div>
+
+        <div style="padding:14px;border:1px solid #fff3e0;background:#fffaf0;border-radius:6px;">
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+            <strong style="color:#e37400;font-size:0.95rem;">⏰ Mentorship Office Hours Today</strong>
+            <span style="font-size:0.75rem;color:#888;">Broadcasted 4 hours ago</span>
+          </div>
+          <p style="margin:0;font-size:0.86rem;color:#444;line-height:1.5;">
+            Join Discord or Google Meet for office hours with judges and technical mentors starting at 3 PM UTC.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Email Campaigns & Reminders Two-Col -->
+    <div class="org-two-col">
+      <!-- 3. Email Campaigns & 4. SMS -->
+      <div class="org-card" id="emails">
+        <div class="org-card-header">
+          <h3 class="org-card-title">✉️ Email & SMS Campaigns</h3>
+        </div>
+        <div class="org-form-group">
+          <label class="org-form-label">Audience Segment</label>
+          <select class="org-select">
+            <option>All Participants (Registered)</option>
+            <option>Participants with Unsubmitted Projects</option>
+            <option>All Judges</option>
+            <option>Judges with Pending Evaluations</option>
+            <option>Team Leaders Only</option>
+          </select>
+        </div>
+        <div class="org-form-group">
+          <label class="org-form-label">Email Subject</label>
+          <input type="text" class="org-input" placeholder="e.g. 24 Hours Left to Submit Your Project!">
+        </div>
+        <div class="org-form-group">
+          <label class="org-form-label">Message Body</label>
+          <textarea class="org-textarea" rows="4" placeholder="Write your announcement or reminder message here..."></textarea>
+        </div>
+        <div style="display:flex;gap:10px;" id="sms">
+          <button class="org-action-btn" onclick="alert('Email campaign queued successfully')">Send Email Campaign</button>
+          <button class="org-action-btn org-action-btn-outline" onclick="alert('SMS broadcast queued')">📱 Send WhatsApp / SMS</button>
+        </div>
+      </div>
+
+      <!-- 5. Deadline Reminders, 6. Submissions, 7. Judges, 8. Results -->
+      <div class="org-card" id="reminders">
+        <div class="org-card-header">
+          <h3 class="org-card-title">⏰ Automated Trigger Alerts</h3>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #eee;">
+            <div>
+              <div style="font-weight:600;font-size:0.88rem;">24h Deadline Reminder</div>
+              <div style="font-size:0.75rem;color:#777;">Notify participants 24 hours before submission deadline</div>
+            </div>
+            <input type="checkbox" checked>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #eee;" id="submissions">
+            <div>
+              <div style="font-weight:600;font-size:0.88rem;">Submission Confirmation Alert</div>
+              <div style="font-size:0.75rem;color:#777;">Email team members when their project is submitted</div>
+            </div>
+            <input type="checkbox" checked>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #eee;" id="judges">
+            <div>
+              <div style="font-weight:600;font-size:0.88rem;">Judge Assignment Alert</div>
+              <div style="font-size:0.75rem;color:#777;">Notify judges when projects are assigned to them</div>
+            </div>
+            <input type="checkbox" checked>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;" id="results">
+            <div>
+              <div style="font-weight:600;font-size:0.88rem;">Winners & Results Published</div>
+              <div style="font-size:0.75rem;color:#777;">Send congratulations and leaderboard link when results are published</div>
+            </div>
+            <input type="checkbox" checked>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 9. Templates -->
+    <div class="org-card" id="templates" style="margin-top:24px;">
+      <div class="org-card-header">
+        <h3 class="org-card-title">📑 Pre-made Notification Templates</h3>
+      </div>
+      <div class="org-stat-grid" style="grid-template-columns:repeat(3, 1fr);">
+        <div style="border:1px solid #e0e0e0;border-radius:6px;padding:14px;">
+          <h4 style="margin:0 0 6px;font-size:0.88rem;">🎉 Welcome to the Hackathon</h4>
+          <p style="font-size:0.78rem;color:#666;">Introduction email sent to newly registered participants with event guidelines and Discord links.</p>
+          <button class="org-action-btn org-action-btn-outline org-btn-sm">Use Template</button>
+        </div>
+        <div style="border:1px solid #e0e0e0;border-radius:6px;padding:14px;">
+          <h4 style="margin:0 0 6px;font-size:0.88rem;">🚨 6 Hours Remaining</h4>
+          <p style="font-size:0.78rem;color:#666;">High urgency reminder to submit before the deadline closes.</p>
+          <button class="org-action-btn org-action-btn-outline org-btn-sm">Use Template</button>
+        </div>
+        <div style="border:1px solid #e0e0e0;border-radius:6px;padding:14px;">
+          <h4 style="margin:0 0 6px;font-size:0.88rem;">⚖️ Judging Window Closing</h4>
+          <p style="font-size:0.78rem;color:#666;">Reminder sent to judges with remaining incomplete evaluation rubrics.</p>
+          <button class="org-action-btn org-action-btn-outline org-btn-sm">Use Template</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Modal for New Broadcast -->
+<div id="broadcastModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:8px;padding:24px;max-width:500px;width:90%;box-shadow:0 8px 30px rgba(0,0,0,0.2);">
+    <h3 style="margin:0 0 14px;">Broadcast Announcement</h3>
+    <div class="org-form-group">
+      <label class="org-form-label">Title</label>
+      <input type="text" class="org-input" placeholder="e.g. Schedule Update">
+    </div>
+    <div class="org-form-group">
+      <label class="org-form-label">Message</label>
+      <textarea class="org-textarea" rows="4" placeholder="Announcement details..."></textarea>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button class="org-action-btn org-action-btn-outline" onclick="document.getElementById('broadcastModal').style.display='none'">Cancel</button>
+      <button class="org-action-btn" onclick="alert('Announcement broadcasted!');document.getElementById('broadcastModal').style.display='none'">Post Announcement</button>
+    </div>
+  </div>
+</div>
+
+<%- include('../layouts/footer') %>

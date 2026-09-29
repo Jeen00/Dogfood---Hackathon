@@ -16,6 +16,111 @@ router.get('/', requireRole('organizer', 'admin'), (req, res) => {
   try {
     const db = getDb();
 
+    const type = req.query.type || 'scores';
+
+    // ── Participants CSV Export ──
+    if (type === 'participants') {
+      const pRows = db.prepare(`
+        SELECT u.id, u.name, u.email, u.registration_status, u.verification_status, u.registered_at,
+               t.name AS team_name,
+               CASE WHEN tm.team_id IS NOT NULL THEN 'team' ELSE 'individual' END AS reg_type
+        FROM users u
+        LEFT JOIN team_members tm ON tm.user_id = u.id
+        LEFT JOIN teams t ON t.id = tm.team_id
+        WHERE u.role = 'participant'
+        ORDER BY u.name ASC
+      `).all();
+
+      const header = 'user_id,name,email,team,registration_type,registration_status,verification_status,registered_at';
+      const escape = (v) => {
+        const s = String(v == null ? '' : v);
+        if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+          return `"${s.replace(/"/g, '""')}"`;
+        }
+        return s;
+      };
+
+      const lines = [header];
+      for (const r of pRows) {
+        lines.push([
+          escape(r.id),
+          escape(r.name),
+          escape(r.email),
+          escape(r.team_name || 'Individual'),
+          escape(r.reg_type),
+          escape(r.registration_status || 'approved'),
+          escape(r.verification_status || 'verified'),
+          escape(r.registered_at || '')
+        ].join(','));
+      }
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename="participants-roster.csv"');
+      return res.status(200).send(lines.join('\n'));
+    }
+
+    // ── Teams CSV Export ──
+    if (type === 'teams') {
+      const tRows = db.prepare(`
+        SELECT t.id, t.name, t.invite_code, u.name AS leader_name,
+          (SELECT COUNT(*) FROM team_members tm WHERE tm.team_id = t.id) AS member_count,
+          (SELECT title FROM projects p WHERE p.team_id = t.id LIMIT 1) AS project_title
+        FROM teams t
+        LEFT JOIN users u ON u.id = t.leader_id
+        ORDER BY t.name ASC
+      `).all();
+
+      const header = 'team_id,team_name,invite_code,leader,member_count,project_title';
+      const escape = (v) => `"${String(v || '').replace(/"/g, '""')}"`;
+      const lines = [header];
+      for (const r of tRows) {
+        lines.push([escape(r.id), escape(r.name), escape(r.invite_code), escape(r.leader_name), r.member_count, escape(r.project_title)].join(','));
+      }
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename="teams-export.csv"');
+      return res.status(200).send(lines.join('\n'));
+    }
+
+    // ── Projects CSV Export ──
+    if (type === 'projects') {
+      const pRows = db.prepare(`
+        SELECT p.id, p.title, t.name AS team, tr.name AS track, p.repo_url, p.status, p.view_count, p.submitted_at
+        FROM projects p
+        LEFT JOIN teams t ON t.id = p.team_id
+        LEFT JOIN tracks tr ON tr.id = p.track_id
+        ORDER BY p.title ASC
+      `).all();
+      const header = 'project_id,title,team,track,repo_url,status,views,submitted_at';
+      const escape = (v) => `"${String(v || '').replace(/"/g, '""')}"`;
+      const lines = [header];
+      for (const r of pRows) {
+        lines.push([escape(r.id), escape(r.title), escape(r.team), escape(r.track), escape(r.repo_url), r.status, r.view_count, escape(r.submitted_at)].join(','));
+      }
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename="projects-export.csv"');
+      return res.status(200).send(lines.join('\n'));
+    }
+
+    // ── Judges CSV Export ──
+    if (type === 'judges') {
+      const jRows = db.prepare(`
+        SELECT u.id, u.name, u.email,
+          (SELECT COUNT(*) FROM judge_assignments ja WHERE ja.judge_id = u.id) AS assigned,
+          (SELECT COUNT(*) FROM scores s WHERE s.judge_id = u.id) AS completed
+        FROM users u WHERE u.role = 'judge' ORDER BY u.name ASC
+      `).all();
+      const header = 'judge_id,name,email,assigned_count,completed_count';
+      const escape = (v) => `"${String(v || '').replace(/"/g, '""')}"`;
+      const lines = [header];
+      for (const r of jRows) {
+        lines.push([escape(r.id), escape(r.name), escape(r.email), r.assigned, r.completed].join(','));
+      }
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename="judges-export.csv"');
+      return res.status(200).send(lines.join('\n'));
+    }
+
+    // ── Default / Scores CSV Export ──
     const eventId = req.query.event_id;
     let query = `
       SELECT

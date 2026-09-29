@@ -22,7 +22,25 @@ CREATE TABLE IF NOT EXISTS events (
   submissions_close TEXT,
   voting_open       TEXT,
   voting_close      TEXT,
-  created_by        TEXT
+  created_by        TEXT,
+  description       TEXT,
+  status            TEXT DEFAULT 'published',
+  is_published      INTEGER DEFAULT 1,
+  is_archived       INTEGER DEFAULT 0,
+  judging_open      TEXT,
+  judging_close     TEXT,
+  results_date      TEXT,
+  banner_url        TEXT,
+  about             TEXT,
+  problem_statement TEXT,
+  rules             TEXT,
+  eligibility       TEXT,
+  prizes_summary    TEXT,
+  faqs              TEXT,
+  sponsors          TEXT,
+  partners          TEXT,
+  contact_email     TEXT,
+  website_url       TEXT
 );
 
 CREATE TABLE IF NOT EXISTS tracks (

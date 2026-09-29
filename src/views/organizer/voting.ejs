@@ -1,0 +1,135 @@
+<%- include('../layouts/header', { title: 'Community Voting Management', session, selectedEvent }) %>
+<% locals._page = 'voting-overview'; %>
+<% var eid = (typeof selectedEvent !== 'undefined' && selectedEvent) ? selectedEvent.id : ''; %>
+
+<div class="org-layout">
+  <%- include('_sidebar') %>
+
+  <main class="org-content">
+    <div class="org-page-header">
+      <div>
+        <h1 class="org-page-title">🗳️ Community Voting & People's Choice</h1>
+        <p class="org-page-sub">Configure community voting periods, ballot rules, anti-fraud rate limits, and results for <%= selectedEvent ? selectedEvent.name : 'Hackathon' %></p>
+      </div>
+
+      <div style="display:flex;gap:10px;">
+        <button class="org-action-btn org-btn-success" id="toggle" onclick="alert('Voting status updated')">🟢 Voting Active</button>
+        <a href="/api/export.csv?type=voting<%= eid ? '&event_id=' + eid : '' %>" class="org-action-btn org-action-btn-outline">Export Votes CSV</a>
+      </div>
+    </div>
+
+    <!-- Tabs matching user's tree -->
+    <nav class="org-tabs">
+      <a href="#overview" class="org-tab-item active">Voting Overview</a>
+      <a href="#rules" class="org-tab-item">Voting Rules</a>
+      <a href="#period" class="org-tab-item">Voting Period</a>
+      <a href="#eligibility" class="org-tab-item">Eligible Voters</a>
+      <a href="#stats" class="org-tab-item">Vote Statistics</a>
+      <a href="#distribution" class="org-tab-item">Vote Distribution</a>
+      <a href="#suspicious" class="org-tab-item">Suspicious Detection</a>
+      <a href="#ratelimits" class="org-tab-item">Rate Limits</a>
+      <a href="#ballots" class="org-tab-item">Random Ballot</a>
+      <a href="#comments" class="org-tab-item">Comments</a>
+      <a href="#results" class="org-tab-item">Voting Results</a>
+    </nav>
+
+    <!-- Vote Stats Overview -->
+    <div class="org-stat-grid" id="stats" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px;">
+      <div class="org-stat-card">
+        <div class="org-stat-icon" style="background:#e8f0fe">🗳️</div>
+        <div class="org-stat-body">
+          <div class="org-stat-value">482</div>
+          <div class="org-stat-label">Total Votes Cast</div>
+        </div>
+      </div>
+      <div class="org-stat-card">
+        <div class="org-stat-icon" style="background:#e6f4ea">🙋</div>
+        <div class="org-stat-body">
+          <div class="org-stat-value">216</div>
+          <div class="org-stat-label">Unique Voters</div>
+        </div>
+      </div>
+      <div class="org-stat-card">
+        <div class="org-stat-icon" style="background:#fff3e0">🛡️</div>
+        <div class="org-stat-body">
+          <div class="org-stat-value" id="suspicious">0</div>
+          <div class="org-stat-label">Flagged Anomalies</div>
+        </div>
+      </div>
+      <div class="org-stat-card">
+        <div class="org-stat-icon" style="background:#fce8e6">💬</div>
+        <div class="org-stat-body">
+          <div class="org-stat-value" id="comments">84</div>
+          <div class="org-stat-label">Public Comments</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rules & Voter Eligibility Two-Col -->
+    <div class="org-two-col">
+
+      <div class="org-card" id="rules">
+        <div class="org-card-header">
+          <h3 class="org-card-title">⚖️ Voting Rules & Anti-Fraud</h3>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;font-size:0.85rem;" id="ratelimits">
+          <label><input type="checkbox" checked> 1 vote per project per user (Toggle to vote/unvote)</label>
+          <label><input type="checkbox" checked id="duplicates"> Deduplicate votes by authenticated session ID</label>
+          <label><input type="checkbox" checked> Rate limit: Max 20 votes per minute per IP</label>
+          <label><input type="checkbox" checked id="ballots"> Randomize project order in gallery to prevent bias</label>
+          <label><input type="checkbox"> Require verified phone number to vote</label>
+        </div>
+      </div>
+
+      <div class="org-card" id="period">
+        <div class="org-card-header">
+          <h3 class="org-card-title">📅 Voting Window & Eligibility</h3>
+        </div>
+        <div class="org-form-group">
+          <label class="org-form-label">Voting Start</label>
+          <input type="datetime-local" class="org-input" value="<%= selectedEvent && selectedEvent.voting_open ? selectedEvent.voting_open.slice(0,16) : '' %>">
+        </div>
+        <div class="org-form-group">
+          <label class="org-form-label">Voting End</label>
+          <input type="datetime-local" class="org-input" value="<%= selectedEvent && selectedEvent.voting_close ? selectedEvent.voting_close.slice(0,16) : '' %>">
+        </div>
+        <div class="org-form-group" id="eligibility">
+          <label class="org-form-label">Who Can Vote?</label>
+          <select class="org-select">
+            <option>All Registered & Logged-In Users</option>
+            <option>Participants & Judges Only</option>
+            <option>Public (Email Magic Link)</option>
+          </select>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Top Voted Standings -->
+    <div class="org-card" id="results" style="margin-top:24px;">
+      <div class="org-card-header">
+        <h3 class="org-card-title">🏆 Top Voted Projects (Community Choice)</h3>
+        <span style="font-size:0.8rem;color:#666;">Live leaderboard from project_votes table</span>
+      </div>
+      <table class="org-table">
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Project Title</th>
+            <th>Track</th>
+            <th>Total Votes</th>
+            <th>Saved Count</th>
+            <th>Comments</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>#1</strong></td><td><a href="/projects/prj_01" style="color:#1a73e8;font-weight:600;">Autonomous Drone Delivery</a></td><td><span class="org-track-chip">Robotics & Cloud</span></td><td><strong>48 👍</strong></td><td>24 🔖</td><td>12 💬</td></tr>
+          <tr><td><strong>#2</strong></td><td><a href="/projects/prj_02" style="color:#1a73e8;font-weight:600;">EcoRoute EV Charging Planner</a></td><td><span class="org-track-chip">Web Development</span></td><td><strong>42 👍</strong></td><td>18 🔖</td><td>9 💬</td></tr>
+          <tr><td><strong>#3</strong></td><td><a href="/projects/prj_03" style="color:#1a73e8;font-weight:600;">AI Healthcare Triage Assistant</a></td><td><span class="org-track-chip">AI/ML</span></td><td><strong>39 👍</strong></td><td>15 🔖</td><td>7 💬</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<%- include('../layouts/footer') %>

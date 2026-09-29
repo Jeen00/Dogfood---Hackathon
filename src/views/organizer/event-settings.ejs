@@ -1,0 +1,67 @@
+<%- include('../layouts/header', { title: 'Event Settings', session, selectedEvent }) %>
+<% locals._page = 'hackathons-settings'; %>
+
+<div class="org-layout">
+  <%- include('_sidebar') %>
+
+  <main class="org-content">
+    <div class="org-page-header">
+      <div>
+        <h1 class="org-page-title">⚙️ Event Settings</h1>
+        <p class="org-page-sub">Configure rules, awards, FAQs and integrations for <%= selectedEvent ? selectedEvent.name : 'Selected Event' %></p>
+      </div>
+      <a href="/organizer/events?event_id=<%= selectedEvent ? selectedEvent.id : '' %>" class="org-action-btn org-action-btn-outline">← Back to Hackathons</a>
+    </div>
+
+    <% if (!selectedEvent) { %>
+      <p class="org-empty">No event selected. Please select an event first.</p>
+    <% } else { %>
+      <div class="org-card" style="max-width:850px;">
+        <form method="POST" action="/organizer/events/settings">
+          <input type="hidden" name="event_id" value="<%= selectedEvent.id %>">
+
+          <div class="org-form-group">
+            <label class="org-form-label">Prizes & Awards Summary</label>
+            <textarea name="prizes_summary" class="org-textarea" rows="3" placeholder="e.g. 1st Place: $10,000 | 2nd Place: $5,000 | Best AI Track: $2,500"><%= selectedEvent.prizes_summary || '' %></textarea>
+          </div>
+
+          <div class="org-form-group">
+            <label class="org-form-label">Frequently Asked Questions (FAQs)</label>
+            <textarea name="faqs" class="org-textarea" rows="4" placeholder="Q: Who can participate?&#10;A: Anyone aged 18+ worldwide.&#10;&#10;Q: Can I participate solo?&#10;A: Yes, teams can be 1-4 members."><%= selectedEvent.faqs || '' %></textarea>
+            <span class="org-form-hint">Displayed on the public event page FAQ section</span>
+          </div>
+
+          <div class="org-form-grid">
+            <div class="org-form-group">
+              <label class="org-form-label">Sponsors (comma or newline separated)</label>
+              <textarea name="sponsors" class="org-textarea" rows="3" placeholder="Google Cloud, AWS, GitHub"><%= selectedEvent.sponsors || '' %></textarea>
+            </div>
+
+            <div class="org-form-group">
+              <label class="org-form-label">Partners & Community Organizers</label>
+              <textarea name="partners" class="org-textarea" rows="3" placeholder="Devpost, Major League Hacking"><%= selectedEvent.partners || '' %></textarea>
+            </div>
+          </div>
+
+          <div style="padding-top:16px;border-top:1px solid #eee;margin-top:16px;display:flex;gap:12px;">
+            <button type="submit" class="org-action-btn">Save Settings</button>
+            <a href="/organizer/events?tab=overview&event_id=<%= selectedEvent.id %>" class="org-action-btn org-action-btn-outline">Cancel</a>
+          </div>
+        </form>
+
+        <div style="margin-top:32px;padding:16px;border:1px solid #fce8e6;background:#fff9f9;border-radius:6px;">
+          <h4 style="margin:0 0 6px;color:#c5221f;">⚠️ Danger Zone</h4>
+          <p style="font-size:0.84rem;color:#666;margin:0 0 12px;">Archive this hackathon to hide it from general organizer views without deleting data.</p>
+          <form method="POST" action="/organizer/events/archive" onsubmit="return confirm('Are you sure you want to toggle archive status?');">
+            <input type="hidden" name="event_id" value="<%= selectedEvent.id %>">
+            <button type="submit" class="org-action-btn org-btn-danger">
+              <%= selectedEvent.is_archived ? 'Restore Hackathon from Archive' : 'Archive this Hackathon' %>
+            </button>
+          </form>
+        </div>
+      </div>
+    <% } %>
+  </main>
+</div>
+
+<%- include('../layouts/footer') %>
