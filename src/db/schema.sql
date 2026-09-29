@@ -8,11 +8,17 @@ CREATE TABLE IF NOT EXISTS sessions (
 );
 
 CREATE TABLE IF NOT EXISTS users (
-  id            TEXT PRIMARY KEY,
-  name          TEXT NOT NULL,
-  email         TEXT UNIQUE NOT NULL,
-  role          TEXT NOT NULL,
-  password_hash TEXT
+  id              TEXT PRIMARY KEY,
+  name            TEXT NOT NULL,
+  email           TEXT UNIQUE NOT NULL,
+  role            TEXT NOT NULL,
+  password_hash   TEXT,
+  bio             TEXT,
+  github_username TEXT,
+  linkedin_url    TEXT,
+  website_url     TEXT,
+  skills          TEXT,
+  avatar_url      TEXT
 );
 
 CREATE TABLE IF NOT EXISTS events (

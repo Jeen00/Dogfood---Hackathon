@@ -330,6 +330,16 @@ router.get('/:id', (req, res) => {
       }
     }
 
+    // ── Load event and voting state ────────────────────────────────────────
+    const event = db.prepare('SELECT * FROM events WHERE id = ?').get(project.event_id) || null;
+    const nowTime = Date.now();
+    const votingOpenTime  = event && event.voting_open ? new Date(event.voting_open).getTime() : null;
+    const votingCloseTime = event && event.voting_close ? new Date(event.voting_close).getTime() : null;
+
+    const votingNotStarted = votingOpenTime ? (nowTime < votingOpenTime) : false;
+    const votingClosed     = votingCloseTime ? (nowTime > votingCloseTime) : false;
+    const votingOpen       = !votingNotStarted && !votingClosed;
+
     // ── Team members ───────────────────────────────────────────────────────
     const members = db.prepare(`
       SELECT
@@ -422,6 +432,10 @@ router.get('/:id', (req, res) => {
 
     return res.render('project-detail', {
       project,
+      event,
+      votingClosed,
+      votingOpen,
+      votingNotStarted,
       members,
       comments,
       similar,
@@ -453,6 +467,21 @@ router.post('/:id/vote', requireAuth, (req, res) => {
     const userId    = req.session.userId;
     const ip        = req.ip || req.connection?.remoteAddress || '127.0.0.1';
     const now       = new Date().toISOString();
+
+    // Check event voting window (Voting closes -> Results published)
+    const prj = db.prepare('SELECT event_id FROM projects WHERE id = ?').get(projectId);
+    if (prj && prj.event_id) {
+      const evt = db.prepare('SELECT * FROM events WHERE id = ?').get(prj.event_id);
+      if (evt) {
+        const nowMs = Date.now();
+        if (evt.voting_close && nowMs > new Date(evt.voting_close).getTime()) {
+          return res.status(403).json({ error: 'Voting has closed for this event. Check out the Leaderboard & Results!' });
+        }
+        if (evt.voting_open && nowMs < new Date(evt.voting_open).getTime()) {
+          return res.status(403).json({ error: 'Voting has not opened yet for this event.' });
+        }
+      }
+    }
 
     // 1. Rate Limiting Protection (Safety)
     const rateLimitKey = `vote:${userId || ip}`;

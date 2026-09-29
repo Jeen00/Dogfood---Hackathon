@@ -69,6 +69,10 @@ async function runTests() {
   // Find which team owns prj_01 and who the member is
   const { getDb } = require('../src/db/db');
   const db = getDb();
+  
+  // Ensure voting is currently open for the test project's event
+  db.prepare("UPDATE events SET voting_open = datetime('now', '-1 day'), voting_close = datetime('now', '+2 days') WHERE id = (SELECT event_id FROM projects WHERE id = 'prj_01')").run();
+
   const prj = db.prepare("SELECT p.id, p.team_id, tm.user_id FROM projects p JOIN team_members tm ON tm.team_id = p.team_id WHERE p.id = 'prj_01'").get();
 
   // Create or set a session for this owner to test self-vote protection

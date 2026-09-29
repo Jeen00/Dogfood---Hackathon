@@ -53,8 +53,10 @@
           <a href="/team/events" style="color: #4CAF50; font-weight: bold;">&larr; All Hackathons</a>
           <a href="/team?event_id=<%= selectedParticipantEvent.id %>">My Team</a>
           <a href="/submissions/new?event_id=<%= selectedParticipantEvent.id %>">Submit Project</a>
+          <a href="/participant/profile">Profile</a>
         <% } else { %>
           <a href="/team/events" style="font-weight: bold;">All Hackathons</a>
+          <a href="/participant/profile">Profile</a>
         <% } %>
       <% } %>
 

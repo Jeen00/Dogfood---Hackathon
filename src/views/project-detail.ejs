@@ -295,15 +295,44 @@
       <span title="Comments">💬 <strong><%= (comments && comments.length) || 0 %></strong> Discussions</span>
     </div>
 
+    <!-- Voting Closed & Results Published Banner -->
+    <% if (typeof votingClosed !== 'undefined' && votingClosed) { %>
+    <div style="background: #FFFBEB; border: 2px solid #D97706; border-left: 6px solid #D97706; padding: 12px 16px; margin: 16px 0 6px 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+      <div>
+        <strong style="color: #92400E; font-size: 0.95rem; display: block;">🏆 Voting has Concluded!</strong>
+        <span style="color: #B45309; font-size: 0.85rem;">Official evaluations and winner standings are now published.</span>
+      </div>
+      <a href="/results" style="background: #D97706; color: #fff; padding: 7px 14px; font-weight: bold; text-decoration: none; border-radius: 4px; font-size: 0.85rem; box-shadow: 2px 2px 0 #92400E;">
+        View Leaderboard & Awards →
+      </a>
+    </div>
+    <% } %>
+
     <!-- Action buttons (Vote, Save, Links, Sharing, Safety Report) -->
     <div class="detail-actions-wrap">
+      <% if (typeof votingClosed !== 'undefined' && votingClosed) { %>
+      <button
+        class="btn-vote-detail"
+        disabled
+        style="opacity: 0.65; cursor: not-allowed; background: #E2E8F0; color: #475569;"
+        title="Voting has concluded for this event"
+      ><span class="action-icon">🔒</span> <span>Voting Closed</span></button>
+      <% } else if (typeof votingNotStarted !== 'undefined' && votingNotStarted) { %>
+      <button
+        class="btn-vote-detail"
+        disabled
+        style="opacity: 0.75; cursor: not-allowed; background: #E2E8F0; color: #475569;"
+        title="Voting opens soon"
+      ><span class="action-icon">⏳</span> <span>Voting Opens Soon</span></button>
+      <% } else { %>
       <button
         id="detailVoteBtn"
         class="btn-vote-detail <%= project.user_voted ? 'active' : '' %>"
         data-id="<%= project.id %>"
         data-action="vote"
         title="<%= userLoggedIn ? 'Vote for this project' : 'Login to vote' %>"
-      ><span class="action-icon"><%= project.user_voted ? '👍' : '👍' %></span> <span id="detail-vote-label"><%= project.user_voted ? 'Voted' : 'Vote' %></span></button>
+      ><span class="action-icon">👍</span> <span id="detail-vote-label"><%= project.user_voted ? 'Voted' : 'Vote' %></span></button>
+      <% } %>
 
       <button
         id="detailSaveBtn"

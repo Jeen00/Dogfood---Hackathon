@@ -166,21 +166,232 @@
   .leaderboard-table tr:hover {
     background: #F8FAFC;
   }
+
+  /* Hackathon Selector */
+  .hackathon-selector-card {
+    background: #fff;
+    border: 2px solid #1A1A1A;
+    box-shadow: 4px 4px 0 #1A1A1A;
+    padding: 16px 20px;
+    margin-bottom: 28px;
+  }
+  .hackathon-selector-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .hackathon-selector-title {
+    font-size: 0.92rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #475569;
+  }
+  .hackathon-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .hackathon-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border: 2px solid #1A1A1A;
+    background: #F8FAFC;
+    color: #1A1A1A;
+    font-weight: 700;
+    font-size: 0.9rem;
+    text-decoration: none;
+    border-radius: 4px;
+    transition: all 0.15s ease;
+  }
+  .hackathon-pill:hover {
+    background: #E2E8F0;
+  }
+  .hackathon-pill.active {
+    background: #1A1A1A;
+    color: #fff;
+    box-shadow: 2px 2px 0 rgba(0,0,0,0.3);
+  }
+  .hackathon-status-tag {
+    font-size: 0.72rem;
+    font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .tag-published {
+    background: #DCFCE7;
+    color: #166534;
+  }
+  .tag-judging {
+    background: #FEF3C7;
+    color: #92400E;
+  }
+  .tag-upcoming {
+    background: #E0E7FF;
+    color: #3730A3;
+  }
+  .hackathon-pill.active .tag-published {
+    background: #22C55E;
+    color: #FFFFFF;
+  }
+  .hackathon-pill.active .tag-judging {
+    background: #F59E0B;
+    color: #FFFFFF;
+  }
+  .hackathon-pill.active .tag-upcoming {
+    background: #6366F1;
+    color: #FFFFFF;
+  }
+
+  /* Current Event Meta Card */
+  .event-meta-banner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #F8FAFC;
+    border: 2px solid #1A1A1A;
+    padding: 16px 20px;
+    margin-bottom: 32px;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .event-meta-left h2 {
+    margin: 0 0 4px 0;
+    font-size: 1.35rem;
+    font-weight: 800;
+  }
+  .event-meta-left p {
+    margin: 0;
+    color: #64748B;
+    font-size: 0.88rem;
+  }
+  .event-meta-stats {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .stat-badge {
+    text-align: center;
+    background: #fff;
+    border: 1.5px solid #1A1A1A;
+    padding: 6px 14px;
+    border-radius: 4px;
+    min-width: 80px;
+  }
+  .stat-val {
+    font-size: 1.15rem;
+    font-weight: 900;
+    line-height: 1.1;
+  }
+  .stat-lbl {
+    font-size: 0.7rem;
+    color: #64748B;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
 </style>
 
 <div class="results-container">
   <div class="results-header">
     <h1 class="results-title">🏆 Hackathon Results & Leaderboard</h1>
     <p class="results-subtitle">
-      <%= typeof event !== 'undefined' && event ? event.name : 'Hackathon' %> Official Standings, Award Winners & Published Scores
+      Explore official standings, award winners, and published scores across all hackathons
     </p>
   </div>
 
+  <!-- ── 🔄 HACKATHON SELECTOR ────────────────────────────────────────── -->
+  <% if (typeof allEvents !== 'undefined' && allEvents && allEvents.length > 0) { %>
+    <div class="hackathon-selector-card">
+      <div class="hackathon-selector-header">
+        <span class="hackathon-selector-title">Select Hackathon</span>
+        <select onchange="window.location.href='/results?event_id=' + this.value" style="padding: 6px 12px; border: 2px solid #1A1A1A; font-weight: bold; background: #fff; cursor: pointer; border-radius: 4px;">
+          <% allEvents.forEach(function(ev) { %>
+            <option value="<%= ev.id %>" <%= (event && event.id === ev.id) ? 'selected' : '' %>>
+              <%= ev.name %> (<%= ev.score_count > 0 ? 'Results Published' : (ev.project_count > 0 ? 'Judging' : 'Upcoming') %>)
+            </option>
+          <% }); %>
+        </select>
+      </div>
+
+      <div class="hackathon-pills">
+        <% allEvents.forEach(function(ev) { 
+             const isActive = event && event.id === ev.id;
+             let tagClass = 'tag-upcoming';
+             let tagText = 'Upcoming';
+             if (ev.score_count > 0) {
+               tagClass = 'tag-published';
+               tagText = 'Results Ready';
+             } else if (ev.project_count > 0 || (new Date(ev.submissions_close) <= new Date())) {
+               tagClass = 'tag-judging';
+               tagText = 'Judging';
+             }
+        %>
+          <a href="/results?event_id=<%= ev.id %>" class="hackathon-pill <%= isActive ? 'active' : '' %>">
+            <span><%= ev.name %></span>
+            <span class="hackathon-status-tag <%= tagClass %>"><%= tagText %></span>
+          </a>
+        <% }); %>
+      </div>
+    </div>
+  <% } %>
+
+  <!-- ── 📌 SELECTED EVENT BANNER ──────────────────────────────────────── -->
+  <% if (event) { %>
+    <div class="event-meta-banner">
+      <div class="event-meta-left">
+        <h2><%= event.name %></h2>
+        <p>Submissions closed: <%= new Date(event.submissions_close).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) %></p>
+      </div>
+      <div class="event-meta-stats">
+        <div class="stat-badge">
+          <div class="stat-val"><%= event.project_count || (leaderboard ? leaderboard.length : 0) %></div>
+          <div class="stat-lbl">Projects</div>
+        </div>
+        <div class="stat-badge">
+          <div class="stat-val"><%= event.score_count != null ? event.score_count : (leaderboard ? leaderboard.reduce((acc, c) => acc + (c.reviews_count || 0), 0) : 0) %></div>
+          <div class="stat-lbl">Reviews</div>
+        </div>
+        <div class="stat-badge">
+          <div class="stat-val" style="color: <%= leaderboard && leaderboard.length > 0 ? '#16A34A' : '#D97706' %>;">
+            <%= leaderboard && leaderboard.length > 0 ? 'Published' : 'In Progress' %>
+          </div>
+          <div class="stat-lbl">Status</div>
+        </div>
+      </div>
+    </div>
+  <% } %>
+
   <% if (!leaderboard || leaderboard.length === 0) { %>
-    <div style="background: #fff; border: 2px solid #1A1A1A; padding: 40px; text-align: center;">
-      <h2>No Published Results Yet</h2>
-      <p style="color: #666;">Judging is currently in progress or scores have not been published yet. Check back soon!</p>
-      <a href="/projects" style="display: inline-block; margin-top: 16px; padding: 10px 20px; background: #1A1A1A; color: #fff; text-decoration: none; font-weight: bold;">Explore Project Gallery</a>
+    <div style="background: #fff; border: 3px solid #1A1A1A; box-shadow: 6px 6px 0 #1A1A1A; padding: 48px 24px; text-align: center; margin-bottom: 48px;">
+      <div style="font-size: 3.5rem; margin-bottom: 12px;">⏳</div>
+      <h2 style="font-size: 1.75rem; margin: 0 0 8px 0;">Results Not Yet Published</h2>
+      <p style="color: #555; max-width: 580px; margin: 0 auto 24px auto; font-size: 1.05rem; line-height: 1.5;">
+        <% if (event && event.project_count > 0) { %>
+          Submissions for <strong><%= event.name %></strong> have been received! Judges are currently reviewing and scoring the <strong><%= event.project_count %> submitted projects</strong>. Final standings and normalized scores will appear here once scoring and normalization wrap up.
+        <% } else { %>
+          Submissions or evaluations for <strong><%= event ? event.name : 'this hackathon' %></strong> are still underway. The official leaderboard and awards will appear here once judging wraps up.
+        <% } %>
+      </p>
+
+      <div style="display: flex; justify-content: center; gap: 14px; flex-wrap: wrap;">
+        <a href="/projects" style="display: inline-block; padding: 12px 24px; background: #1A1A1A; color: #fff; text-decoration: none; font-weight: bold; border: 2px solid #1A1A1A; box-shadow: 3px 3px 0 rgba(0,0,0,0.2);">
+          🎨 Explore Project Gallery
+        </a>
+        <% const eventsWithScores = (typeof allEvents !== 'undefined' ? allEvents : []).filter(e => e.score_count > 0 && (!event || e.id !== event.id)); %>
+        <% if (eventsWithScores.length > 0) { %>
+          <a href="/results?event_id=<%= eventsWithScores[0].id %>" style="display: inline-block; padding: 12px 24px; background: #22C55E; color: #fff; text-decoration: none; font-weight: bold; border: 2px solid #1A1A1A; box-shadow: 3px 3px 0 #1A1A1A;">
+            🏆 View Completed Results for <%= eventsWithScores[0].name %> &rarr;
+          </a>
+        <% } %>
+      </div>
     </div>
   <% } else { %>
 

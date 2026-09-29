@@ -41,6 +41,13 @@ function initDb() {
     "ALTER TABLE projects ADD COLUMN thumbnail_url TEXT",
     "ALTER TABLE projects ADD COLUMN view_count INTEGER DEFAULT 0",
     "ALTER TABLE projects ADD COLUMN updated_at TEXT",
+    // ─── User profile columns ───────────────────────────────────────────────
+    "ALTER TABLE users ADD COLUMN bio TEXT",
+    "ALTER TABLE users ADD COLUMN github_username TEXT",
+    "ALTER TABLE users ADD COLUMN linkedin_url TEXT",
+    "ALTER TABLE users ADD COLUMN website_url TEXT",
+    "ALTER TABLE users ADD COLUMN skills TEXT",
+    "ALTER TABLE users ADD COLUMN avatar_url TEXT",
   ];
   for (const m of migrations) {
     try { db.exec(m); } catch (_) { /* column already exists — skip */ }

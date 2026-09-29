@@ -1,0 +1,519 @@
+<%- include('../layouts/header', { title: 'My Profile', session, selectedParticipantEvent: null }) %>
+
+<style>
+  .profile-container {
+    max-width: 1050px;
+    margin: 24px auto;
+    padding: 0 16px;
+  }
+  .profile-header-card {
+    background: #FFFFFF;
+    border: 3px solid #1A1A1A;
+    box-shadow: 5px 5px 0 #1A1A1A;
+    padding: 28px;
+    margin-bottom: 28px;
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .profile-avatar {
+    width: 80px;
+    height: 80px;
+    background: #1A73E8;
+    color: #FFFFFF;
+    border: 3px solid #1A1A1A;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.2rem;
+    font-weight: 900;
+    flex-shrink: 0;
+    box-shadow: 3px 3px 0 #1A1A1A;
+  }
+  .profile-identity {
+    flex: 1;
+    min-width: 260px;
+  }
+  .profile-identity h1 {
+    margin: 0 0 6px 0;
+    font-size: 2rem;
+    font-weight: 900;
+    border: none;
+    padding: 0;
+  }
+  .profile-badge-role {
+    display: inline-block;
+    background: #DCFCE7;
+    color: #166534;
+    border: 1.5px solid #166534;
+    font-size: 0.75rem;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+  .profile-email {
+    color: #555555;
+    font-size: 0.95rem;
+    margin-bottom: 12px;
+  }
+  .profile-bio {
+    font-size: 1rem;
+    color: #222222;
+    line-height: 1.5;
+    margin-bottom: 14px;
+    max-width: 680px;
+  }
+  .profile-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    font-size: 0.9rem;
+    font-weight: 700;
+  }
+  .profile-links a {
+    color: #1A73E8;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .profile-links a:hover {
+    text-decoration: underline;
+  }
+  .skills-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 12px;
+  }
+  .skill-pill {
+    background: #F1F5F9;
+    border: 1.5px solid #1A1A1A;
+    color: #1A1A1A;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 12px;
+  }
+
+  /* Stats Grid */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  .stat-card {
+    background: #FFFFFF;
+    border: 2px solid #1A1A1A;
+    box-shadow: 4px 4px 0 #1A1A1A;
+    padding: 16px 18px;
+    text-align: center;
+  }
+  .stat-num {
+    font-size: 2.2rem;
+    font-weight: 900;
+    line-height: 1.1;
+    color: #1A1A1A;
+  }
+  .stat-desc {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    font-weight: 800;
+    color: #64748B;
+    margin-top: 4px;
+    letter-spacing: 0.05em;
+  }
+
+  /* Layout Columns */
+  .profile-columns {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+  @media (max-width: 860px) {
+    .profile-columns {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .panel-card {
+    background: #FFFFFF;
+    border: 2px solid #1A1A1A;
+    box-shadow: 4px 4px 0 #1A1A1A;
+    padding: 22px;
+    margin-bottom: 24px;
+  }
+  .panel-title {
+    font-size: 1.25rem;
+    font-weight: 800;
+    margin: 0 0 16px 0;
+    border-bottom: 2px solid #F1F5F9;
+    padding-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  /* Team Card */
+  .team-card {
+    background: #F8FAFC;
+    border: 2px solid #1A1A1A;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .team-card:last-child {
+    margin-bottom: 0;
+  }
+  .team-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .team-name {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: #1A1A1A;
+    margin: 0;
+  }
+  .team-event {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #64748B;
+    text-transform: uppercase;
+  }
+  .project-badge-box {
+    background: #FFFFFF;
+    border: 1.5px solid #1A1A1A;
+    padding: 10px 12px;
+    margin-top: 10px;
+    border-radius: 4px;
+  }
+
+  /* Form controls */
+  .form-group {
+    margin-bottom: 14px;
+  }
+  .form-group label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #334155;
+    margin-bottom: 5px;
+    letter-spacing: 0.04em;
+  }
+  .form-control {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 9px 12px;
+    border: 2px solid #1A1A1A;
+    font-size: 0.95rem;
+    background: #FFFFFF;
+    font-family: inherit;
+    border-radius: 4px;
+  }
+  .form-control:focus {
+    outline: none;
+    border-color: #1A73E8;
+    box-shadow: 0 0 0 2px rgba(26,115,232,0.2);
+  }
+  .btn-primary {
+    background: #1A1A1A;
+    color: #FFFFFF;
+    border: 2px solid #1A1A1A;
+    font-weight: 800;
+    padding: 10px 20px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    box-shadow: 3px 3px 0 rgba(0,0,0,0.3);
+    transition: transform 0.1s ease;
+  }
+  .btn-primary:hover {
+    transform: translate(-1px, -1px);
+    box-shadow: 4px 4px 0 rgba(0,0,0,0.3);
+  }
+</style>
+
+<div class="profile-container">
+  <% if (typeof success !== 'undefined' && success) { %>
+    <div style="background: #DCFCE7; border: 2px solid #166534; color: #166534; font-weight: bold; padding: 12px 16px; margin-bottom: 20px;">
+      ✓ <%= success %>
+    </div>
+  <% } %>
+  <% if (typeof error !== 'undefined' && error) { %>
+    <div style="background: #FEE2E2; border: 2px solid #991B1B; color: #991B1B; font-weight: bold; padding: 12px 16px; margin-bottom: 20px;">
+      ⚠ <%= error %>
+    </div>
+  <% } %>
+
+  <!-- ── 👤 PARTICIPANT HEADER CARD ──────────────────────────────── -->
+  <div class="profile-header-card">
+    <div class="profile-avatar">
+      <%= (user.name || 'P').charAt(0).toUpperCase() %>
+    </div>
+    <div class="profile-identity">
+      <h1>
+        <%= user.name %>
+        <span class="profile-badge-role">Participant</span>
+      </h1>
+      <div class="profile-email"><%= user.email %></div>
+
+      <div class="profile-bio">
+        <%= user.bio || 'Welcome to your Dogfood Hackathon Profile! Customize your skills, portfolio links, and bio below to help teammates and organizers connect with you.' %>
+      </div>
+
+      <div class="profile-links">
+        <% if (user.github_username) { %>
+          <a href="https://github.com/<%= user.github_username %>" target="_blank" rel="noopener">
+            <span>🐙 GitHub: @<%= user.github_username %></span>
+          </a>
+        <% } %>
+        <% if (user.linkedin_url) { %>
+          <a href="<%= user.linkedin_url %>" target="_blank" rel="noopener">
+            <span>💼 LinkedIn</span>
+          </a>
+        <% } %>
+        <% if (user.website_url) { %>
+          <a href="<%= user.website_url %>" target="_blank" rel="noopener">
+            <span>🌐 Portfolio</span>
+          </a>
+        <% } %>
+      </div>
+
+      <% if (user.skills) { %>
+        <div class="skills-list">
+          <% user.skills.split(',').map(s => s.trim()).filter(Boolean).forEach(function(skill) { %>
+            <span class="skill-pill">⚡ <%= skill %></span>
+          <% }); %>
+        </div>
+      <% } %>
+    </div>
+  </div>
+
+  <!-- ── 📊 PARTICIPANT STATISTICS ────────────────────────────────── -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-num" style="color: #1A73E8;"><%= stats.total_hackathons || 0 %></div>
+      <div class="stat-desc">Hackathons</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color: #16A34A;"><%= stats.total_teams || 0 %></div>
+      <div class="stat-desc">Teams Joined</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color: #9333EA;"><%= stats.submitted_projects || 0 %></div>
+      <div class="stat-desc">Submitted Projects</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color: #E11D48;"><%= stats.community_votes || 0 %></div>
+      <div class="stat-desc">Community Votes</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" style="color: #D97706;"><%= stats.comments_count || 0 %></div>
+      <div class="stat-desc">Discussions</div>
+    </div>
+  </div>
+
+  <!-- ── 🚀 MAIN CONTENT COLUMNS ─────────────────────────────────── -->
+  <div class="profile-columns">
+    <!-- Left Column: Teams, Projects & Activity -->
+    <div>
+      <!-- My Teams & Projects -->
+      <div class="panel-card">
+        <div class="panel-title">
+          <span>👥 My Teams & Projects</span>
+          <a href="/team/events" style="font-size: 0.85rem; font-weight: 700; color: #1A73E8; text-decoration: none;">+ Join / Create Team &rarr;</a>
+        </div>
+
+        <% if (!teams || teams.length === 0) { %>
+          <div style="background: #F8FAFC; border: 1.5px dashed #94A3B8; padding: 24px; text-align: center;">
+            <p style="color: #64748B; margin: 0 0 12px 0;">You haven't joined or formed any hackathon teams yet.</p>
+            <a href="/team/events" style="display: inline-block; padding: 8px 16px; background: #1A1A1A; color: #fff; text-decoration: none; font-weight: bold; font-size: 0.88rem;">
+              Browse Hackathons to Join
+            </a>
+          </div>
+        <% } else { %>
+          <% teams.forEach(function(tm) { %>
+            <div class="team-card">
+              <div class="team-header">
+                <div>
+                  <div class="team-event">📅 <%= tm.event_name %></div>
+                  <h3 class="team-name"><%= tm.name %></h3>
+                </div>
+                <div>
+                  <% if (tm.isLeader) { %>
+                    <span style="background: #FEF3C7; color: #92400E; border: 1px solid #D97706; font-size: 0.72rem; font-weight: 800; padding: 2px 6px; text-transform: uppercase; border-radius: 3px;">
+                      👑 Team Leader
+                    </span>
+                  <% } else { %>
+                    <span style="background: #E2E8F0; color: #334155; border: 1px solid #94A3B8; font-size: 0.72rem; font-weight: 800; padding: 2px 6px; text-transform: uppercase; border-radius: 3px;">
+                      <%= tm.member_role || 'Member' %>
+                    </span>
+                  <% } %>
+                </div>
+              </div>
+
+              <!-- Teammates -->
+              <div style="font-size: 0.85rem; color: #555; margin-bottom: 8px;">
+                <strong>Members:</strong>
+                <%= tm.members ? tm.members.map(m => m.name + (m.is_current_user ? ' (You)' : '')).join(', ') : 'None' %>
+              </div>
+
+              <!-- Project info -->
+              <% if (tm.project_id) { %>
+                <div class="project-badge-box">
+                  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
+                    <div>
+                      <span style="font-size: 0.72rem; font-weight: 800; background: #DCFCE7; color: #166534; padding: 2px 6px; text-transform: uppercase;">
+                        🚀 Project Submitted
+                      </span>
+                      <strong style="margin-left: 6px; font-size: 0.95rem;">
+                        <a href="/projects/<%= tm.project_id %>" style="color: #1A73E8; text-decoration: none;"><%= tm.project_title %></a>
+                      </strong>
+                    </div>
+                    <div>
+                      <a href="/projects/<%= tm.project_id %>" style="font-size: 0.8rem; font-weight: bold; color: #1A1A1A; text-decoration: underline;">
+                        View in Gallery &rarr;
+                      </a>
+                    </div>
+                  </div>
+                  <div style="font-size: 0.82rem; color: #64748B; margin-top: 4px;">
+                    Track: <strong><%= tm.track_name || 'General' %></strong>
+                    <% if (tm.repo_url) { %> · <a href="<%= tm.repo_url %>" target="_blank" rel="noopener" style="color: #64748B;">Repo</a><% } %>
+                    <% if (tm.live_demo_url) { %> · <a href="<%= tm.live_demo_url %>" target="_blank" rel="noopener" style="color: #64748B;">Live Demo</a><% } %>
+                  </div>
+                </div>
+              <% } else { %>
+                <div style="font-size: 0.85rem; color: #92400E; background: #FFFBEB; border: 1px solid #FCD34D; padding: 8px 10px; margin-top: 8px;">
+                  ⏳ No project submitted yet for this hackathon.
+                </div>
+              <% } %>
+
+              <div style="margin-top: 10px; display: flex; justify-content: flex-end;">
+                <a href="/team?event_id=<%= tm.event_id %>" style="font-size: 0.85rem; font-weight: bold; color: #1A1A1A; text-decoration: none;">
+                  Manage Team &rarr;
+                </a>
+              </div>
+            </div>
+          <% }); %>
+        <% } %>
+      </div>
+
+      <!-- Community Votes & Discussion Activity -->
+      <div class="panel-card">
+        <div class="panel-title">
+          <span>❤️ Recent Community Activity</span>
+        </div>
+
+        <h4 style="font-size: 0.95rem; margin: 0 0 8px 0; color: #334155;">Projects You Voted For:</h4>
+        <% if (!votedProjects || votedProjects.length === 0) { %>
+          <p style="color: #64748B; font-size: 0.88rem; margin: 0 0 16px 0;">You haven't upvoted any projects yet. Check out the <a href="/projects" style="color: #1A73E8;">Project Gallery</a> to support fellow hackers!</p>
+        <% } else { %>
+          <ul style="margin: 0 0 16px 0; padding-left: 20px; font-size: 0.9rem;">
+            <% votedProjects.forEach(function(vp) { %>
+              <li style="margin-bottom: 6px;">
+                <a href="/projects/<%= vp.id %>" style="color: #1A73E8; font-weight: bold; text-decoration: none;">
+                  <%= vp.title %>
+                </a>
+                <span style="color: #64748B; font-size: 0.8rem;">(<%= vp.event_name %>)</span>
+              </li>
+            <% }); %>
+          </ul>
+        <% } %>
+
+        <h4 style="font-size: 0.95rem; margin: 0 0 8px 0; color: #334155;">Recent Comments Posted:</h4>
+        <% if (!recentComments || recentComments.length === 0) { %>
+          <p style="color: #64748B; font-size: 0.88rem; margin: 0;">No comments posted yet.</p>
+        <% } else { %>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <% recentComments.forEach(function(rc) { %>
+              <div style="background: #F8FAFC; border: 1px solid #CBD5E1; padding: 10px 12px; font-size: 0.88rem;">
+                <div style="font-weight: 700; margin-bottom: 4px;">
+                  On <a href="/projects/<%= rc.project_id %>" style="color: #1A73E8;"><%= rc.project_title %></a>:
+                </div>
+                <div style="color: #334155;"><%= rc.content %></div>
+                <div style="font-size: 0.75rem; color: #94A3B8; margin-top: 4px;">
+                  <%= new Date(rc.created_at).toLocaleDateString() %>
+                </div>
+              </div>
+            <% }); %>
+          </div>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- Right Column: Edit Profile Form -->
+    <div>
+      <div class="panel-card">
+        <div class="panel-title">
+          <span>⚙️ Edit Profile</span>
+        </div>
+
+        <form method="POST" action="/participant/profile">
+          <div class="form-group">
+            <label for="name">Full Name *</label>
+            <input type="text" id="name" name="name" class="form-control" value="<%= user.name %>" required>
+          </div>
+
+          <div class="form-group">
+            <label for="bio">Bio / About Me</label>
+            <textarea id="bio" name="bio" class="form-control" rows="3" placeholder="Tell other hackers about your background and interests..."><%= user.bio || '' %></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="skills">Skills & Technologies (comma separated)</label>
+            <input type="text" id="skills" name="skills" class="form-control" value="<%= user.skills || '' %>" placeholder="e.g. React, Node.js, Python, Figma, AI">
+          </div>
+
+          <div class="form-group">
+            <label for="github_username">GitHub Username</label>
+            <input type="text" id="github_username" name="github_username" class="form-control" value="<%= user.github_username || '' %>" placeholder="octocat (without @)">
+          </div>
+
+          <div class="form-group">
+            <label for="linkedin_url">LinkedIn Profile URL</label>
+            <input type="url" id="linkedin_url" name="linkedin_url" class="form-control" value="<%= user.linkedin_url || '' %>" placeholder="https://linkedin.com/in/username">
+          </div>
+
+          <div class="form-group">
+            <label for="website_url">Portfolio / Personal Website</label>
+            <input type="url" id="website_url" name="website_url" class="form-control" value="<%= user.website_url || '' %>" placeholder="https://myportfolio.dev">
+          </div>
+
+          <button type="submit" class="btn-primary" style="width: 100%; margin-top: 8px;">
+            💾 Save Profile Changes
+          </button>
+        </form>
+      </div>
+
+      <!-- Quick Shortcuts -->
+      <div class="panel-card" style="background: #F8FAFC;">
+        <h3 style="margin: 0 0 12px 0; font-size: 1.05rem;">⚡ Quick Shortcuts</h3>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <a href="/team/events" style="display: block; padding: 10px 14px; background: #fff; border: 1.5px solid #1A1A1A; text-decoration: none; color: #1A1A1A; font-weight: bold; font-size: 0.9rem;">
+            🏆 Browse All Hackathons &rarr;
+          </a>
+          <a href="/projects" style="display: block; padding: 10px 14px; background: #fff; border: 1.5px solid #1A1A1A; text-decoration: none; color: #1A1A1A; font-weight: bold; font-size: 0.9rem;">
+            🎨 Explore Project Gallery &rarr;
+          </a>
+          <a href="/results" style="display: block; padding: 10px 14px; background: #fff; border: 1.5px solid #1A1A1A; text-decoration: none; color: #1A1A1A; font-weight: bold; font-size: 0.9rem;">
+            📊 View Leaderboards & Results &rarr;
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('../layouts/footer') %>

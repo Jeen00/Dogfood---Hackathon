@@ -100,8 +100,12 @@
     <!-- Sort Bar -->
     <div class="gallery-sort-bar">
       <span class="gallery-count"><strong><%= total %></strong> Project<%= total !== 1 ? 's' : '' %> Found</span>
-      <div class="gallery-sort-right">
-        <label for="sortSelect" class="sort-label">Sort by:</label>
+      <div class="gallery-sort-right" style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <a href="/results" style="display:inline-flex; align-items:center; gap:6px; background:#FFFBEB; border:1.5px solid #D97706; color:#92400E; padding:6px 12px; font-weight:700; font-size:0.85rem; text-decoration:none; border-radius:4px; box-shadow:1px 1px 0 #D97706;">
+          🏆 Leaderboard & Awards →
+        </a>
+        <div>
+          <label for="sortSelect" class="sort-label">Sort by:</label>
         <select name="sort" id="sortSelect" class="sort-select">
           <% var currentSort = (typeof sort !== 'undefined' && sort) ? sort : 'newest'; %>
           <option value="newest" <%= currentSort === 'newest' ? 'selected' : '' %>>Newest</option>

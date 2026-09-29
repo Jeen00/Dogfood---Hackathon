@@ -21,6 +21,7 @@ const normalizationRouter = require('./routes/normalization');
 const judgePagesRouter    = require('./routes/judge-pages');
 const githubRouter        = require('./routes/github');
 const invitesRouter       = require('./routes/invites');
+const participantRouter   = require('./routes/participant');
 
 const app  = express();
 const PORT = process.env.PORT || 8080;
@@ -42,6 +43,8 @@ app.use('/auth',                  authRouter);
 app.use('/events',                eventsRouter);
 app.use('/api/events',            eventsRouter);
 app.use('/team',                  teamsRouter);
+app.use('/participant',           participantRouter);
+app.use('/api/participant',       participantRouter);
 
 app.use('/api/teams',             teamsRouter);
 app.get('/invite', (req, res) => res.render('invite', { session: req.session, error: null }));
@@ -58,6 +61,20 @@ app.use('/api/normalization',     normalizationRouter);
 app.use('/api',                   invitesRouter);
 app.use('/',                      githubRouter);
 
+// ─── Profile shortcut route ────────────────────────────────────────────────
+app.get('/profile', (req, res) => {
+  if (!req.session) {
+    if (req.accepts('html') && !req.is('json') && !req.headers['accept']?.includes('application/json')) {
+      return res.redirect('/login?error=' + encodeURIComponent('Please log in to view your profile.'));
+    }
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+  if (req.session.role === 'participant') return res.redirect('/participant/profile');
+  if (req.session.role === 'judge') return res.redirect('/judge/profile');
+  if (req.session.role === 'organizer' || req.session.role === 'admin') return res.redirect('/organizer/events');
+  return res.redirect('/');
+});
+
 // ─── Login convenience route ──────────────────────────────────────────────
 // /login renders the login page; actual form posts go to /auth/login
 app.get('/login', (req, res) => {
@@ -66,9 +83,8 @@ app.get('/login', (req, res) => {
     if (req.session.role === 'organizer') return res.redirect('/organizer/events');
     if (req.session.role === 'participant') return res.redirect('/team/events');
     return res.redirect('/projects');
-
   }
-  return res.render('login', { session: null, error: null });
+  return res.render('login', { session: null, error: req.query.error || null });
 });
 
 
@@ -121,11 +137,19 @@ app.get('/', (req, res) => {
       `).get(event.id)?.c || 0;
     }
 
+    const nowMs = Date.now();
+    const votingCloseMs = event && event.voting_close ? new Date(event.voting_close).getTime() : null;
+    const votingOpenMs  = event && event.voting_open ? new Date(event.voting_open).getTime() : null;
+    const votingClosed  = votingCloseMs ? nowMs > votingCloseMs : false;
+    const votingOpen    = (!votingOpenMs || nowMs >= votingOpenMs) && !votingClosed;
+
     res.render('landing', {
       session: req.session,
       event,
       tracks,
-      stats
+      stats,
+      votingClosed,
+      votingOpen
     });
   } catch (err) {
     console.error('Landing page error:', err);
@@ -169,21 +193,30 @@ app.get('/overview', (req, res) => {
   }
 });
 
-// ─── Public Results & Leaderboard ─────────────────────────────────────────────
+// ─── Public Results & Leaderboard (Hackathon-wise) ─────────────────────────────
 app.get(['/results', '/leaderboard'], (req, res) => {
   try {
     const db = require('./db/db').getDb();
 
-    // Find the most relevant event
-    let event = db.prepare(`
-      SELECT * FROM events 
-      WHERE datetime(submissions_close) <= datetime('now')
-      ORDER BY submissions_close DESC
-      LIMIT 1
-    `).get();
+    // Query all events with their project count and score count
+    const allEvents = db.prepare(`
+      SELECT e.*,
+        (SELECT COUNT(*) FROM projects p WHERE p.event_id = e.id) AS project_count,
+        (SELECT COUNT(*) FROM scores s JOIN projects p ON p.id = s.project_id WHERE p.event_id = e.id) AS score_count
+      FROM events e
+      ORDER BY e.submissions_close DESC
+    `).all();
+
+    const requestedEventId = (req.query.event_id || '').trim();
+    let event = null;
+
+    if (requestedEventId) {
+      event = allEvents.find(e => e.id === requestedEventId) || db.prepare('SELECT * FROM events WHERE id = ?').get(requestedEventId);
+    }
 
     if (!event) {
-      event = db.prepare(`SELECT * FROM events ORDER BY id DESC LIMIT 1`).get();
+      // Prioritize the event with published scores or past submission close
+      event = allEvents.find(e => e.score_count > 0) || allEvents.find(e => new Date(e.submissions_close) <= new Date()) || allEvents[0] || null;
     }
 
     let leaderboard = [];
@@ -209,6 +242,7 @@ app.get(['/results', '/leaderboard'], (req, res) => {
         LEFT JOIN normalized_scores ns ON ns.project_id = p.id
         WHERE p.status = 'submitted' AND p.event_id = ?
         GROUP BY p.id
+        HAVING COUNT(ns.judge_id) > 0
         ORDER BY final_normalized_score DESC, avg_raw_score DESC
       `).all(event.id);
 
@@ -241,12 +275,13 @@ app.get(['/results', '/leaderboard'], (req, res) => {
     }
 
     if (req.accepts('json') && !req.accepts('html')) {
-      return res.json({ leaderboard, communityFavorite, trackWinners, event });
+      return res.json({ leaderboard, communityFavorite, trackWinners, event, allEvents });
     }
 
     res.render('results', {
       session: req.session,
       event,
+      allEvents,
       leaderboard,
       communityFavorite,
       trackWinners,

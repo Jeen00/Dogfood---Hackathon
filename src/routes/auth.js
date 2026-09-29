@@ -17,7 +17,7 @@ router.get('/login', (req, res) => {
     return res.redirect('/projects');
 
   }
-  return res.render('login', { session: null, error: null });
+  return res.render('login', { session: null, error: req.query.error || null });
 });
 
 /**

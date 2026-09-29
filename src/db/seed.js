@@ -496,6 +496,41 @@ function seedDb() {
   });
   console.log('[seed] project_comments seeded.');
 
+  // ─── Compute initial normalized scores ──────────────────────────────────
+  try {
+    const { getRubric, computeWeightedScore } = require('../lib/rubric');
+    const rubric = getRubric(db);
+    const allScores = db.prepare('SELECT * FROM scores').all();
+    if (allScores.length > 0) {
+      const byJudge = {};
+      for (const s of allScores) {
+        const cs = JSON.parse(s.criteria_scores);
+        const ws = computeWeightedScore(cs, rubric);
+        if (!byJudge[s.judge_id]) byJudge[s.judge_id] = [];
+        byJudge[s.judge_id].push({ project_id: s.project_id, ws });
+      }
+      const now = new Date().toISOString();
+      const insertNorm = db.prepare(`
+        INSERT INTO normalized_scores (judge_id, project_id, raw_weighted_score, normalized_score, method, computed_at)
+        VALUES (?, ?, ?, ?, 'zscore', ?)
+      `);
+      for (const [judgeId, entries] of Object.entries(byJudge)) {
+        const scoreVals = entries.map(e => e.ws);
+        const n = scoreVals.length;
+        const mean = scoreVals.reduce((a, b) => a + b, 0) / n;
+        const variance = scoreVals.reduce((a, b) => a + (b - mean) ** 2, 0) / n;
+        const stddev = Math.sqrt(variance);
+        for (const entry of entries) {
+          const zScore = stddev === 0 ? 0 : (entry.ws - mean) / stddev;
+          insertNorm.run(judgeId, entry.project_id, entry.ws, zScore, now);
+        }
+      }
+      console.log('[seed] normalized_scores computed and seeded.');
+    }
+  } catch (normErr) {
+    console.error('[seed] Warning: could not precompute normalized scores:', normErr.message);
+  }
+
   db.exec('PRAGMA foreign_keys = ON');
   db.close();
 
