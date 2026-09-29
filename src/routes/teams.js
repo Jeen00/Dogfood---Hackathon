@@ -3,6 +3,8 @@ const express = require('express');
 const { getDb } = require('../db/db');
 const requireRole = require('../middleware/requireRole');
 const { ACTIVE_EVENT_ID } = require('../lib/config');
+const { getEventStatus } = require('../lib/event-status');
+const { checkUserEventConflict } = require('../lib/team-conflicts');
 const { v4: uuidv4 } = require('uuid');
 
 const router = express.Router();
@@ -11,11 +13,15 @@ const router = express.Router();
 
 function isHtmlForm(req) {
   const ct = req.headers['content-type'] || '';
-  return ct.includes('application/x-www-form-urlencoded') || (!req.is('json') && req.accepts('html'));
+  if (ct.includes('application/x-www-form-urlencoded')) return true;
+  if (req.is('json')) return false;
+  const accept = req.headers['accept'] || '';
+  if (accept.includes('application/json')) return false;
+  return Boolean(req.accepts('html'));
 }
 
 function redirect(res, path, type, msg) {
-  return res.redirect(`${path}?${type}=${encodeURIComponent(msg)}`);
+  return res.redirect(`${path}${path.includes('?') ? '&' : '?'}${type}=${encodeURIComponent(msg)}`);
 }
 
 /** Resolve a user by email or user ID string */
@@ -24,18 +30,123 @@ function resolveUser(db, emailOrId) {
     .get((emailOrId || '').toLowerCase(), emailOrId || '');
 }
 
+/**
+ * Helper to resolve currently active hackathon context for participant.
+ */
+function resolveSelectedParticipantEvent(db, req) {
+  const eventId = req.query.event_id || req.session?.selectedParticipantEventId || ACTIVE_EVENT_ID;
+  const event = db.prepare('SELECT * FROM events WHERE id = ?').get(eventId) ||
+                db.prepare('SELECT * FROM events ORDER BY id ASC LIMIT 1').get();
+  if (req.session && event) {
+    req.session.selectedParticipantEventId = event.id;
+  }
+  return event;
+}
+
+// ─── GET /team/events ── Hackathons Overview for Participant ──────────────────
+
+/**
+ * GET /team/events
+ * Shows all hackathons for participant, countdowns, team status, and pending invites.
+ * Clears active event context so participant is at the top level.
+ */
+router.get('/events', requireRole('participant'), (req, res) => {
+  try {
+    const db     = getDb();
+    const userId = req.session.userId;
+
+    if (req.session) {
+      req.session.selectedParticipantEventId = null;
+    }
+    res.locals.selectedParticipantEvent = null;
+
+    const rawEvents = db.prepare('SELECT * FROM events ORDER BY submissions_open DESC').all();
+
+    const events = rawEvents.map(evt => {
+      const statusInfo = getEventStatus(evt);
+      const team = db.prepare(`
+        SELECT t.*, u.name AS leader_name
+        FROM teams t
+        JOIN team_members tm ON tm.team_id = t.id
+        LEFT JOIN users u ON u.id = t.leader_id
+        WHERE tm.user_id = ? AND t.event_id = ?
+      `).get(userId, evt.id);
+
+      let memberCount = 0;
+      let project = null;
+      if (team) {
+        memberCount = db.prepare('SELECT COUNT(*) AS c FROM team_members WHERE team_id = ?').get(team.id)?.c || 0;
+        project = db.prepare('SELECT id, title, status FROM projects WHERE team_id = ? AND event_id = ?').get(team.id, evt.id);
+      }
+
+      let conflictInfo = null;
+      if (!team) {
+        const conf = checkUserEventConflict(db, userId, evt.id);
+        if (conf.conflict) {
+          conflictInfo = conf;
+        }
+      }
+
+      const trackCount = db.prepare('SELECT COUNT(*) AS c FROM tracks WHERE event_id = ?').get(evt.id)?.c || 0;
+
+      return {
+        ...evt,
+        statusInfo,
+        userTeam: team ? {
+          ...team,
+          memberCount,
+          isLeader: team.leader_id === userId,
+          project
+        } : null,
+        conflictInfo,
+        trackCount
+      };
+    });
+
+    const pendingInvites = db.prepare(`
+      SELECT ti.*, t.name AS team_name, e.name AS event_name, e.id AS event_id,
+             u.name AS inviter_name, u.email AS inviter_email
+      FROM team_invitations ti
+      JOIN teams t ON t.id = ti.team_id
+      JOIN events e ON e.id = t.event_id
+      JOIN users u ON u.id = ti.inviter_id
+      WHERE ti.invitee_id = ? AND ti.status = 'pending'
+      ORDER BY ti.created_at DESC
+    `).all(userId);
+
+    return res.render('participant/events', {
+      events,
+      pendingInvites,
+      session: req.session,
+      selectedParticipantEvent: null,
+      error:   req.query.error   || null,
+      success: req.query.success || null,
+      info:    req.query.info    || null
+    });
+  } catch (err) {
+    console.error('[participant:events] Error:', err.message);
+    return res.status(500).render('error', { message: 'Failed to load hackathons.', session: req.session });
+  }
+});
+
 // ─── GET /team ─────────────────────────────────────────────────────────────
 
 /**
  * GET /team
- * Render the team management page for the current participant.
+ * Render the team management page for the current participant scoped to selected hackathon.
  */
 router.get('/', requireRole('participant'), (req, res) => {
   try {
     const db     = getDb();
     const userId = req.session.userId;
+    const selectedEvent = resolveSelectedParticipantEvent(db, req);
+    res.locals.selectedParticipantEvent = selectedEvent;
 
-    // Teams the user is a member of, with all their members
+    const eventId = selectedEvent ? selectedEvent.id : ACTIVE_EVENT_ID;
+    const statusInfo = selectedEvent ? getEventStatus(selectedEvent) : null;
+    const userConflict = checkUserEventConflict(db, userId, eventId);
+
+    // Teams the user is a member of for THIS event
     const teams = db.prepare(`
       SELECT t.*,
              u.name  AS leader_name,
@@ -43,7 +154,8 @@ router.get('/', requireRole('participant'), (req, res) => {
       FROM teams t
       JOIN team_members tm ON tm.team_id = t.id AND tm.user_id = ?
       LEFT JOIN users u ON u.id = t.leader_id
-    `).all(userId);
+      WHERE t.event_id = ?
+    `).all(userId, eventId);
 
     for (const team of teams) {
       team.members = db.prepare(`
@@ -61,16 +173,26 @@ router.get('/', requireRole('participant'), (req, res) => {
         JOIN users u ON u.id = ti.invitee_id
         WHERE ti.team_id = ? AND ti.inviter_id = ? AND ti.status = 'pending'
       `).all(team.id, userId);
+
+      // Project submitted by this team in this event
+      team.project = db.prepare(`
+        SELECT p.*, tr.name AS track_name
+        FROM projects p
+        LEFT JOIN tracks tr ON tr.id = p.track_id
+        WHERE p.team_id = ? AND p.event_id = ?
+      `).get(team.id, eventId);
     }
 
     // Invitations waiting for this user to accept
     const myInvitations = db.prepare(`
-      SELECT ti.*, t.name AS team_name,
+      SELECT ti.*, t.name AS team_name, e.name AS event_name, e.id AS event_id,
              u.name AS inviter_name, u.email AS inviter_email
       FROM team_invitations ti
       JOIN teams t ON t.id = ti.team_id
+      JOIN events e ON e.id = t.event_id
       JOIN users u ON u.id = ti.inviter_id
       WHERE ti.invitee_id = ? AND ti.status = 'pending'
+      ORDER BY ti.created_at DESC
     `).all(userId);
 
     // All participant users (for invite dropdown/search)
@@ -82,7 +204,11 @@ router.get('/', requireRole('participant'), (req, res) => {
       teams,
       myInvitations,
       allParticipants,
-      eventId: ACTIVE_EVENT_ID,
+      eventId,
+      selectedEvent,
+      statusInfo,
+      userConflict,
+      selectedParticipantEvent: selectedEvent,
       session: req.session,
       error:   req.query.error   || null,
       success: req.query.success || null,
@@ -98,22 +224,36 @@ router.get('/', requireRole('participant'), (req, res) => {
 
 /**
  * POST /team
- * Create a new team.
+ * Create a new team scoped to an event.
+ * Enforces: only 1 team per participant in this hackathon, and no overlapping hackathon participation.
  */
 router.post('/', requireRole('participant'), (req, res) => {
   try {
     const db      = getDb();
     const name    = (req.body.name || '').trim();
-    const eventId = (req.body.event_id || ACTIVE_EVENT_ID).trim();
+    const eventId = (req.body.event_id || req.session?.selectedParticipantEventId || ACTIVE_EVENT_ID).trim();
+    const userId  = req.session.userId;
 
     if (!name) {
-      if (isHtmlForm(req)) return redirect(res, '/team', 'error', 'Team name is required');
+      if (isHtmlForm(req)) return redirect(res, `/team?event_id=${eventId}`, 'error', 'Team name is required');
       return res.status(400).json({ error: 'name is required' });
+    }
+
+    const event = db.prepare('SELECT * FROM events WHERE id = ?').get(eventId);
+    if (!event) {
+      if (isHtmlForm(req)) return redirect(res, '/team/events', 'error', 'Hackathon not found');
+      return res.status(404).json({ error: 'Hackathon not found' });
+    }
+
+    // Constraint: 1 team per participant per hackathon, and no overlapping hackathon participation
+    const conflict = checkUserEventConflict(db, userId, eventId);
+    if (conflict.conflict) {
+      if (isHtmlForm(req)) return redirect(res, `/team?event_id=${eventId}`, 'error', conflict.message);
+      return res.status(409).json({ error: conflict.message, reason: conflict.reason });
     }
 
     const id          = `tm_${Date.now()}`;
     const invite_code = `INV-${uuidv4().slice(0, 8).toUpperCase()}`;
-    const userId      = req.session.userId;
 
     db.prepare('INSERT INTO teams (id, event_id, name, invite_code, leader_id) VALUES (?, ?, ?, ?, ?)')
       .run(id, eventId, name, invite_code, userId);
@@ -123,8 +263,8 @@ router.post('/', requireRole('participant'), (req, res) => {
     db.prepare('INSERT INTO audit_log (id, actor_id, action, target_id, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)')
       .run(`al_${Date.now()}`, userId, 'team_created', id, name, now);
 
-    if (isHtmlForm(req)) return redirect(res, '/team', 'success', `Team "${name}" created! Invite code: ${invite_code}`);
-    return res.status(201).json({ message: 'Team created', id, invite_code });
+    if (isHtmlForm(req)) return redirect(res, `/team?event_id=${eventId}`, 'success', `Team "${name}" created! Invite code: ${invite_code}`);
+    return res.status(201).json({ message: 'Team created', id, invite_code, event_id: eventId });
   } catch (err) {
     console.error('[teams POST] Error:', err.message);
     if (isHtmlForm(req)) return redirect(res, '/team', 'error', 'Failed to create team.');
@@ -151,20 +291,30 @@ router.post('/:teamId/invite', requireRole('participant'), (req, res) => {
       return res.status(404).json({ error: 'Team not found' });
     }
     if (team.leader_id !== userId) {
-      if (isHtmlForm(req)) return redirect(res, '/team', 'error', 'Only the team leader can invite members.');
+      if (isHtmlForm(req)) return redirect(res, `/team?event_id=${team.event_id}`, 'error', 'Only the team leader can invite members.');
       return res.status(403).json({ error: 'Only the team leader can invite members' });
     }
 
     const invitee = db.prepare("SELECT * FROM users WHERE LOWER(email) = ? AND role = 'participant'").get(email);
     if (!invitee) {
-      if (isHtmlForm(req)) return redirect(res, '/team', 'error', `No participant found with email "${email}".`);
+      if (isHtmlForm(req)) return redirect(res, `/team?event_id=${team.event_id}`, 'error', `No participant found with email "${email}".`);
       return res.status(404).json({ error: 'Participant not found' });
     }
 
     const alreadyMember = db.prepare('SELECT 1 FROM team_members WHERE team_id = ? AND user_id = ?').get(teamId, invitee.id);
     if (alreadyMember) {
-      if (isHtmlForm(req)) return redirect(res, '/team', 'info', `${invitee.name} is already a member.`);
+      if (isHtmlForm(req)) return redirect(res, `/team?event_id=${team.event_id}`, 'info', `${invitee.name} is already a member.`);
       return res.status(409).json({ error: 'Already a member' });
+    }
+
+    // Constraint: Invitee cannot be in another team in this event or an overlapping event
+    const inviteeConflict = checkUserEventConflict(db, invitee.id, team.event_id);
+    if (inviteeConflict.conflict) {
+      const errMsg = inviteeConflict.reason === 'same_event'
+        ? `${invitee.name} is already a member of a team in this hackathon. Only 1 team per participant is permitted.`
+        : `${invitee.name} cannot be invited because they are already participating in an overlapping hackathon ("${inviteeConflict.conflictingEvent.name}").`;
+      if (isHtmlForm(req)) return redirect(res, `/team?event_id=${team.event_id}`, 'error', errMsg);
+      return res.status(409).json({ error: errMsg, reason: inviteeConflict.reason });
     }
 
     const now = new Date().toISOString();
@@ -177,7 +327,7 @@ router.post('/:teamId/invite', requireRole('participant'), (req, res) => {
     db.prepare('INSERT INTO audit_log (id, actor_id, action, target_id, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)')
       .run(`al_${Date.now()}`, userId, 'member_invited', teamId, invitee.email, now);
 
-    if (isHtmlForm(req)) return redirect(res, '/team', 'success', `Invitation sent to ${invitee.name} (${invitee.email}).`);
+    if (isHtmlForm(req)) return redirect(res, `/team?event_id=${team.event_id}`, 'success', `Invitation sent to ${invitee.name} (${invitee.email}).`);
     return res.status(200).json({ message: 'Invitation sent', invitee_id: invitee.id });
   } catch (err) {
     console.error('[teams:invite] Error:', err.message);
@@ -191,6 +341,7 @@ router.post('/:teamId/invite', requireRole('participant'), (req, res) => {
 /**
  * POST /team/invitation/:invitationId/accept
  * Invitee accepts a pending invitation and joins the team.
+ * Enforces: only 1 team per participant in this hackathon, and no overlapping hackathon participation.
  */
 router.post('/invitation/:invitationId/accept', requireRole('participant'), (req, res) => {
   try {
@@ -208,6 +359,19 @@ router.post('/invitation/:invitationId/accept', requireRole('participant'), (req
       return res.status(409).json({ error: 'Invitation already actioned' });
     }
 
+    const team = db.prepare('SELECT name, event_id FROM teams WHERE id = ?').get(inv.team_id);
+    if (!team) {
+      if (isHtmlForm(req)) return redirect(res, '/team', 'error', 'Team not found.');
+      return res.status(404).json({ error: 'Team not found' });
+    }
+
+    // Constraint: 1 team per participant per hackathon, and no overlapping hackathon participation
+    const conflict = checkUserEventConflict(db, userId, team.event_id);
+    if (conflict.conflict) {
+      if (isHtmlForm(req)) return redirect(res, `/team?event_id=${team.event_id}`, 'error', conflict.message);
+      return res.status(409).json({ error: conflict.message, reason: conflict.reason });
+    }
+
     db.prepare("UPDATE team_invitations SET status = 'accepted' WHERE id = ?").run(invitationId);
 
     try {
@@ -218,9 +382,8 @@ router.post('/invitation/:invitationId/accept', requireRole('participant'), (req
     db.prepare('INSERT INTO audit_log (id, actor_id, action, target_id, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)')
       .run(`al_${Date.now()}`, userId, 'invitation_accepted', inv.team_id, invitationId, now);
 
-    const team = db.prepare('SELECT name FROM teams WHERE id = ?').get(inv.team_id);
-    if (isHtmlForm(req)) return redirect(res, '/team', 'success', `You joined team "${team ? team.name : inv.team_id}"!`);
-    return res.status(200).json({ message: 'Joined team', team_id: inv.team_id });
+    if (isHtmlForm(req)) return redirect(res, `/team?event_id=${team.event_id}`, 'success', `You joined team "${team.name}"!`);
+    return res.status(200).json({ message: 'Joined team', team_id: inv.team_id, event_id: team.event_id });
   } catch (err) {
     console.error('[teams:accept] Error:', err.message);
     if (isHtmlForm(req)) return redirect(res, '/team', 'error', 'Failed to accept invitation.');
@@ -247,7 +410,7 @@ router.post('/invitation/:invitationId/decline', requireRole('participant'), (re
 
     db.prepare("UPDATE team_invitations SET status = 'declined' WHERE id = ?").run(invitationId);
 
-    if (isHtmlForm(req)) return redirect(res, '/team', 'info', 'Invitation declined.');
+    if (isHtmlForm(req)) return redirect(res, '/team/events', 'info', 'Invitation declined.');
     return res.status(200).json({ message: 'Invitation declined' });
   } catch (err) {
     console.error('[teams:decline] Error:', err.message);
@@ -274,17 +437,17 @@ router.post('/:teamId/remove/:memberId', requireRole('participant'), (req, res) 
       return res.status(404).json({ error: 'Team not found' });
     }
     if (team.leader_id !== userId) {
-      if (isHtmlForm(req)) return redirect(res, '/team', 'error', 'Only the team leader can remove members.');
+      if (isHtmlForm(req)) return redirect(res, `/team?event_id=${team.event_id}`, 'error', 'Only the team leader can remove members.');
       return res.status(403).json({ error: 'Only the team leader can remove members' });
     }
     if (memberId === userId) {
-      if (isHtmlForm(req)) return redirect(res, '/team', 'error', 'You cannot remove yourself. Use "Leave Team" instead.');
+      if (isHtmlForm(req)) return redirect(res, `/team?event_id=${team.event_id}`, 'error', 'You cannot remove yourself. Use "Leave Team" instead.');
       return res.status(400).json({ error: 'Cannot remove yourself' });
     }
 
     const result = db.prepare('DELETE FROM team_members WHERE team_id = ? AND user_id = ?').run(teamId, memberId);
     if (result.changes === 0) {
-      if (isHtmlForm(req)) return redirect(res, '/team', 'error', 'Member not found in this team.');
+      if (isHtmlForm(req)) return redirect(res, `/team?event_id=${team.event_id}`, 'error', 'Member not found in this team.');
       return res.status(404).json({ error: 'Member not found' });
     }
 
@@ -292,7 +455,7 @@ router.post('/:teamId/remove/:memberId', requireRole('participant'), (req, res) 
     db.prepare('INSERT INTO audit_log (id, actor_id, action, target_id, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)')
       .run(`al_${Date.now()}`, userId, 'member_removed', teamId, memberId, now);
 
-    if (isHtmlForm(req)) return redirect(res, '/team', 'success', 'Member removed from team.');
+    if (isHtmlForm(req)) return redirect(res, `/team?event_id=${team.event_id}`, 'success', 'Member removed from team.');
     return res.status(200).json({ message: 'Member removed' });
   } catch (err) {
     console.error('[teams:remove] Error:', err.message);
@@ -320,17 +483,17 @@ router.post('/:teamId/leader', requireRole('participant'), (req, res) => {
       return res.status(404).json({ error: 'Team not found' });
     }
     if (team.leader_id !== userId) {
-      if (isHtmlForm(req)) return redirect(res, '/team', 'error', 'Only the current leader can transfer leadership.');
+      if (isHtmlForm(req)) return redirect(res, `/team?event_id=${team.event_id}`, 'error', 'Only the current leader can transfer leadership.');
       return res.status(403).json({ error: 'Only the current leader can transfer leadership' });
     }
     if (!newLeaderId || newLeaderId === userId) {
-      if (isHtmlForm(req)) return redirect(res, '/team', 'error', 'Please select a different member to become leader.');
+      if (isHtmlForm(req)) return redirect(res, `/team?event_id=${team.event_id}`, 'error', 'Please select a different member to become leader.');
       return res.status(400).json({ error: 'Invalid new leader' });
     }
 
     const isMember = db.prepare('SELECT 1 FROM team_members WHERE team_id = ? AND user_id = ?').get(teamId, newLeaderId);
     if (!isMember) {
-      if (isHtmlForm(req)) return redirect(res, '/team', 'error', 'That user is not a member of this team.');
+      if (isHtmlForm(req)) return redirect(res, `/team?event_id=${team.event_id}`, 'error', 'That user is not a member of this team.');
       return res.status(400).json({ error: 'User is not a team member' });
     }
 
@@ -341,7 +504,7 @@ router.post('/:teamId/leader', requireRole('participant'), (req, res) => {
       .run(`al_${Date.now()}`, userId, 'leader_changed', teamId, newLeaderId, now);
 
     const newLeader = db.prepare('SELECT name FROM users WHERE id = ?').get(newLeaderId);
-    if (isHtmlForm(req)) return redirect(res, '/team', 'success', `Leadership transferred to ${newLeader ? newLeader.name : newLeaderId}.`);
+    if (isHtmlForm(req)) return redirect(res, `/team?event_id=${team.event_id}`, 'success', `Leadership transferred to ${newLeader ? newLeader.name : newLeaderId}.`);
     return res.status(200).json({ message: 'Leadership transferred', new_leader_id: newLeaderId });
   } catch (err) {
     console.error('[teams:leader] Error:', err.message);
@@ -371,7 +534,7 @@ router.post('/:teamId/leave', requireRole('participant'), (req, res) => {
 
     const isMember = db.prepare('SELECT 1 FROM team_members WHERE team_id = ? AND user_id = ?').get(teamId, userId);
     if (!isMember) {
-      if (isHtmlForm(req)) return redirect(res, '/team', 'error', 'You are not a member of this team.');
+      if (isHtmlForm(req)) return redirect(res, `/team?event_id=${team.event_id}`, 'error', 'You are not a member of this team.');
       return res.status(400).json({ error: 'Not a member of this team' });
     }
 
@@ -391,7 +554,7 @@ router.post('/:teamId/leave', requireRole('participant'), (req, res) => {
       db.prepare('DELETE FROM teams WHERE id = ?').run(teamId);
       db.prepare('INSERT INTO audit_log (id, actor_id, action, target_id, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)')
         .run(`al_${Date.now()}`, userId, 'team_deleted', teamId, 'last member left', now);
-      if (isHtmlForm(req)) return redirect(res, '/team', 'info', `You left and team "${team.name}" was disbanded (no members left).`);
+      if (isHtmlForm(req)) return redirect(res, `/team?event_id=${team.event_id}`, 'info', `You left and team "${team.name}" was disbanded (no members left).`);
       return res.status(200).json({ message: 'Left team; team disbanded' });
     }
 
@@ -406,7 +569,7 @@ router.post('/:teamId/leave', requireRole('participant'), (req, res) => {
     db.prepare('INSERT INTO audit_log (id, actor_id, action, target_id, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)')
       .run(`al_${Date.now()}`, userId, 'team_left', teamId, team.name, now);
 
-    if (isHtmlForm(req)) return redirect(res, '/team', 'success', `You left team "${team.name}".`);
+    if (isHtmlForm(req)) return redirect(res, `/team?event_id=${team.event_id}`, 'success', `You left team "${team.name}".`);
     return res.status(200).json({ message: 'Left team' });
   } catch (err) {
     console.error('[teams:leave] Error:', err.message);
@@ -445,8 +608,15 @@ function handleJoinTeam(code, req, res) {
     const userId  = req.session.userId;
     const existing = db.prepare('SELECT 1 FROM team_members WHERE team_id = ? AND user_id = ?').get(team.id, userId);
     if (existing) {
-      if (isHtmlForm(req)) return redirect(res, '/team', 'info', `You are already a member of "${team.name}".`);
+      if (isHtmlForm(req)) return redirect(res, `/team?event_id=${team.event_id}`, 'info', `You are already a member of "${team.name}".`);
       return res.status(409).json({ error: 'Already a member of this team' });
+    }
+
+    // Constraint: 1 team per participant per hackathon, and no overlapping hackathon participation
+    const conflict = checkUserEventConflict(db, userId, team.event_id);
+    if (conflict.conflict) {
+      if (isHtmlForm(req)) return redirect(res, `/team?event_id=${team.event_id}`, 'error', conflict.message);
+      return res.status(409).json({ error: conflict.message, reason: conflict.reason });
     }
 
     db.prepare('INSERT INTO team_members (team_id, user_id) VALUES (?, ?)').run(team.id, userId);
@@ -455,7 +625,7 @@ function handleJoinTeam(code, req, res) {
     db.prepare('INSERT INTO audit_log (id, actor_id, action, target_id, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)')
       .run(`al_${Date.now()}`, userId, 'team_joined', team.id, code, now);
 
-    if (isHtmlForm(req)) return redirect(res, '/team', 'success', `Successfully joined team "${team.name}"!`);
+    if (isHtmlForm(req)) return redirect(res, `/team?event_id=${team.event_id}`, 'success', `Successfully joined team "${team.name}"!`);
     return res.status(200).json({ message: 'Joined team', team_id: team.id, team_name: team.name });
   } catch (err) {
     console.error('[teams:join] Error:', err.message);

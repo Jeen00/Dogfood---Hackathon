@@ -9,23 +9,31 @@
 </head>
 <body>
   <nav>
-    <a href="/projects" class="site-name">DOGFOOD 2026</a>
+    <a href="/" class="site-name">DOGFOOD 2026</a>
     <% if (typeof session === 'undefined' || !session || session.role !== 'organizer' || (typeof selectedEvent === 'undefined' || !selectedEvent)) { %>
       <% if (!session || session.role !== 'judge' || (typeof selectedJudgeEvent === 'undefined' || !selectedJudgeEvent)) { %>
-        <a href="/projects">Gallery</a>
+        <% if (!session || session.role !== 'participant' || (typeof selectedParticipantEvent === 'undefined' || !selectedParticipantEvent)) { %>
+          <a href="/overview">Overview</a>
+          <a href="/projects">Gallery</a>
+          <a href="/results">Results</a>
+        <% } %>
       <% } %>
     <% } %>
     <% if (typeof session !== 'undefined' && session) { %>
       <% if (session.role === 'judge') { %>
         <% if (typeof selectedJudgeEvent !== 'undefined' && selectedJudgeEvent) { %>
           <a href="/judge/events" style="color: #4CAF50; font-weight: bold;">&larr; All Events</a>
-          <a href="/judge/dashboard?event_id=<%= selectedJudgeEvent.id %>">My Assignments</a>
+          <a href="/judge/dashboard?event_id=<%= selectedJudgeEvent.id %>">Dashboard</a>
+          <a href="/judge/assignments?event_id=<%= selectedJudgeEvent.id %>">My Assignments</a>
           <a href="/judge/scores?event_id=<%= selectedJudgeEvent.id %>">My Scores</a>
+          <a href="/judge/profile">Profile</a>
         <% } else { %>
           <a href="/judge/events" style="font-weight: bold;">All Events</a>
           <a href="/judge/invites">My Invites</a>
+          <a href="/judge/profile">Profile</a>
         <% } %>
       <% } %>
+
       <% if (session.role === 'organizer' || session.role === 'admin') { %>
         <% if (typeof selectedEvent !== 'undefined' && selectedEvent) { %>
           <a href="/organizer/events" style="color: #4CAF50; font-weight: bold;">&larr; All Hackathons</a>
@@ -42,8 +50,13 @@
       <% } %>
 
       <% if (session.role === 'participant') { %>
-        <a href="/team">My Team</a>
-        <a href="/submissions/new">Submit Project</a>
+        <% if (typeof selectedParticipantEvent !== 'undefined' && selectedParticipantEvent) { %>
+          <a href="/team/events" style="color: #4CAF50; font-weight: bold;">&larr; All Hackathons</a>
+          <a href="/team?event_id=<%= selectedParticipantEvent.id %>">My Team</a>
+          <a href="/submissions/new?event_id=<%= selectedParticipantEvent.id %>">Submit Project</a>
+        <% } else { %>
+          <a href="/team/events" style="font-weight: bold;">All Hackathons</a>
+        <% } %>
       <% } %>
 
       <!-- Notification bell (all logged-in users) -->

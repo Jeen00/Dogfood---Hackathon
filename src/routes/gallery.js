@@ -2,6 +2,7 @@
 const express    = require('express');
 const { getDb }  = require('../db/db');
 const { v4: uuidv4 } = require('uuid');
+const { checkRateLimit, logSuspiciousActivity, checkSpam, checkSelfVote } = require('../lib/safety');
 
 const router = express.Router();
 
@@ -20,9 +21,10 @@ function parseJsonCol(raw, fallback = []) {
 /** Parse all JSON columns on a project row in-place. */
 function hydrateProject(p) {
   if (!p) return p;
-  p.technologies   = parseJsonCol(p.technologies);
-  p.tags           = parseJsonCol(p.tags);
+  p.technologies    = parseJsonCol(p.technologies);
+  p.tags            = parseJsonCol(p.tags);
   p.required_skills = parseJsonCol(p.required_skills);
+  p.screenshots     = parseJsonCol(p.screenshots);
   return p;
 }
 
@@ -138,7 +140,7 @@ router.get('/', (req, res) => {
 
     // ── Filters ────────────────────────────────────────────────────────────
     if (q) {
-      // Search across multiple text columns + JSON arrays
+      // Search across multiple text columns
       const like = `%${q.toLowerCase()}%`;
       sql += ` AND (
         LOWER(p.title)             LIKE ? OR
@@ -161,23 +163,29 @@ router.get('/', (req, res) => {
       params.push(difficulty);
     }
 
-    if (status) {
-      sql += ` AND p.status = ?`;
-      params.push(status);
+    const tech = (req.query.tech || '').trim();
+    if (tech) {
+      const likeTech = `%${tech.toLowerCase()}%`;
+      sql += ` AND LOWER(COALESCE(p.technologies,'')) LIKE ?`;
+      params.push(likeTech);
     }
 
-    if (openSource === '1') {
-      sql += ` AND p.open_source = 1`;
-    } else if (openSource === '0') {
-      sql += ` AND p.open_source = 0`;
+    const tag = (req.query.tag || '').trim();
+    if (tag) {
+      const likeTag = `%${tag.toLowerCase()}%`;
+      sql += ` AND LOWER(COALESCE(p.tags,'')) LIKE ?`;
+      params.push(likeTag);
     }
 
-    if (hasDemo === '1') {
-      sql += ` AND p.live_demo_url IS NOT NULL`;
-    }
-
-    if (contributors === '1') {
-      sql += ` AND p.looking_for_contributors = 1`;
+    const teamSize = parseInt(req.query.team_size, 10);
+    if (teamSize && teamSize > 0) {
+      if (teamSize >= 4) {
+        sql += ` AND (SELECT COUNT(*) FROM team_members tm WHERE tm.team_id = p.team_id) >= ?`;
+        params.push(4);
+      } else {
+        sql += ` AND (SELECT COUNT(*) FROM team_members tm WHERE tm.team_id = p.team_id) = ?`;
+        params.push(teamSize);
+      }
     }
 
     // ── Sorting ────────────────────────────────────────────────────────────
@@ -225,10 +233,9 @@ router.get('/', (req, res) => {
       q,
       track,
       difficulty,
-      status,
-      open_source: openSource || '',
-      has_demo:    hasDemo    || '',
-      contributors: contributors || '',
+      tech,
+      tag,
+      team_size: teamSize || '',
       sort,
       session: req.session,
     });
@@ -251,6 +258,7 @@ router.get('/:id', (req, res) => {
   try {
     const db      = getDb();
     const userId  = req.session ? req.session.userId : null;
+    const role    = req.session ? req.session.role   : null;
 
     // ── Load project ───────────────────────────────────────────────────────
     const project = db.prepare(`
@@ -288,26 +296,88 @@ router.get('/:id', (req, res) => {
       ).get(req.params.id, userId);
     }
 
+    // ── Judge context: is this judge assigned to this project? ─────────────
+    let judgeAssignment = null;
+    let judgeScore      = null;
+    let selectedJudgeEvent = null;
+
+    if (role === 'judge' && userId) {
+      judgeAssignment = db.prepare(
+        'SELECT * FROM judge_assignments WHERE judge_id = ? AND project_id = ?'
+      ).get(userId, req.params.id);
+
+      if (judgeAssignment) {
+        judgeScore = db.prepare(
+          'SELECT * FROM scores WHERE judge_id = ? AND project_id = ?'
+        ).get(userId, req.params.id);
+        if (judgeScore && judgeScore.criteria_scores) {
+          try { judgeScore.criteria_scores = JSON.parse(judgeScore.criteria_scores); } catch (_) {}
+        }
+
+        // Load the event for this project to set judge nav context
+        selectedJudgeEvent = db.prepare('SELECT * FROM events WHERE id = ?').get(project.event_id) || null;
+        if (req.session && selectedJudgeEvent) {
+          req.session.selectedJudgeEventId = selectedJudgeEvent.id;
+        }
+        res.locals.selectedJudgeEvent = selectedJudgeEvent;
+
+        // Auto-mark as in_progress when judge opens a pending project
+        if (judgeAssignment.status === 'pending') {
+          db.prepare("UPDATE judge_assignments SET status = 'in_progress', started_at = ? WHERE judge_id = ? AND project_id = ?")
+            .run(new Date().toISOString(), userId, req.params.id);
+          judgeAssignment.status = 'in_progress';
+        }
+      }
+    }
+
     // ── Team members ───────────────────────────────────────────────────────
     const members = db.prepare(`
-      SELECT u.id, u.name, u.email
+      SELECT
+        u.id,
+        u.name,
+        u.email,
+        COALESCE(NULLIF(tm.role, ''), CASE WHEN t.leader_id = u.id THEN 'Team Leader' ELSE 'Member' END) AS role
       FROM team_members tm
+      JOIN teams t ON t.id = tm.team_id
       JOIN users u ON u.id = tm.user_id
       WHERE tm.team_id = ?
+      ORDER BY CASE WHEN t.leader_id = u.id THEN 0 ELSE 1 END, u.name ASC
     `).all(project.team_id);
 
-    // ── Comments (most recent first) ───────────────────────────────────────
-    const comments = db.prepare(`
+    // ── Comments & Replies (threaded) ──────────────────────────────────────
+    const allComments = db.prepare(`
       SELECT
         c.id,
         c.content,
+        c.parent_id,
         c.created_at,
-        u.name AS author
+        u.name AS author_name,
+        u.id   AS author_id
       FROM project_comments c
       JOIN users u ON u.id = c.user_id
       WHERE c.project_id = ?
-      ORDER BY c.created_at DESC
+      ORDER BY c.created_at ASC
     `).all(req.params.id);
+
+    const commentsMap = {};
+    const topLevelComments = [];
+
+    for (const c of allComments) {
+      c.replies = [];
+      commentsMap[c.id] = c;
+      if (!c.parent_id) {
+        topLevelComments.push(c);
+      }
+    }
+
+    for (const c of allComments) {
+      if (c.parent_id && commentsMap[c.parent_id]) {
+        commentsMap[c.parent_id].replies.push(c);
+      }
+    }
+
+    // Pass topLevelComments reverse sorted for latest discussion first
+    const comments = topLevelComments.reverse();
 
     // ── Similar projects (same track OR overlapping tags/technologies) ─────
     // Use LIKE heuristic on the JSON columns; limit 4, exclude self
@@ -355,6 +425,9 @@ router.get('/:id', (req, res) => {
       members,
       comments,
       similar,
+      judgeAssignment,
+      judgeScore,
+      selectedJudgeEvent,
       session: req.session,
     });
   } catch (err) {
@@ -366,9 +439,11 @@ router.get('/:id', (req, res) => {
   }
 });
 
+
 // ─── POST /api/projects/:id/vote ─────────────────────────────────────────────
 /**
  * Toggle vote for the authenticated user.
+ * Includes Safety: Duplicate Vote Protection, Self-Vote Prevention, Rate Limiting & Suspicious Activity Tracking.
  * Returns JSON: { voted: bool, count: number }
  */
 router.post('/:id/vote', requireAuth, (req, res) => {
@@ -376,7 +451,22 @@ router.post('/:id/vote', requireAuth, (req, res) => {
     const db        = getDb();
     const projectId = req.params.id;
     const userId    = req.session.userId;
+    const ip        = req.ip || req.connection?.remoteAddress || '127.0.0.1';
     const now       = new Date().toISOString();
+
+    // 1. Rate Limiting Protection (Safety)
+    const rateLimitKey = `vote:${userId || ip}`;
+    const rateCheck = checkRateLimit(rateLimitKey, 10, 30000);
+    if (!rateCheck.allowed) {
+      logSuspiciousActivity(db, userId, ip, 'rate_limit_vote_exceeded', `Excessive voting attempts on project ${projectId}`);
+      return res.status(429).json({ error: 'Voting too fast. Please wait a few seconds before voting again.' });
+    }
+
+    // 2. Duplicate / Self-Vote Protection (Safety)
+    if (checkSelfVote(db, projectId, userId)) {
+      logSuspiciousActivity(db, userId, ip, 'self_vote_attempt', `User ${userId} attempted to vote for own project ${projectId}`);
+      return res.status(403).json({ error: 'Self-Vote Protection: You cannot vote for your own team’s project.' });
+    }
 
     const existing = db.prepare(
       'SELECT 1 FROM project_votes WHERE project_id = ? AND user_id = ?'
@@ -448,19 +538,32 @@ router.post('/:id/save', requireAuth, (req, res) => {
 
 // ─── POST /api/projects/:id/comment ──────────────────────────────────────────
 /**
- * Add a comment on a project for the authenticated user.
- * Body: { content: string }
- * Returns JSON: { id, content, author, created_at }
+ * Add a comment or reply on a project for the authenticated user.
+ * Body: { content: string, parent_id?: string }
+ * Includes Safety: Spam Protection, Rate Limiting & Suspicious Activity Tracking.
+ * Returns JSON: { id, content, author, created_at, parent_id }
  */
 router.post(['/:id/comment', '/:id/comments'], requireAuth, (req, res) => {
   try {
     const db        = getDb();
     const projectId = req.params.id;
     const userId    = req.session.userId;
+    const ip        = req.ip || req.connection?.remoteAddress || '127.0.0.1';
     const content   = (req.body.content || '').trim();
+    const parentId  = req.body.parent_id ? String(req.body.parent_id).trim() : null;
 
-    if (!content) {
-      return res.status(400).json({ error: 'Comment content cannot be empty.' });
+    // 1. Rate Limiting Protection (Safety)
+    const rateCheck = checkRateLimit(`comment:${userId || ip}`, 6, 60000);
+    if (!rateCheck.allowed) {
+      logSuspiciousActivity(db, userId, ip, 'rate_limit_comment_exceeded', `Excessive comments on project ${projectId}`);
+      return res.status(429).json({ error: 'Posting comments too rapidly. Please wait a moment.' });
+    }
+
+    // 2. Spam Protection (Safety)
+    const spamResult = checkSpam(content, userId, db);
+    if (spamResult.isSpam) {
+      logSuspiciousActivity(db, userId, ip, 'spam_comment_blocked', spamResult.reason);
+      return res.status(400).json({ error: spamResult.reason });
     }
 
     // Ensure the project exists
@@ -469,12 +572,20 @@ router.post(['/:id/comment', '/:id/comments'], requireAuth, (req, res) => {
       return res.status(404).json({ error: 'Project not found.' });
     }
 
+    // If replying, ensure the parent comment exists and belongs to this project
+    if (parentId) {
+      const parentComment = db.prepare('SELECT id FROM project_comments WHERE id = ? AND project_id = ?').get(parentId, projectId);
+      if (!parentComment) {
+        return res.status(400).json({ error: 'Parent comment not found.' });
+      }
+    }
+
     const id  = uuidv4();
     const now = new Date().toISOString();
 
     db.prepare(
-      'INSERT INTO project_comments (id, project_id, user_id, content, created_at) VALUES (?, ?, ?, ?, ?)'
-    ).run(id, projectId, userId, content, now);
+      'INSERT INTO project_comments (id, project_id, user_id, parent_id, content, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run(id, projectId, userId, parentId, content, now);
 
     // Fetch author name to return in response
     const user = db.prepare('SELECT name FROM users WHERE id = ?').get(userId);
@@ -482,12 +593,57 @@ router.post(['/:id/comment', '/:id/comments'], requireAuth, (req, res) => {
     return res.status(201).json({
       id,
       content,
-      author:     user ? user.name : 'Unknown',
+      parent_id: parentId,
+      author:    user ? user.name : 'Unknown',
       created_at: now,
     });
   } catch (err) {
     console.error('[gallery:comment] Error:', err.message);
     return res.status(500).json({ error: 'Failed to post comment.' });
+  }
+});
+
+// ─── POST /api/projects/:id/report ───────────────────────────────────────────
+/**
+ * Report a project or comment for community safety and moderation.
+ * Body: { reason: string, details?: string, comment_id?: string }
+ */
+router.post(['/:id/report', '/:id/reports'], requireAuth, (req, res) => {
+  try {
+    const db        = getDb();
+    const projectId = req.params.id;
+    const userId    = req.session.userId;
+    const ip        = req.ip || req.connection?.remoteAddress || '127.0.0.1';
+    const reason    = (req.body.reason || '').trim();
+    const details   = (req.body.details || '').trim();
+    const commentId = req.body.comment_id ? String(req.body.comment_id).trim() : null;
+
+    if (!reason) {
+      return res.status(400).json({ error: 'Please choose or provide a reason for reporting.' });
+    }
+
+    // Rate Limiting (Safety)
+    const rateCheck = checkRateLimit(`report:${userId || ip}`, 4, 60000);
+    if (!rateCheck.allowed) {
+      logSuspiciousActivity(db, userId, ip, 'rate_limit_report_exceeded', `Excessive reports filed`);
+      return res.status(429).json({ error: 'Too many reports submitted. Please wait a minute.' });
+    }
+
+    const id  = `rep_${uuidv4().slice(0, 8)}`;
+    const now = new Date().toISOString();
+
+    db.prepare(`
+      INSERT INTO project_reports (id, project_id, comment_id, user_id, reason, details, status, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)
+    `).run(id, projectId, commentId, userId, reason, details, now);
+
+    return res.status(201).json({
+      message: 'Report submitted successfully. Our team will review this project promptly.',
+      reportId: id
+    });
+  } catch (err) {
+    console.error('[gallery:report] Error:', err.message);
+    return res.status(500).json({ error: 'Failed to submit report.' });
   }
 });
 

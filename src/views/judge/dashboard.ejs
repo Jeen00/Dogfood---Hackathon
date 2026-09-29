@@ -1,8 +1,38 @@
-<%- include('../layouts/header', { title: (typeof selectedEvent !== 'undefined' && selectedEvent ? selectedEvent.name + ' — My Assignments' : 'Judge Dashboard'), session, selectedJudgeEvent: typeof selectedEvent !== 'undefined' ? selectedEvent : null }) %>
+<%- include('../layouts/header', {
+  title: (typeof selectedEvent !== 'undefined' && selectedEvent ? selectedEvent.name + ' — Dashboard' : 'Judge Dashboard'),
+  session,
+  selectedJudgeEvent: typeof selectedEvent !== 'undefined' ? selectedEvent : null
+}) %>
 
+<%
+  const s = stats || { total: 0, completed: 0, pending: 0, inProg: 0, flagged: 0, progress: 0 };
+  const deadlineDate = deadline ? new Date(deadline) : null;
+  const now = new Date();
+  const msLeft = deadlineDate ? (deadlineDate - now) : null;
+  let deadlineText = 'No deadline set';
+  let deadlineUrgent = false;
+  if (msLeft !== null) {
+    if (msLeft < 0) {
+      deadlineText = 'Deadline passed';
+    } else {
+      const hoursLeft = Math.floor(msLeft / 3600000);
+      const daysLeft  = Math.floor(msLeft / 86400000);
+      deadlineUrgent  = hoursLeft < 24;
+      if (daysLeft >= 2) deadlineText = daysLeft + ' days left';
+      else if (hoursLeft >= 1) deadlineText = hoursLeft + ' hr' + (hoursLeft !== 1 ? 's' : '') + ' left';
+      else deadlineText = Math.floor(msLeft / 60000) + ' min left';
+    }
+  }
+
+  const pendingList   = assignments.filter(a => !a.scored && a.assignment_status !== 'in_progress' && a.assignment_status !== 'needs_review');
+  const inProgList    = assignments.filter(a => !a.scored && a.assignment_status === 'in_progress');
+  const completedList = assignments.filter(a => a.scored);
+%>
+
+<!-- Page Header -->
 <div style="margin-bottom: 20px;">
   <div style="margin-bottom: 6px;">
-    <a href="/judge/events" style="text-decoration: none; font-size: 0.9rem; font-weight: bold; color: #1a73e8;">&larr; All Events</a>
+    <a href="/judge/events" style="text-decoration: none; font-size: 0.9rem; font-weight: bold; color: #1a73e8;">← All Events</a>
   </div>
   <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
     <h1 style="margin: 0; padding: 0; border: none;">
@@ -12,71 +42,207 @@
         Judge Dashboard
       <% } %>
     </h1>
-    <% if (typeof statusInfo !== 'undefined' && statusInfo) { %>
-      <div style="display: flex; align-items: center; gap: 10px;">
+    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+      <% if (typeof statusInfo !== 'undefined' && statusInfo) { %>
         <span class="status-badge <%= statusInfo.badgeClass %>"><%= statusInfo.label %></span>
         <span style="font-weight: bold; font-size: 0.95rem; color: <%= statusInfo.status === 'running' ? '#137333' : '#555' %>;">
           ⏱ <%= statusInfo.timeText %>
         </span>
-      </div>
+      <% } %>
+      <a href="/judge/assignments?event_id=<%= selectedEvent ? selectedEvent.id : '' %>" class="btn-action" style="font-size: 0.88rem; padding: 8px 16px;">
+        My Assignments →
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- ===== OVERVIEW STATS CARDS ===== -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 16px; margin-bottom: 24px;">
+  <div style="background: #f8f9fa; border: 2px solid #1A1A1A; padding: 16px 18px; text-align: center;">
+    <div style="font-size: 2rem; font-weight: bold; color: #1A1A1A;"><%= s.total %></div>
+    <div style="font-size: 0.8rem; color: #555; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px;">Total Assigned</div>
+  </div>
+  <div style="background: #fef9c3; border: 2px solid #fde047; padding: 16px 18px; text-align: center;">
+    <div style="font-size: 2rem; font-weight: bold; color: #854d0e;"><%= s.pending %></div>
+    <div style="font-size: 0.8rem; color: #555; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px;">Pending</div>
+  </div>
+  <div style="background: #EFF6FF; border: 2px solid #93c5fd; padding: 16px 18px; text-align: center;">
+    <div style="font-size: 2rem; font-weight: bold; color: #1d4ed8;"><%= s.inProg %></div>
+    <div style="font-size: 0.8rem; color: #555; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px;">In Progress</div>
+  </div>
+  <div style="background: #f0fdf4; border: 2px solid #bbf7d0; padding: 16px 18px; text-align: center;">
+    <div style="font-size: 2rem; font-weight: bold; color: #15803d;"><%= s.completed %></div>
+    <div style="font-size: 0.8rem; color: #555; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px;">Completed</div>
+  </div>
+  <% if (s.flagged > 0) { %>
+  <div style="background: #fff7ed; border: 2px solid #fed7aa; padding: 16px 18px; text-align: center;">
+    <div style="font-size: 2rem; font-weight: bold; color: #c2410c;"><%= s.flagged %></div>
+    <div style="font-size: 0.8rem; color: #555; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px;">Re-evaluation</div>
+  </div>
+  <% } %>
+</div>
+
+<!-- ===== PROGRESS + DEADLINE ===== -->
+<div style="display: grid; grid-template-columns: 1fr auto; gap: 20px; margin-bottom: 28px; align-items: start; flex-wrap: wrap;">
+  <!-- Progress Bar -->
+  <div style="background: #fff; border: 2px solid #1A1A1A; padding: 18px 20px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+      <span style="font-weight: bold; font-size: 0.95rem;">Evaluation Progress</span>
+      <span style="font-weight: bold; font-size: 1.1rem; color: <%= s.progress === 100 ? '#15803d' : '#1A1A1A' %>;">
+        <%= s.progress %>%
+      </span>
+    </div>
+    <div style="background: #e5e7eb; height: 14px; overflow: hidden;">
+      <div style="
+        height: 100%;
+        width: <%= s.progress %>%;
+        background: <%= s.progress === 100 ? '#15803d' : (s.progress >= 60 ? '#1a73e8' : '#f59e0b') %>;
+        transition: width 0.4s ease;
+      "></div>
+    </div>
+    <div style="margin-top: 8px; font-size: 0.82rem; color: #666;">
+      <%= s.completed %> of <%= s.total %> evaluations completed
+    </div>
+  </div>
+
+  <!-- Deadline -->
+  <div style="background: <%= deadlineUrgent ? '#FDECEA' : '#f8f9fa' %>; border: 2px solid <%= deadlineUrgent ? '#EA4335' : '#1A1A1A' %>; padding: 18px 20px; min-width: 180px; text-align: center;">
+    <div style="font-size: 0.8rem; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em; color: #555; margin-bottom: 8px;">Deadline</div>
+    <div style="font-size: 1.6rem; font-weight: bold; color: <%= deadlineUrgent ? '#c5221f' : '#1A1A1A' %>;">
+      <%= deadlineUrgent ? '⚠️ ' : '📅 ' %><%= deadlineText %>
+    </div>
+    <% if (deadlineDate) { %>
+    <div style="font-size: 0.8rem; color: #666; margin-top: 6px;">
+      <%= deadlineDate.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) %>
+    </div>
     <% } %>
   </div>
 </div>
 
-<%
-  const pending  = assignments.filter(a => !a.scored).length;
-  const complete = assignments.filter(a =>  a.scored).length;
-%>
+<% if (assignments.length === 0) { %>
+  <div style="padding: 40px; text-align: center; border: 2px dashed #ddd; color: #888;">
+    <div style="font-size: 2rem; margin-bottom: 12px;">📋</div>
+    <p>No projects have been assigned to you for this event yet.</p>
+    <a href="/judge/events" style="color: #1a73e8;">← Back to All Events</a>
+  </div>
+<% } else { %>
 
-<div style="display: flex; gap: 24px; margin-bottom: 20px; flex-wrap: wrap;">
-  <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 12px 20px; min-width: 120px; text-align: center;">
-    <div style="font-size: 2rem; font-weight: bold; color: #15803d;"><%= complete %></div>
-    <div style="font-size: 0.85rem; color: #555;">Scored</div>
-  </div>
-  <div style="background: #fef9c3; border: 1px solid #fde047; padding: 12px 20px; min-width: 120px; text-align: center;">
-    <div style="font-size: 2rem; font-weight: bold; color: #854d0e;"><%= pending %></div>
-    <div style="font-size: 0.85rem; color: #555;">Pending</div>
-  </div>
-  <div style="background: #f8f9fa; border: 1px solid #ddd; padding: 12px 20px; min-width: 120px; text-align: center;">
-    <div style="font-size: 2rem; font-weight: bold;"><%= assignments.length %></div>
-    <div style="font-size: 0.85rem; color: #555;">Total Assigned</div>
+<!-- ===== PENDING EVALUATIONS ===== -->
+<% if (inProgList.length > 0) { %>
+<div style="margin-bottom: 28px;">
+  <h2 style="font-size: 1.1rem; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; border-bottom: 2px solid #93c5fd; padding-bottom: 8px;">
+    <span style="background:#EFF6FF; border:1.5px solid #93c5fd; color:#1d4ed8; padding:2px 10px; font-size:0.8rem; border-radius:0;">🔵 In Progress</span>
+    <span style="color:#555; font-size:0.9rem; font-weight:normal;"><%= inProgList.length %> project<%= inProgList.length !== 1 ? 's' : '' %></span>
+  </h2>
+  <div style="display: flex; flex-direction: column; gap: 10px;">
+    <% for (const a of inProgList) { %>
+      <%- include('./partials/assignment-card', { a, eventId: selectedEvent ? selectedEvent.id : '' }) %>
+    <% } %>
   </div>
 </div>
-
-<% if (assignments.length === 0) { %>
-  <p>No projects have been assigned to you for this event.</p>
-  <p><a href="/judge/events">&larr; Back to All Events</a></p>
-<% } else { %>
-  <table>
-    <thead>
-      <tr>
-        <th>Title</th>
-        <th>Team</th>
-        <th>Track</th>
-        <th>Submitted</th>
-        <th>Status</th>
-        <th>Action</th>
-      </tr>
-    </thead>
-    <tbody>
-      <% for (const a of assignments) { %>
-        <tr>
-          <td><a href="/projects/<%= a.id %>"><%= a.title %></a></td>
-          <td><%= a.team_name %></td>
-          <td><%= a.track_name %></td>
-          <td><%= a.submitted_at ? a.submitted_at.slice(0, 10) : 'N/A' %></td>
-          <td>
-            <% if (a.scored) { %>
-              <span style="color: #15803d; font-weight: bold;">✓ Scored</span>
-            <% } else { %>
-              <span style="color: #c05621; font-weight: bold;">⚪ Pending</span>
-            <% } %>
-          </td>
-          <td><a href="/judge/score/<%= a.id %>"><%= a.scored ? 'Edit Score' : 'Score' %></a></td>
-        </tr>
-      <% } %>
-    </tbody>
-  </table>
 <% } %>
 
+<% if (pendingList.length > 0) { %>
+<div style="margin-bottom: 28px;">
+  <h2 style="font-size: 1.1rem; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; border-bottom: 2px solid #fde047; padding-bottom: 8px;">
+    <span style="background:#fef9c3; border:1.5px solid #fde047; color:#854d0e; padding:2px 10px; font-size:0.8rem; border-radius:0;">⏳ Pending Evaluations</span>
+    <span style="color:#555; font-size:0.9rem; font-weight:normal;"><%= pendingList.length %> project<%= pendingList.length !== 1 ? 's' : '' %></span>
+  </h2>
+  <div style="display: flex; flex-direction: column; gap: 10px;">
+    <% for (const a of pendingList) { %>
+      <%- include('./partials/assignment-card', { a, eventId: selectedEvent ? selectedEvent.id : '' }) %>
+    <% } %>
+  </div>
+</div>
+<% } %>
+
+<!-- ===== COMPLETED EVALUATIONS ===== -->
+<% if (completedList.length > 0) { %>
+<div style="margin-bottom: 28px;">
+  <h2 style="font-size: 1.1rem; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; border-bottom: 2px solid #bbf7d0; padding-bottom: 8px;">
+    <span style="background:#f0fdf4; border:1.5px solid #bbf7d0; color:#15803d; padding:2px 10px; font-size:0.8rem; border-radius:0;">✅ Completed Evaluations</span>
+    <span style="color:#555; font-size:0.9rem; font-weight:normal;"><%= completedList.length %> project<%= completedList.length !== 1 ? 's' : '' %></span>
+  </h2>
+  <div style="display: flex; flex-direction: column; gap: 10px;">
+    <% for (const a of completedList) { %>
+      <%- include('./partials/assignment-card', { a, eventId: selectedEvent ? selectedEvent.id : '' }) %>
+    <% } %>
+  </div>
+</div>
+<% } %>
+
+<% } %>
+
+<script>
+function markStart(projectId, btn) {
+  btn.disabled = true;
+  btn.textContent = '…';
+  fetch('/judge/assignments/' + projectId + '/start', { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.error) {
+        btn.disabled = false;
+        btn.textContent = '▶ Start Review';
+        if (window.showToast) window.showToast(d.error, 'error');
+        return;
+      }
+      if (window.showToast) window.showToast('Marked as In Progress!', 'info');
+      var card = document.getElementById('acard-' + projectId);
+      if (card) {
+        card.style.borderLeftColor = '#93c5fd';
+        var badge = card.querySelector('span[style*="fef9c3"]') || card.querySelector('span[style*="fde047"]');
+        if (badge) {
+          badge.style.background = '#EFF6FF';
+          badge.style.borderColor = '#93c5fd';
+          badge.style.color = '#1d4ed8';
+          badge.textContent = '🔵 In Progress';
+        }
+        btn.parentElement.removeChild(btn);
+        var scoreLink = card.querySelector('a[href*="/judge/score/"]');
+        if (scoreLink) scoreLink.textContent = '✏️ Continue Scoring';
+      }
+    })
+    .catch(function() {
+      btn.disabled = false;
+      btn.textContent = '▶ Start Review';
+      if (window.showToast) window.showToast('Network error. Try again.', 'error');
+    });
+}
+
+function flagReview(projectId, btn) {
+  if (!confirm('Flag this project for re-evaluation?')) return;
+  btn.disabled = true;
+  btn.textContent = '…';
+  fetch('/judge/assignments/' + projectId + '/flag', { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.error) {
+        btn.disabled = false;
+        btn.textContent = '🔄 Flag Re-eval';
+        if (window.showToast) window.showToast(d.error, 'error');
+        return;
+      }
+      if (window.showToast) window.showToast('Flagged for re-evaluation.', 'info');
+      var card = document.getElementById('acard-' + projectId);
+      if (card) {
+        card.style.borderLeftColor = '#fed7aa';
+        var badge = card.querySelector('span[style*="f0fdf4"]') || card.querySelector('span[style*="bbf7d0"]');
+        if (badge) {
+          badge.style.background = '#fff7ed';
+          badge.style.borderColor = '#fed7aa';
+          badge.style.color = '#c2410c';
+          badge.textContent = '🔄 Re-evaluation';
+        }
+        btn.parentElement.removeChild(btn);
+      }
+    })
+    .catch(function() {
+      btn.disabled = false;
+      btn.textContent = '🔄 Flag Re-eval';
+      if (window.showToast) window.showToast('Network error. Try again.', 'error');
+    });
+}
+</script>
+
 <%- include('../layouts/footer') %>
+

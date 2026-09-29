@@ -13,16 +13,28 @@ const router = express.Router();
 router.get('/new', requireRole('participant'), (req, res) => {
   try {
     const db = getDb();
-    const event  = db.prepare('SELECT * FROM events WHERE id = ?').get(ACTIVE_EVENT_ID);
-    const tracks = db.prepare('SELECT * FROM tracks ORDER BY id').all();
-    const closed = event && new Date() > new Date(event.submissions_close);
+    const eventId = req.query.event_id || req.session?.selectedParticipantEventId || ACTIVE_EVENT_ID;
+    const event  = db.prepare('SELECT * FROM events WHERE id = ?').get(eventId) ||
+                   db.prepare('SELECT * FROM events WHERE id = ?').get(ACTIVE_EVENT_ID);
+
+    if (req.session && event) {
+      req.session.selectedParticipantEventId = event.id;
+    }
+    res.locals.selectedParticipantEvent = event;
+
+    let tracks = db.prepare('SELECT * FROM tracks WHERE event_id = ? ORDER BY id').all(event.id);
+    if (!tracks || tracks.length === 0) {
+      tracks = db.prepare('SELECT * FROM tracks ORDER BY id').all();
+    }
+
+    const closed = event && event.submissions_close && new Date() > new Date(event.submissions_close);
 
     const userTeams = db.prepare(`
       SELECT t.id, t.name
       FROM teams t
       JOIN team_members tm ON tm.team_id = t.id
-      WHERE tm.user_id = ?
-    `).all(req.session.userId);
+      WHERE tm.user_id = ? AND t.event_id = ?
+    `).all(req.session.userId, event.id);
 
     return res.render('submit', {
       event,
@@ -30,6 +42,7 @@ router.get('/new', requireRole('participant'), (req, res) => {
       userTeams,
       closed,
       session: req.session,
+      selectedParticipantEvent: event,
       error: null
     });
 
@@ -49,14 +62,15 @@ router.get('/new', requireRole('participant'), (req, res) => {
 router.post('/', requireRole('participant'), (req, res) => {
   try {
     const db = getDb();
-    const event = db.prepare('SELECT * FROM events WHERE id = ?').get(ACTIVE_EVENT_ID);
+    const eventId = (req.body.event_id || req.session?.selectedParticipantEventId || ACTIVE_EVENT_ID).trim();
+    const event = db.prepare('SELECT * FROM events WHERE id = ?').get(eventId);
 
     if (!event) {
       return res.status(400).json({ error: 'Event not found' });
     }
 
     // Deadline check — this will always be true for the fixture event (closed 2026-03-01)
-    if (new Date() > new Date(event.submissions_close)) {
+    if (event.submissions_close && new Date() > new Date(event.submissions_close)) {
       return res.status(400).json({ error: 'Submissions closed' });
     }
 
@@ -82,12 +96,17 @@ router.post('/', requireRole('participant'), (req, res) => {
     db.prepare(`
       INSERT INTO projects (id, event_id, team_id, track_id, title, summary, repo_url, status, submitted_at, created_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, 'submitted', ?, ?)
-    `).run(id, ACTIVE_EVENT_ID, team_id, track_id, title, summary || '', repo_url || '', now, now);
+    `).run(id, event.id, team_id, track_id, title, summary || '', repo_url || '', now, now);
 
     // Audit log
     db.prepare(
       'INSERT INTO audit_log (id, actor_id, action, target_id, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)'
     ).run(`al_${Date.now()}`, userId, 'project_submitted', id, title, now);
+
+    const isHtml = req.headers['content-type']?.includes('application/x-www-form-urlencoded') || (!req.is('json') && req.accepts('html'));
+    if (isHtml) {
+      return res.redirect(`/projects/${id}`);
+    }
 
     return res.status(201).json({ message: 'Project submitted', id });
   } catch (err) {
