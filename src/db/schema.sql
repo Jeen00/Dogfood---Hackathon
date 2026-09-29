@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS teams (
 CREATE TABLE IF NOT EXISTS team_members (
   team_id TEXT NOT NULL,
   user_id TEXT NOT NULL,
+  role    TEXT DEFAULT 'Member',
   PRIMARY KEY (team_id, user_id)
 );
 
@@ -71,16 +72,19 @@ CREATE TABLE IF NOT EXISTS team_invitations (
 );
 
 CREATE TABLE IF NOT EXISTS projects (
-  id           TEXT PRIMARY KEY,
-  event_id     TEXT NOT NULL,
-  team_id      TEXT NOT NULL,
-  track_id     TEXT,
-  title        TEXT NOT NULL,
-  summary      TEXT,
-  repo_url     TEXT,
-  status       TEXT NOT NULL DEFAULT 'submitted',
-  submitted_at TEXT,
-  created_at   TEXT
+  id             TEXT PRIMARY KEY,
+  event_id       TEXT NOT NULL,
+  team_id        TEXT NOT NULL,
+  track_id       TEXT,
+  title          TEXT NOT NULL,
+  summary        TEXT,
+  repo_url       TEXT,
+  live_demo_url  TEXT,
+  demo_video_url TEXT,
+  screenshots    TEXT DEFAULT '[]',
+  status         TEXT NOT NULL DEFAULT 'submitted',
+  submitted_at   TEXT,
+  created_at     TEXT
 );
 
 CREATE TABLE IF NOT EXISTS judge_assignments (
@@ -184,6 +188,27 @@ CREATE TABLE IF NOT EXISTS project_comments (
   id         TEXT PRIMARY KEY,
   project_id TEXT NOT NULL,
   user_id    TEXT NOT NULL,
+  parent_id  TEXT,
   content    TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS project_reports (
+  id         TEXT PRIMARY KEY,
+  project_id TEXT,
+  comment_id TEXT,
+  user_id    TEXT,
+  reason     TEXT NOT NULL,
+  details    TEXT,
+  status     TEXT NOT NULL DEFAULT 'pending',
+  created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS suspicious_activity (
+  id         TEXT PRIMARY KEY,
+  user_id    TEXT,
+  ip         TEXT,
+  type       TEXT NOT NULL,
+  details    TEXT,
   created_at TEXT NOT NULL
 );

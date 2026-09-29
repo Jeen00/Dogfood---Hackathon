@@ -8,11 +8,13 @@
 </head>
 <body>
   <nav>
-    <a href="/projects" class="site-name">DOGFOOD 2026</a>
+    <a href="/" class="site-name">DOGFOOD 2026</a>
     <% if (typeof session === 'undefined' || !session || session.role !== 'organizer' || (typeof selectedEvent === 'undefined' || !selectedEvent)) { %>
       <% if (!session || session.role !== 'judge' || (typeof selectedJudgeEvent === 'undefined' || !selectedJudgeEvent)) { %>
         <% if (!session || session.role !== 'participant' || (typeof selectedParticipantEvent === 'undefined' || !selectedParticipantEvent)) { %>
+          <a href="/overview">Overview</a>
           <a href="/projects">Gallery</a>
+          <a href="/results">Results</a>
         <% } %>
       <% } %>
     <% } %>

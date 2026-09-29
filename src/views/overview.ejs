@@ -1,0 +1,162 @@
+<%- include('layouts/header', { title: 'Hackathon Overview', session }) %>
+
+<style>
+  .overview-container {
+    max-width: 900px;
+    margin: 40px auto;
+    padding: 0 20px;
+  }
+  .overview-header {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+  .overview-title {
+    font-size: 3rem;
+    font-weight: 900;
+    margin-bottom: 12px;
+  }
+  .section-card {
+    background: #fff;
+    border: 2px solid #1a1a1a;
+    padding: 32px;
+    margin-bottom: 24px;
+    box-shadow: 4px 4px 0px #1a1a1a;
+  }
+  .section-card h2 {
+    margin-top: 0;
+    border-bottom: 2px solid #f1f5f9;
+    padding-bottom: 12px;
+    margin-bottom: 24px;
+    color: #1a73e8;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .content-list {
+    padding-left: 20px;
+    line-height: 1.6;
+  }
+  .content-list li {
+    margin-bottom: 8px;
+  }
+  .faq-item {
+    margin-bottom: 16px;
+  }
+  .faq-q {
+    font-weight: bold;
+    font-size: 1.1rem;
+    margin-bottom: 4px;
+  }
+  .faq-a {
+    color: #555;
+    line-height: 1.5;
+  }
+</style>
+
+<div class="overview-container">
+  <% if (event) { %>
+    <div class="overview-header">
+      <h1 class="overview-title"><%= event.name %></h1>
+      <p style="font-size: 1.2rem; color: #666;">Comprehensive rules, guidelines, and information for participants.</p>
+    </div>
+
+    <!-- About -->
+    <div class="section-card" id="about">
+      <h2>ℹ️ About</h2>
+      <p>Welcome to <strong><%= event.name %></strong>! This hackathon is designed to push the boundaries of innovation and creativity. Bring your best ideas, form an incredible team, and build something that matters over the course of the event.</p>
+      <p>Whether you are a seasoned developer or a first-time hacker, you'll find a welcoming community, expert mentors, and exciting challenges.</p>
+    </div>
+
+    <!-- Problem Statements -->
+    <div class="section-card" id="problems">
+      <h2>🎯 Problem Statements & Tracks</h2>
+      <p>Your project should align with one of the following official tracks:</p>
+      <% if (tracks && tracks.length > 0) { %>
+        <ul class="content-list">
+          <% tracks.forEach(t => { %>
+            <li><strong><%= t.name %>:</strong> <%= t.description || 'Solve challenges and build innovative solutions in this category.' %></li>
+          <% }) %>
+        </ul>
+      <% } else { %>
+        <p><em>Tracks and problem statements will be announced soon.</em></p>
+      <% } %>
+    </div>
+
+    <!-- Rules -->
+    <div class="section-card" id="rules">
+      <h2>📜 Rules</h2>
+      <ul class="content-list">
+        <li><strong>Fresh Code:</strong> All code must be written during the hackathon period. Pre-existing code or libraries can only be used if they are open-source and publicly available before the event starts.</li>
+        <li><strong>Team Size:</strong> Teams can consist of 1 to 4 members. Solo participants are welcome!</li>
+        <li><strong>Submission:</strong> Projects must be submitted via the platform before the deadline. Late submissions will not be accepted.</li>
+        <li><strong>Originality:</strong> Submissions must be original. Plagiarism will result in immediate disqualification.</li>
+        <li><strong>Conduct:</strong> We strictly enforce a Code of Conduct. Harassment of any kind will not be tolerated.</li>
+      </ul>
+    </div>
+
+    <!-- Eligibility -->
+    <div class="section-card" id="eligibility">
+      <h2>✅ Eligibility</h2>
+      <ul class="content-list">
+        <li>The hackathon is open to developers, designers, and creators from all around the world.</li>
+        <li>Participants must be at least 18 years old (or the age of majority in their jurisdiction) at the time of registration.</li>
+        <li>Employees and immediate family members of the organizing sponsors are generally not eligible to win prizes, unless specifically stated otherwise.</li>
+      </ul>
+    </div>
+
+    <!-- Prizes -->
+    <div class="section-card" id="prizes">
+      <h2>🏆 Prizes</h2>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+        <div style="background: #fef3c7; border: 1px solid #fde68a; padding: 20px; border-radius: 8px; text-align: center;">
+          <div style="font-size: 2rem; margin-bottom: 8px;">🥇</div>
+          <h3 style="margin: 0 0 8px 0; color: #92400e;">Grand Prize</h3>
+          <p style="margin: 0; color: #b45309; font-weight: bold;">$5,000 USD</p>
+          <p style="margin: 4px 0 0 0; font-size: 0.9rem; color: #92400e;">Overall Best Project</p>
+        </div>
+        <div style="background: #f1f5f9; border: 1px solid #e2e8f0; padding: 20px; border-radius: 8px; text-align: center;">
+          <div style="font-size: 2rem; margin-bottom: 8px;">🥈</div>
+          <h3 style="margin: 0 0 8px 0; color: #334155;">Runner Up</h3>
+          <p style="margin: 0; color: #475569; font-weight: bold;">$2,500 USD</p>
+          <p style="margin: 4px 0 0 0; font-size: 0.9rem; color: #334155;">Second Best Project</p>
+        </div>
+        <div style="background: #ffedd5; border: 1px solid #fed7aa; padding: 20px; border-radius: 8px; text-align: center;">
+          <div style="font-size: 2rem; margin-bottom: 8px;">🥉</div>
+          <h3 style="margin: 0 0 8px 0; color: #9a3412;">Track Winners</h3>
+          <p style="margin: 0; color: #c2410c; font-weight: bold;">$1,000 USD</p>
+          <p style="margin: 4px 0 0 0; font-size: 0.9rem; color: #9a3412;">Best in each Track</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- FAQ -->
+    <div class="section-card" id="faq">
+      <h2>❓ FAQ</h2>
+      <div class="faq-item">
+        <div class="faq-q">Do I need a team?</div>
+        <div class="faq-a">No, you can participate solo! However, working in a team is highly encouraged. You can find teammates on our Discord server.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">How much does it cost?</div>
+        <div class="faq-a">Participation is 100% free!</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Who owns my project?</div>
+        <div class="faq-a">You and your team own everything you build. We do not claim any intellectual property rights over your submissions.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Can I submit a project I've already built?</div>
+        <div class="faq-a">No. All projects must be built entirely during the hackathon timeframe to ensure fairness.</div>
+      </div>
+    </div>
+
+  <% } else { %>
+    <div style="text-align: center; padding: 80px 20px;">
+      <h1>Overview Unavailable</h1>
+      <p>There are no active hackathons to display information for at this time.</p>
+      <a href="/" style="color: #1a73e8; font-weight: bold;">Return Home</a>
+    </div>
+  <% } %>
+</div>
+
+<%- include('layouts/footer') %>

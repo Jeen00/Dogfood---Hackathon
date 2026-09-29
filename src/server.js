@@ -77,7 +77,188 @@ app.get('/tos', (req, res) => res.render('tos', { session: req.session }));
 app.get('/privacy', (req, res) => res.render('privacy', { session: req.session }));
 
 // ─── Root redirect ────────────────────────────────────────────────────────────
-app.get('/', (req, res) => res.redirect('/projects'));
+app.get('/', (req, res) => {
+  try {
+    const db = require('./db/db').getDb();
+    
+    // Find the most relevant event (one that is currently open, or the next upcoming one)
+    let event = db.prepare(`
+      SELECT * FROM events 
+      WHERE datetime(submissions_close) > datetime('now')
+      ORDER BY submissions_close ASC
+      LIMIT 1
+    `).get();
+
+    // If no active/upcoming events, just get the most recently created one
+    if (!event) {
+      event = db.prepare(`SELECT * FROM events ORDER BY id DESC LIMIT 1`).get();
+    }
+
+    let tracks = [];
+    let stats = { projects: 0, participants: 0, judges: 0 };
+
+    if (event) {
+      tracks = db.prepare('SELECT * FROM tracks WHERE event_id = ?').all(event.id);
+      
+      stats.projects = db.prepare('SELECT COUNT(*) AS c FROM projects WHERE event_id = ?').get(event.id)?.c || 0;
+      
+      // Participants: count distinct users in teams that have projects in this event, or just count all participants in teams formed for this event
+      // Assuming teams don't have an explicit event_id but projects do, or we just count all users with role 'participant'. Let's do a simple count.
+      stats.participants = db.prepare(`
+        SELECT COUNT(DISTINCT tm.user_id) AS c 
+        FROM team_members tm
+        JOIN teams t ON t.id = tm.team_id
+        JOIN projects p ON p.team_id = t.id
+        WHERE p.event_id = ?
+      `).get(event.id)?.c || 0;
+
+      // Judges assigned to this event's tracks
+      stats.judges = db.prepare(`
+        SELECT COUNT(DISTINCT jt.judge_id) AS c 
+        FROM judge_tracks jt
+        JOIN tracks tr ON tr.id = jt.track_id
+        WHERE tr.event_id = ?
+      `).get(event.id)?.c || 0;
+    }
+
+    res.render('landing', {
+      session: req.session,
+      event,
+      tracks,
+      stats
+    });
+  } catch (err) {
+    console.error('Landing page error:', err);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
+// ─── Hackathon Overview ────────────────────────────────────────────────────────
+app.get('/overview', (req, res) => {
+  try {
+    const db = require('./db/db').getDb();
+    
+    // Get the most relevant event
+    let event = db.prepare(`
+      SELECT * FROM events 
+      WHERE datetime(submissions_close) > datetime('now')
+      ORDER BY submissions_close ASC
+      LIMIT 1
+    `).get();
+
+    if (!event) {
+      event = db.prepare(`SELECT * FROM events ORDER BY id DESC LIMIT 1`).get();
+    }
+
+    let tracks = [];
+    if (event) {
+      tracks = db.prepare('SELECT * FROM tracks WHERE event_id = ?').all(event.id);
+    }
+
+    res.render('overview', {
+      session: req.session,
+      event,
+      tracks,
+      selectedEvent: undefined,
+      selectedJudgeEvent: undefined,
+      selectedParticipantEvent: undefined
+    });
+  } catch (err) {
+    console.error('Overview page error:', err);
+    res.status(500).send('Internal Server Error');
+  }
+});
+
+// ─── Public Results & Leaderboard ─────────────────────────────────────────────
+app.get(['/results', '/leaderboard'], (req, res) => {
+  try {
+    const db = require('./db/db').getDb();
+
+    // Find the most relevant event
+    let event = db.prepare(`
+      SELECT * FROM events 
+      WHERE datetime(submissions_close) <= datetime('now')
+      ORDER BY submissions_close DESC
+      LIMIT 1
+    `).get();
+
+    if (!event) {
+      event = db.prepare(`SELECT * FROM events ORDER BY id DESC LIMIT 1`).get();
+    }
+
+    let leaderboard = [];
+    let communityFavorite = null;
+    let trackWinners = [];
+
+    if (event) {
+      // Query aggregated normalized scores per project
+      const results = db.prepare(`
+        SELECT
+          p.id AS project_id,
+          p.title AS project_title,
+          p.repo_url,
+          p.track_id,
+          t.name AS team_name,
+          tr.name AS track_name,
+          COUNT(ns.judge_id) AS reviews_count,
+          ROUND(AVG(ns.raw_weighted_score), 2) AS avg_raw_score,
+          ROUND(AVG(ns.normalized_score), 3) AS final_normalized_score
+        FROM projects p
+        JOIN teams t ON t.id = p.team_id
+        LEFT JOIN tracks tr ON tr.id = p.track_id
+        LEFT JOIN normalized_scores ns ON ns.project_id = p.id
+        WHERE p.status = 'submitted' AND p.event_id = ?
+        GROUP BY p.id
+        ORDER BY final_normalized_score DESC, avg_raw_score DESC
+      `).all(event.id);
+
+      leaderboard = results.map((item, index) => ({
+        rank: index + 1,
+        ...item
+      }));
+
+      // Community Choice (most voted project in this event)
+      communityFavorite = db.prepare(`
+        SELECT p.id, p.title, t.name AS team_name, COUNT(pv.user_id) AS vote_count
+        FROM projects p
+        JOIN teams t ON t.id = p.team_id
+        LEFT JOIN project_votes pv ON pv.project_id = p.id
+        WHERE p.event_id = ?
+        GROUP BY p.id
+        HAVING vote_count > 0
+        ORDER BY vote_count DESC
+        LIMIT 1
+      `).get(event.id) || null;
+
+      // Track winners: top project in each track
+      const tracks = db.prepare('SELECT id, name FROM tracks WHERE event_id = ?').all(event.id);
+      for (const tr of tracks) {
+        const bestInTrack = leaderboard.find(l => l.track_id === tr.id);
+        if (bestInTrack) {
+          trackWinners.push(bestInTrack);
+        }
+      }
+    }
+
+    if (req.accepts('json') && !req.accepts('html')) {
+      return res.json({ leaderboard, communityFavorite, trackWinners, event });
+    }
+
+    res.render('results', {
+      session: req.session,
+      event,
+      leaderboard,
+      communityFavorite,
+      trackWinners,
+      selectedEvent: undefined,
+      selectedJudgeEvent: undefined,
+      selectedParticipantEvent: undefined
+    });
+  } catch (err) {
+    console.error('Results page error:', err);
+    res.status(500).send('Internal Server Error');
+  }
+});
 
 // ─── 404 handler ─────────────────────────────────────────────────────────────
 app.use((req, res) => {

@@ -36,11 +36,219 @@
   var diffLabel = project.difficulty
     ? (project.difficulty.charAt(0).toUpperCase() + project.difficulty.slice(1))
     : 'Unknown';
-  var techs    = (project.technologies && Array.isArray(project.technologies)) ? project.technologies : [];
-  var tags     = (project.tags && Array.isArray(project.tags)) ? project.tags : [];
-  var skills   = (project.required_skills && Array.isArray(project.required_skills)) ? project.required_skills : [];
-  var trackHue = project.track_id ? ((project.track_id * 47) % 360) : 210;
+  var techs       = (project.technologies && Array.isArray(project.technologies)) ? project.technologies : [];
+  var tags        = (project.tags && Array.isArray(project.tags)) ? project.tags : [];
+  var skills      = (project.required_skills && Array.isArray(project.required_skills)) ? project.required_skills : [];
+  var screenshots = (project.screenshots && Array.isArray(project.screenshots)) ? project.screenshots : [];
+  var trackHue    = project.track_id ? ((project.track_id * 47) % 360) : 210;
 %>
+
+<style>
+  /* ── Extra Detail Styles for Screenshots, Video, Sharing & Safety ── */
+  .detail-actions-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-top: 18px;
+    position: relative;
+  }
+  .btn-share-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #fff;
+    border: 2px solid #1A1A1A;
+    padding: 8px 14px;
+    font-weight: 700;
+    font-size: 0.88rem;
+    cursor: pointer;
+    text-decoration: none;
+    color: #1A1A1A;
+    box-shadow: 2px 2px 0 #1A1A1A;
+    transition: all 0.15s;
+  }
+  .btn-share-trigger:hover {
+    transform: translate(-1px, -1px);
+    box-shadow: 3px 3px 0 #1A1A1A;
+  }
+  .btn-report-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: #fff;
+    border: 1.5px solid #DC2626;
+    color: #DC2626;
+    padding: 8px 12px;
+    font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
+    text-decoration: none;
+    box-shadow: 2px 2px 0 #DC2626;
+    transition: all 0.15s;
+  }
+  .btn-report-trigger:hover {
+    background: #FEF2F2;
+  }
+
+  /* Share Dropdown Menu */
+  .share-dropdown-menu {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 8px;
+    background: #fff;
+    border: 2px solid #1A1A1A;
+    box-shadow: 4px 4px 0 #1A1A1A;
+    padding: 12px;
+    z-index: 100;
+    min-width: 240px;
+  }
+  .share-dropdown-menu.active {
+    display: block;
+  }
+  .share-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    text-decoration: none;
+    color: #1A1A1A;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.1s;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+    box-sizing: border-box;
+  }
+  .share-option:hover {
+    background: #F1F5F9;
+  }
+
+  /* Screenshots Grid */
+  .screenshots-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+    margin-top: 12px;
+  }
+  .screenshot-card {
+    border: 2px solid #1A1A1A;
+    box-shadow: 3px 3px 0 #1A1A1A;
+    overflow: hidden;
+    background: #000;
+    cursor: pointer;
+    aspect-ratio: 16 / 9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .screenshot-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.2s;
+  }
+  .screenshot-card:hover img {
+    transform: scale(1.03);
+  }
+
+  /* Video Embed Container */
+  .video-container {
+    position: relative;
+    padding-bottom: 56.25%;
+    height: 0;
+    overflow: hidden;
+    max-width: 100%;
+    border: 2px solid #1A1A1A;
+    box-shadow: 4px 4px 0 #1A1A1A;
+    background: #000;
+    margin-top: 12px;
+  }
+  .video-container iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Threaded Comments & Replies */
+  .comment-replies-list {
+    margin-left: 28px;
+    padding-left: 14px;
+    border-left: 2px dashed #CBD5E1;
+    margin-top: 12px;
+  }
+  .reply-card {
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    padding: 10px 14px;
+    margin-bottom: 8px;
+  }
+  .reply-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    margin-bottom: 4px;
+  }
+  .btn-reply-toggle {
+    background: none;
+    border: none;
+    color: #1A73E8;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0;
+    margin-top: 6px;
+    text-decoration: underline;
+  }
+  .reply-form-wrap {
+    display: none;
+    margin-top: 10px;
+    background: #F1F5F9;
+    padding: 10px;
+    border: 1px solid #CBD5E1;
+  }
+  .reply-form-wrap.active {
+    display: block;
+  }
+
+  /* Modal Generic */
+  .modal-backdrop {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-backdrop.active {
+    display: flex;
+  }
+  .modal-box {
+    background: #fff;
+    border: 3px solid #1A1A1A;
+    box-shadow: 6px 6px 0 #1A1A1A;
+    max-width: 450px;
+    width: 90%;
+    padding: 24px;
+    position: relative;
+  }
+  .modal-close-btn {
+    position: absolute;
+    top: 14px; right: 14px;
+    background: none; border: none;
+    font-size: 1.25rem; font-weight: bold;
+    cursor: pointer;
+  }
+</style>
 
 <!-- Breadcrumb -->
 <nav class="breadcrumb" aria-label="Breadcrumb">
@@ -59,7 +267,6 @@
 
 <!-- ── Project Header ─────────────────────────────────────────────── -->
 <div class="detail-header">
-  <!-- Track colour strip -->
   <div class="detail-track-banner" style="background:hsl(<%= trackHue %>,55%,50%)"></div>
 
   <div class="detail-header-body">
@@ -85,11 +292,11 @@
       <span class="stats-sep">·</span>
       <span title="Saves">🔖 <strong id="detail-save-count"><%= project.save_count || 0 %></strong> Saves</span>
       <span class="stats-sep">·</span>
-      <span title="Comments">💬 <strong><%= (comments && comments.length) || 0 %></strong> Comments</span>
+      <span title="Comments">💬 <strong><%= (comments && comments.length) || 0 %></strong> Discussions</span>
     </div>
 
-    <!-- Action buttons -->
-    <div class="detail-actions">
+    <!-- Action buttons (Vote, Save, Links, Sharing, Safety Report) -->
+    <div class="detail-actions-wrap">
       <button
         id="detailVoteBtn"
         class="btn-vote-detail <%= project.user_voted ? 'active' : '' %>"
@@ -113,11 +320,44 @@
       <% if (project.repo_url) { %>
       <a href="<%= project.repo_url %>" target="_blank" rel="noopener" class="btn-action-outline btn-github">⬛ GitHub</a>
       <% } %>
+
+      <!-- 🔗 SHARING: Share Dropdown -->
+      <div style="position: relative; display: inline-block;">
+        <button id="shareTriggerBtn" class="btn-share-trigger" type="button">
+          🔗 Share ▾
+        </button>
+        <div id="shareDropdown" class="share-dropdown-menu">
+          <button type="button" class="share-option" onclick="copyProjectLink()">
+            📋 Copy Link
+          </button>
+          <button type="button" class="share-option" onclick="openQrModal()">
+            📱 QR Code
+          </button>
+          <hr style="border: none; border-top: 1px solid #E2E8F0; margin: 4px 0;">
+          <a class="share-option" href="https://twitter.com/intent/tweet?text=Check%20out%20<%= encodeURIComponent(project.title) %>%20on%20Dogfood%20Hackathon!&url=<%= encodeURIComponent('http://localhost:8080/projects/' + project.id) %>" target="_blank" rel="noopener">
+            🐦 Share on X (Twitter)
+          </a>
+          <a class="share-option" href="https://www.linkedin.com/sharing/share-offsite/?url=<%= encodeURIComponent('http://localhost:8080/projects/' + project.id) %>" target="_blank" rel="noopener">
+            💼 Share on LinkedIn
+          </a>
+          <a class="share-option" href="https://api.whatsapp.com/send?text=<%= encodeURIComponent('Check out ' + project.title + ': http://localhost:8080/projects/' + project.id) %>" target="_blank" rel="noopener">
+            💬 Share on WhatsApp
+          </a>
+          <a class="share-option" href="https://www.facebook.com/sharer/sharer.php?u=<%= encodeURIComponent('http://localhost:8080/projects/' + project.id) %>" target="_blank" rel="noopener">
+            📘 Share on Facebook
+          </a>
+        </div>
+      </div>
+
+      <!-- 🛡️ COMMUNITY / SAFETY: Report Project -->
+      <button class="btn-report-trigger" onclick="openReportModal(null)" type="button">
+        🚩 Report
+      </button>
     </div>
 
     <!-- Open source indicator -->
     <% if (project.open_source) { %>
-    <div class="detail-opensource">
+    <div class="detail-opensource" style="margin-top: 14px;">
       🔓 <strong>Open Source</strong><% if (project.license) { %> · License: <code><%= project.license %></code><% } %>
     </div>
     <% } %>
@@ -128,11 +368,19 @@
 <div class="detail-layout">
   <div class="detail-content">
 
+    <!-- Description -->
+    <% if (project.summary) { %>
+    <section class="detail-section">
+      <h2>Description</h2>
+      <p style="font-size: 1.05rem; line-height: 1.6; color: #333;"><%= project.summary %></p>
+    </section>
+    <% } %>
+
     <!-- Problem Statement -->
     <% if (project.problem_statement) { %>
     <section class="detail-section">
-      <h2>Problem Statement</h2>
-      <p><%= project.problem_statement %></p>
+      <h2>Problem</h2>
+      <p style="font-size: 1rem; line-height: 1.6;"><%= project.problem_statement %></p>
     </section>
     <% } %>
 
@@ -140,26 +388,16 @@
     <% if (project.solution) { %>
     <section class="detail-section">
       <h2>Solution</h2>
-      <p><%= project.solution %></p>
+      <p style="font-size: 1rem; line-height: 1.6;"><%= project.solution %></p>
     </section>
     <% } %>
 
     <!-- Technologies -->
     <% if (techs.length > 0) { %>
     <section class="detail-section">
-      <h2>Tech Stack</h2>
+      <h2>Technologies</h2>
       <div class="badge-group">
         <% techs.forEach(function(t) { %><span class="badge badge-tech"><%= t %></span><% }) %>
-      </div>
-    </section>
-    <% } %>
-
-    <!-- Required Skills -->
-    <% if (skills.length > 0) { %>
-    <section class="detail-section">
-      <h2>Required Skills</h2>
-      <div class="badge-group">
-        <% skills.forEach(function(s) { %><span class="badge badge-skill"><%= s %></span><% }) %>
       </div>
     </section>
     <% } %>
@@ -174,21 +412,43 @@
     </section>
     <% } %>
 
-    <!-- Live Demo -->
-    <% if (project.live_demo_url) { %>
+    <!-- Screenshots -->
+    <% if (screenshots.length > 0) { %>
     <section class="detail-section">
-      <h2>Live Demo</h2>
-      <div class="repo-block">
-        <a href="<%= project.live_demo_url %>" target="_blank" rel="noopener" class="repo-link">🔗 <%= project.live_demo_url %></a>
+      <h2>Screenshots</h2>
+      <div class="screenshots-grid">
+        <% screenshots.forEach(function(shot, idx) { %>
+        <div class="screenshot-card" onclick="window.open('<%= shot %>', '_blank')">
+          <img src="<%= shot %>" alt="Screenshot <%= idx + 1 %>" loading="lazy">
+        </div>
+        <% }); %>
       </div>
     </section>
     <% } %>
 
-    <!-- Repository -->
+    <!-- Demo Video -->
+    <% if (project.demo_video_url) { %>
+    <section class="detail-section">
+      <h2>Demo Video</h2>
+      <%
+        var ytMatch = project.demo_video_url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
+        if (ytMatch && ytMatch[1]) {
+      %>
+      <div class="video-container">
+        <iframe src="https://www.youtube.com/embed/<%= ytMatch[1] %>" frameborder="0" allowfullscreen></iframe>
+      </div>
+      <% } else { %>
+      <div class="repo-block">
+        <a href="<%= project.demo_video_url %>" target="_blank" rel="noopener" class="repo-link">🎥 Watch Demo Video (<%= project.demo_video_url %>)</a>
+      </div>
+      <% } %>
+    </section>
+    <% } %>
+
+    <!-- GitHub -->
     <% if (project.repo_url) { %>
     <section class="detail-section">
       <h2>GitHub</h2>
-
       <div class="repo-block">
         <a href="<%= project.repo_url %>" target="_blank" rel="noopener" class="repo-link">⬛ <%= project.repo_url %></a>
         <% if (project.open_source) { %>
@@ -199,19 +459,67 @@
     </section>
     <% } %>
 
-    <!-- Discussions / Comments -->
+    <!-- Live Demo -->
+    <% if (project.live_demo_url) { %>
+    <section class="detail-section">
+      <h2>Live Demo</h2>
+      <div class="repo-block">
+        <a href="<%= project.live_demo_url %>" target="_blank" rel="noopener" class="repo-link">🔗 <%= project.live_demo_url %></a>
+      </div>
+    </section>
+    <% } %>
+
+    <!-- ❤️ COMMUNITY: Discussions, Comments & Threaded Replies -->
     <section class="detail-section" id="comments">
       <h2>Discussions (<%= (comments && comments.length) || 0 %>)</h2>
 
       <% if (comments && comments.length > 0) { %>
       <div class="comments-list" id="commentsList">
         <% comments.forEach(function(c) { %>
-        <div class="comment-card">
+        <div class="comment-card" id="comment-<%= c.id %>">
           <div class="comment-meta">
             <strong class="comment-author"><%= c.author_name || 'Anonymous' %></strong>
-            <span class="comment-date"><%= new Date(c.created_at).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' }) %></span>
+            <div>
+              <span class="comment-date"><%= new Date(c.created_at).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' }) %></span>
+              <button type="button" onclick="openReportModal('<%= c.id %>')" style="background:none; border:none; color:#DC2626; cursor:pointer; font-size:0.75rem; margin-left:8px;">🚩 Report</button>
+            </div>
           </div>
           <p class="comment-content"><%= c.content %></p>
+
+          <% if (userLoggedIn) { %>
+          <button type="button" class="btn-reply-toggle" onclick="toggleReplyBox('<%= c.id %>')">💬 Reply</button>
+          
+          <div id="replyBox-<%= c.id %>" class="reply-form-wrap">
+            <form onsubmit="submitReply(event, '<%= c.id %>')">
+              <input type="text" id="replyInput-<%= c.id %>" placeholder="Write a reply…" required style="width: 100%; box-sizing: border-box; padding: 6px 10px; margin-bottom: 6px; border: 1px solid #94A3B8;">
+              <div style="display:flex; justify-content:flex-end; gap:6px;">
+                <button type="button" onclick="toggleReplyBox('<%= c.id %>')" style="background:#E2E8F0; border:none; padding:4px 8px; font-size:0.75rem; cursor:pointer;">Cancel</button>
+                <button type="submit" style="background:#1A1A1A; color:#fff; border:none; padding:4px 10px; font-size:0.75rem; font-weight:bold; cursor:pointer;">Post Reply</button>
+              </div>
+            </form>
+          </div>
+          <% } %>
+
+          <!-- Threaded Replies -->
+          <% if (c.replies && c.replies.length > 0) { %>
+          <div class="comment-replies-list" id="replies-<%= c.id %>">
+            <% c.replies.forEach(function(rep) { %>
+            <div class="reply-card">
+              <div class="reply-meta">
+                <strong><%= rep.author_name || 'Anonymous' %></strong>
+                <div>
+                  <span><%= new Date(rep.created_at).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' }) %></span>
+                  <button type="button" onclick="openReportModal('<%= rep.id %>')" style="background:none; border:none; color:#DC2626; cursor:pointer; font-size:0.7rem; margin-left:6px;">🚩</button>
+                </div>
+              </div>
+              <p style="margin: 0; font-size: 0.9rem;"><%= rep.content %></p>
+            </div>
+            <% }); %>
+          </div>
+          <% } else { %>
+          <div class="comment-replies-list" id="replies-<%= c.id %>" style="display:none;"></div>
+          <% } %>
+
         </div>
         <% }) %>
       </div>
@@ -221,7 +529,7 @@
 
       <!-- Add comment -->
       <% if (userLoggedIn) { %>
-      <div class="comment-form-wrap">
+      <div class="comment-form-wrap" style="margin-top: 24px;">
         <h3>Add a Comment</h3>
         <form id="commentForm" class="comment-form">
           <textarea
@@ -231,13 +539,13 @@
             placeholder="Share your thoughts, feedback, or questions…"
             required
           ></textarea>
-          <div id="commentError" class="comment-error" aria-live="polite"></div>
+          <div id="commentError" class="comment-error" aria-live="polite" style="color: #DC2626; font-size: 0.85rem; margin-top: 4px;"></div>
           <button type="submit" class="btn-comment-submit">Post Comment</button>
         </form>
       </div>
       <% } else { %>
-      <div class="comment-login-prompt">
-        <a href="/login">Login</a> to join the discussion.
+      <div class="comment-login-prompt" style="margin-top: 24px;">
+        <a href="/login" style="font-weight: bold; color: #1A73E8;">Login</a> to join the discussion.
       </div>
       <% } %>
     </section>
@@ -266,7 +574,6 @@
       }
     %>
     <div style="background:<%= panelBg %>; border:2px solid <%= panelBorder %>; padding:18px 18px 16px; margin-bottom:20px;">
-      <!-- Header -->
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:8px;">
         <div style="font-size:0.75rem; font-weight:bold; text-transform:uppercase; letter-spacing:0.06em; color:<%= panelAccent %>;">
           ⚖️ Judge Panel
@@ -282,7 +589,6 @@
           <span style="font-size:0.75rem; color:#666;">Reason: <%= judgeAssignment.conflict_reason || 'None provided' %></span>
         </div>
       <% } else { %>
-        <!-- Existing Score Summary -->
         <% if (hasScore) { %>
           <div style="margin-bottom:14px;">
             <div style="font-size:0.8rem; font-weight:bold; color:#555; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.04em;">Your Score</div>
@@ -320,13 +626,11 @@
           </div>
         <% } %>
 
-        <!-- Action Button -->
         <a href="/judge/score/<%= project.id %>"
           style="display:block; text-align:center; background:<%= panelAccent %>; color:#fff; font-weight:bold; font-size:0.92rem; padding:11px 16px; text-decoration:none; border:2px solid <%= panelBorder %>; margin-bottom:12px;">
           <%= hasScore ? '✏️ Edit Score' : '⚖️ Score This Project' %>
         </a>
 
-        <!-- Private Notes -->
         <div style="margin-bottom:12px;">
           <label style="display:block; font-size:0.75rem; font-weight:bold; color:#555; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.04em;">📝 Private Notes</label>
           <textarea id="judgeNotes" rows="2" placeholder="Jot down notes while reviewing..."
@@ -336,7 +640,6 @@
         </div>
 
         <% if (hasScore) { %>
-        <!-- Flag for re-evaluation -->
         <% if (aStatus !== 'needs_review') { %>
         <button onclick="flagProjectReview('<%= project.id %>', this)"
           style="display:block; width:100%; text-align:center; background:#fff7ed; color:#c2410c; border:1.5px solid #fed7aa; font-size:0.82rem; font-weight:bold; padding:7px 12px; cursor:pointer; margin-top:8px;">
@@ -349,7 +652,6 @@
         <% } %>
         <% } %>
 
-        <!-- Declare Conflict -->
         <button onclick="declareConflict('<%= project.id %>', this)"
           style="display:block; width:100%; text-align:center; background:none; color:#ef4444; border:none; font-size:0.75rem; text-decoration:underline; cursor:pointer; margin-top:12px;">
           Declare Conflict of Interest
@@ -366,6 +668,7 @@
         <tbody>
           <tr><th>Track</th><td><%= project.track_name || '—' %></td></tr>
           <tr><th>Difficulty</th><td><span class="badge <%= diffClass %>"><%= diffLabel %></span></td></tr>
+          <tr><th>Team Name</th><td><strong><%= project.team_name || '—' %></strong></td></tr>
           <tr><th>Team Size</th><td><%= (members && members.length) ? members.length + ' member' + (members.length !== 1 ? 's' : '') : '—' %></td></tr>
           <tr><th>Status</th><td><span class="badge <%= statusClass %>"><%= statusLabel %></span></td></tr>
           <% if (project.build_time) { %><tr><th>Build Time</th><td><%= project.build_time %></td></tr><% } %>
@@ -377,18 +680,26 @@
       </table>
     </div>
 
-    <!-- Team Members -->
+    <!-- 👥 TEAM: Team Name, Members, Roles, Team Size -->
     <% if (members && members.length > 0) { %>
     <div class="detail-info-card">
-      <div class="detail-info-title">Team Members</div>
+      <div class="detail-info-title">Team Members (👥 Team: <%= project.team_name %>)</div>
+      <div style="font-size:0.8rem; color:#666; margin-bottom:12px; font-weight:600;">
+        Team Size: <%= members.length %> member<%= members.length !== 1 ? 's' : '' %>
+      </div>
       <ul class="team-list">
         <% members.forEach(function(m) { %>
-        <li class="team-member">
-          <span class="team-avatar"><%= (m.name || 'U').charAt(0).toUpperCase() %></span>
-          <div class="team-member-info">
-            <strong><%= m.name %></strong>
-            <% if (m.email) { %><span class="team-email"><%= m.email %></span><% } %>
+        <li class="team-member" style="display:flex; justify-content:space-between; align-items:center; padding: 8px 0; border-bottom: 1px solid #F1F5F9;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="team-avatar"><%= (m.name || 'U').charAt(0).toUpperCase() %></span>
+            <div class="team-member-info">
+              <strong><%= m.name %></strong>
+              <% if (m.email) { %><span class="team-email" style="display:block; font-size:0.75rem; color:#666;"><%= m.email %></span><% } %>
+            </div>
           </div>
+          <span class="badge" style="background:#E0F2FE; color:#0369A1; font-size:0.75rem; font-weight:700;">
+            <%= m.role %>
+          </span>
         </li>
         <% }) %>
       </ul>
@@ -396,8 +707,6 @@
     <% } %>
   </aside>
 </div><!-- /.detail-layout -->
-
-
 
 <!-- ── Similar Projects ───────────────────────────────────────────── -->
 <% if (similar && similar.length > 0) { %>
@@ -431,6 +740,54 @@
 </section>
 <% } %>
 
+<!-- ── 🔗 SHARING: QR Code Modal ──────────────────────────────────── -->
+<div id="qrModal" class="modal-backdrop">
+  <div class="modal-box" style="text-align: center;">
+    <button class="modal-close-btn" onclick="closeQrModal()">&times;</button>
+    <h3 style="margin: 0 0 8px 0;">📱 Scan to View Project</h3>
+    <p style="font-size: 0.88rem; color: #666; margin-bottom: 16px;">Scan this QR code with your mobile camera to view on your phone</p>
+    <div style="background: #fff; padding: 12px; display: inline-block; border: 2px solid #1A1A1A;">
+      <img id="qrImage" src="" alt="QR Code" width="220" height="220" style="display:block;">
+    </div>
+    <div style="margin-top: 14px;">
+      <button type="button" onclick="copyProjectLink()" style="background: #1A1A1A; color:#fff; border:none; padding:8px 16px; font-weight:bold; cursor:pointer;">
+        📋 Copy Direct Link
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── 🛡️ COMMUNITY / SAFETY: Report Modal ────────────────────────── -->
+<div id="reportModal" class="modal-backdrop">
+  <div class="modal-box">
+    <button class="modal-close-btn" onclick="closeReportModal()">&times;</button>
+    <h3 style="margin: 0 0 6px 0; color: #DC2626;">🚩 Report Project / Content</h3>
+    <p style="font-size: 0.85rem; color: #666; margin-bottom: 16px;">Help keep our community safe. Please tell us why you are reporting this content.</p>
+    <form id="reportForm" onsubmit="submitReport(event)">
+      <input type="hidden" id="reportCommentId" value="">
+      <div style="margin-bottom: 12px;">
+        <label style="display:block; font-size:0.85rem; font-weight:bold; margin-bottom:4px;">Reason for Report *</label>
+        <select id="reportReason" required style="width:100%; padding:8px; border:2px solid #1A1A1A;">
+          <option value="">Select a reason</option>
+          <option value="Spam or Advertising">Spam or Advertising</option>
+          <option value="Inappropriate Content">Inappropriate Content</option>
+          <option value="Plagiarism / Intellectual Property">Plagiarism / Intellectual Property</option>
+          <option value="Harassment or Abusive Behavior">Harassment or Abusive Behavior</option>
+          <option value="Other Policy Violation">Other Policy Violation</option>
+        </select>
+      </div>
+      <div style="margin-bottom: 16px;">
+        <label style="display:block; font-size:0.85rem; font-weight:bold; margin-bottom:4px;">Additional Details (Optional)</label>
+        <textarea id="reportDetails" rows="3" placeholder="Provide any extra context..." style="width:100%; box-sizing:border-box; padding:8px; border:1px solid #ccc;"></textarea>
+      </div>
+      <div style="display:flex; justify-content:flex-end; gap:8px;">
+        <button type="button" onclick="closeReportModal()" style="background:#E2E8F0; border:none; padding:8px 14px; font-weight:bold; cursor:pointer;">Cancel</button>
+        <button type="submit" id="reportSubmitBtn" style="background:#DC2626; color:#fff; border:none; padding:8px 18px; font-weight:bold; cursor:pointer;">Submit Report</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- ── Tooltip ────────────────────────────────────────────────────── -->
 <div class="vote-tooltip" id="voteTooltip" role="alert" aria-live="polite"></div>
 
@@ -446,10 +803,10 @@
     tooltip.style.top   = (y - 44) + 'px';
     tooltip.classList.add('visible');
     clearTimeout(tooltip._t);
-    tooltip._t = setTimeout(function () { tooltip.classList.remove('visible'); }, 2200);
+    tooltip._t = setTimeout(function () { tooltip.classList.remove('visible'); }, 2500);
   }
 
-  /* ── Vote button ── */
+  /* ── Vote button with Safety & Self-Vote / Duplicate Protection ── */
   var voteBtn   = document.getElementById('detailVoteBtn');
   var voteCount = document.getElementById('detail-vote-count');
   var voteLabel = document.getElementById('detail-vote-label');
@@ -458,15 +815,31 @@
       e.preventDefault();
       var rect = voteBtn.getBoundingClientRect();
       if (!loggedIn) { showTooltip('Login to vote', rect.left + window.scrollX, rect.top + window.scrollY); return; }
-      fetch('/api/projects/' + PROJECT_ID + '/vote', {
+      
+      voteBtn.disabled = true;
+      fetch('/projects/' + PROJECT_ID + '/vote', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
         credentials: 'same-origin'
-      }).then(function(r) { return r.json(); }).then(function(data) {
-        voteBtn.classList.toggle('active', !!data.active);
-        if (voteCount) voteCount.textContent = data.count;
-        if (voteLabel) voteLabel.textContent  = data.active ? 'Voted' : 'Vote';
-      }).catch(function () { showTooltip('Something went wrong.', rect.left + window.scrollX, rect.top + window.scrollY); });
+      }).then(function(r) {
+        return r.json().then(function(d) { return { status: r.status, data: d }; });
+      }).then(function(res) {
+        voteBtn.disabled = false;
+        if (res.status === 403 || res.status === 429) {
+          showTooltip(res.data.error || 'Vote failed.', rect.left + window.scrollX, rect.top + window.scrollY);
+          return;
+        }
+        if (res.data.error) {
+          showTooltip(res.data.error, rect.left + window.scrollX, rect.top + window.scrollY);
+          return;
+        }
+        voteBtn.classList.toggle('active', !!res.data.voted);
+        if (voteCount) voteCount.textContent = res.data.count;
+        if (voteLabel) voteLabel.textContent = res.data.voted ? 'Voted' : 'Vote';
+      }).catch(function () {
+        voteBtn.disabled = false;
+        showTooltip('Something went wrong.', rect.left + window.scrollX, rect.top + window.scrollY);
+      });
     });
   }
 
@@ -479,19 +852,19 @@
       e.preventDefault();
       var rect = saveBtn.getBoundingClientRect();
       if (!loggedIn) { showTooltip('Login to save', rect.left + window.scrollX, rect.top + window.scrollY); return; }
-      fetch('/api/projects/' + PROJECT_ID + '/save', {
+      fetch('/projects/' + PROJECT_ID + '/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
         credentials: 'same-origin'
       }).then(function(r) { return r.json(); }).then(function(data) {
-        saveBtn.classList.toggle('active', !!data.active);
+        saveBtn.classList.toggle('active', !!data.saved);
         if (saveCount) saveCount.textContent = data.count;
-        if (saveLabel) saveLabel.textContent  = data.active ? 'Saved' : 'Save';
+        if (saveLabel) saveLabel.textContent  = data.saved ? 'Saved' : 'Save';
       }).catch(function () { showTooltip('Something went wrong.', rect.left + window.scrollX, rect.top + window.scrollY); });
     });
   }
 
-  /* ── Comment form ── */
+  /* ── Comment form with Safety & Spam Protection ── */
   var commentForm = document.getElementById('commentForm');
   var commentText = document.getElementById('commentText');
   var commentList = document.getElementById('commentsList');
@@ -507,18 +880,21 @@
       submitBtn.disabled = true;
       submitBtn.textContent = 'Posting…';
 
-      fetch('/api/projects/' + PROJECT_ID + '/comment', {
+      fetch('/projects/' + PROJECT_ID + '/comment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
         credentials: 'same-origin',
         body: JSON.stringify({ content: content })
       })
       .then(function (r) {
-        if (!r.ok) throw new Error('Failed');
-        return r.json();
+        return r.json().then(function(d) { return { ok: r.ok, data: d }; });
       })
-      .then(function (data) {
-        /* Append the new comment */
+      .then(function (res) {
+        if (!res.ok) {
+          commentErr.textContent = res.data.error || 'Failed to post comment.';
+          return;
+        }
+        var data = res.data;
         if (!commentList) {
           var emptyMsg = document.querySelector('.comments-empty');
           if (emptyMsg) emptyMsg.remove();
@@ -530,17 +906,31 @@
         }
         var card = document.createElement('div');
         card.className = 'comment-card comment-card-new';
-        var author = data.author_name || '<%= userLoggedIn && session ? session.name || "You" : "You" %>';
+        card.id = 'comment-' + data.id;
+        var author = data.author || '<%= userLoggedIn && session ? session.name || "You" : "You" %>';
         card.innerHTML =
           '<div class="comment-meta">' +
             '<strong class="comment-author">' + author + '</strong>' +
-            '<span class="comment-date">Just now</span>' +
+            '<div>' +
+              '<span class="comment-date">Just now</span>' +
+              '<button type="button" onclick="openReportModal(\'' + data.id + '\')" style="background:none; border:none; color:#DC2626; cursor:pointer; font-size:0.75rem; margin-left:8px;">🚩 Report</button>' +
+            '</div>' +
           '</div>' +
-          '<p class="comment-content">' + content.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</p>';
-        commentList.appendChild(card);
+          '<p class="comment-content">' + content.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</p>' +
+          '<button type="button" class="btn-reply-toggle" onclick="toggleReplyBox(\'' + data.id + '\')">💬 Reply</button>' +
+          '<div id="replyBox-' + data.id + '" class="reply-form-wrap">' +
+            '<form onsubmit="submitReply(event, \'' + data.id + '\')">' +
+              '<input type="text" id="replyInput-' + data.id + '" placeholder="Write a reply…" required style="width: 100%; box-sizing: border-box; padding: 6px 10px; margin-bottom: 6px; border: 1px solid #94A3B8;">' +
+              '<div style="display:flex; justify-content:flex-end; gap:6px;">' +
+                '<button type="button" onclick="toggleReplyBox(\'' + data.id + '\')" style="background:#E2E8F0; border:none; padding:4px 8px; font-size:0.75rem; cursor:pointer;">Cancel</button>' +
+                '<button type="submit" style="background:#1A1A1A; color:#fff; border:none; padding:4px 10px; font-size:0.75rem; font-weight:bold; cursor:pointer;">Post Reply</button>' +
+              '</div>' +
+            '</form>' +
+          '</div>' +
+          '<div class="comment-replies-list" id="replies-' + data.id + '" style="display:none;"></div>';
+        commentList.insertBefore(card, commentList.firstChild);
         commentText.value = '';
 
-        /* Update comment count in stats */
         var statsComment = document.querySelector('.detail-stats span[title="Comments"] strong');
         if (statsComment) statsComment.textContent = parseInt(statsComment.textContent || '0') + 1;
       })
@@ -553,7 +943,135 @@
       });
     });
   }
+
+  /* ── Share dropdown toggle ── */
+  var shareBtn = document.getElementById('shareTriggerBtn');
+  var shareDropdown = document.getElementById('shareDropdown');
+  if (shareBtn && shareDropdown) {
+    shareBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      shareDropdown.classList.toggle('active');
+    });
+    document.addEventListener('click', function() {
+      shareDropdown.classList.remove('active');
+    });
+  }
 })();
+
+/* ── 🔗 SHARING Functions: Copy Link & QR Code ── */
+window.copyProjectLink = function() {
+  var url = window.location.href;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(url).then(function() {
+      alert('📋 Link copied to clipboard!\n' + url);
+    }).catch(function() {
+      prompt('Copy this link:', url);
+    });
+  } else {
+    prompt('Copy this link:', url);
+  }
+};
+
+window.openQrModal = function() {
+  var url = window.location.href;
+  var qrImg = document.getElementById('qrImage');
+  qrImg.src = 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(url);
+  document.getElementById('qrModal').classList.add('active');
+};
+
+window.closeQrModal = function() {
+  document.getElementById('qrModal').classList.remove('active');
+};
+
+/* ── ❤️ COMMUNITY: Reply Functionality ── */
+window.toggleReplyBox = function(commentId) {
+  var box = document.getElementById('replyBox-' + commentId);
+  if (box) box.classList.toggle('active');
+};
+
+window.submitReply = function(e, parentId) {
+  e.preventDefault();
+  var input = document.getElementById('replyInput-' + parentId);
+  var content = input.value.trim();
+  if (!content) return;
+
+  var projectId = '<%= project.id %>';
+  fetch('/projects/' + projectId + '/comment', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content: content, parent_id: parentId })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    if (d.error) {
+      alert(d.error);
+      return;
+    }
+    var repliesList = document.getElementById('replies-' + parentId);
+    if (repliesList) {
+      repliesList.style.display = 'block';
+      var repDiv = document.createElement('div');
+      repDiv.className = 'reply-card';
+      repDiv.innerHTML =
+        '<div class="reply-meta">' +
+          '<strong>' + (d.author || 'You') + '</strong>' +
+          '<div><span>Just now</span></div>' +
+        '</div>' +
+        '<p style="margin: 0; font-size: 0.9rem;">' + content.replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</p>';
+      repliesList.appendChild(repDiv);
+    }
+    input.value = '';
+    window.toggleReplyBox(parentId);
+  })
+  .catch(function() {
+    alert('Failed to post reply.');
+  });
+};
+
+/* ── 🛡️ COMMUNITY / SAFETY: Report Modal & Submission ── */
+window.openReportModal = function(commentId) {
+  document.getElementById('reportCommentId').value = commentId || '';
+  document.getElementById('reportReason').value = '';
+  document.getElementById('reportDetails').value = '';
+  document.getElementById('reportModal').classList.add('active');
+};
+
+window.closeReportModal = function() {
+  document.getElementById('reportModal').classList.remove('active');
+};
+
+window.submitReport = function(e) {
+  e.preventDefault();
+  var reason = document.getElementById('reportReason').value;
+  var details = document.getElementById('reportDetails').value;
+  var commentId = document.getElementById('reportCommentId').value;
+  var btn = document.getElementById('reportSubmitBtn');
+
+  btn.disabled = true;
+  btn.textContent = 'Submitting…';
+
+  fetch('/projects/<%= project.id %>/report', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason: reason, details: details, comment_id: commentId })
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(d) {
+    btn.disabled = false;
+    btn.textContent = 'Submit Report';
+    if (d.error) {
+      alert(d.error);
+    } else {
+      alert(d.message || 'Report submitted successfully.');
+      closeReportModal();
+    }
+  })
+  .catch(function() {
+    btn.disabled = false;
+    btn.textContent = 'Submit Report';
+    alert('Failed to submit report. Please try again.');
+  });
+};
 
 /* ── Judge Panel: Flag for Re-evaluation ── */
 window.flagProjectReview = function(projectId, btn) {
@@ -566,16 +1084,15 @@ window.flagProjectReview = function(projectId, btn) {
       if (d.error) {
         btn.disabled = false;
         btn.textContent = '🔄 Flag for Re-evaluation';
-        if (window.showToast) window.showToast(d.error, 'error');
+        alert(d.error);
         return;
       }
-      if (window.showToast) window.showToast('Flagged for re-evaluation.', 'info');
       btn.parentElement.innerHTML = '<div style="text-align:center;font-size:0.8rem;color:#c2410c;font-weight:bold;">🔄 Flagged for Re-evaluation</div>';
     })
     .catch(function() {
       btn.disabled = false;
       btn.textContent = '🔄 Flag for Re-evaluation';
-      if (window.showToast) window.showToast('Network error. Try again.', 'error');
+      alert('Network error. Try again.');
     });
 };
 
@@ -608,7 +1125,7 @@ window.saveJudgeNotes = function(projectId, notes) {
 /* ── Judge Panel: Declare Conflict ── */
 window.declareConflict = function(projectId, btn) {
   var reason = prompt('Please briefly describe the conflict of interest:');
-  if (reason === null) return; // cancelled
+  if (reason === null) return;
   if (!reason.trim()) {
     alert('A reason is required to declare a conflict.');
     return;

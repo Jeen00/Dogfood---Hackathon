@@ -67,38 +67,27 @@
         <% }) %>
       </div>
 
-      <!-- Status -->
+      <!-- Technology -->
       <div class="filter-section">
-        <div class="filter-label">Status</div>
-        <%
-          var statusOptions = [
-            { val: '', label: 'All' },
-            { val: 'submitted', label: 'Submitted' },
-            { val: 'in_development', label: 'In Development' },
-            { val: 'completed', label: 'Completed' },
-            { val: 'live', label: 'Live' },
-            { val: 'open_for_contributors', label: 'Open for Contributors' }
-          ];
-        %>
-        <% statusOptions.forEach(function(s) { %>
-        <label class="filter-radio">
-          <input type="radio" name="status" value="<%= s.val %>" <%= (status === s.val) ? 'checked' : '' %>> <%= s.label %>
-        </label>
-        <% }) %>
+        <div class="filter-label">Technology</div>
+        <input type="text" name="tech" value="<%= tech || '' %>" placeholder="e.g. React, Node..." style="width:100%; padding:8px; border:2px solid #1a1a1a; box-sizing:border-box; margin-bottom:8px;">
       </div>
 
-      <!-- Checkboxes -->
+      <!-- Tags -->
       <div class="filter-section">
-        <div class="filter-label">More Filters</div>
-        <label class="filter-checkbox">
-          <input type="checkbox" name="open_source" value="1" <%= (open_source) ? 'checked' : '' %>> Open Source Only
+        <div class="filter-label">Tags</div>
+        <input type="text" name="tag" value="<%= tag || '' %>" placeholder="e.g. Healthcare, AI..." style="width:100%; padding:8px; border:2px solid #1a1a1a; box-sizing:border-box; margin-bottom:8px;">
+      </div>
+
+      <!-- Team Size -->
+      <div class="filter-section">
+        <div class="filter-label">Team Size</div>
+        <% [ {val:'', label:'Any Size'}, {val:'1', label:'Solo (1)'}, {val:'2', label:'Duo (2)'}, {val:'3', label:'Trio (3)'}, {val:'4', label:'Squad (4+)'} ].forEach(function(ts) { %>
+        <label class="filter-radio">
+          <input type="radio" name="team_size" value="<%= ts.val %>" <%= (team_size == ts.val) ? 'checked' : '' %>>
+          <%= ts.label %>
         </label>
-        <label class="filter-checkbox">
-          <input type="checkbox" name="has_demo" value="1" <%= (has_demo) ? 'checked' : '' %>> Has Live Demo
-        </label>
-        <label class="filter-checkbox">
-          <input type="checkbox" name="contributors" value="1" <%= (contributors) ? 'checked' : '' %>> Looking for Contributors
-        </label>
+        <% }) %>
       </div>
 
       <a href="/projects" class="filter-clear-btn">Clear All Filters</a>
@@ -115,19 +104,16 @@
         <label for="sortSelect" class="sort-label">Sort by:</label>
         <select name="sort" id="sortSelect" class="sort-select">
           <% var currentSort = (typeof sort !== 'undefined' && sort) ? sort : 'newest'; %>
-          <option value="newest"   <%= currentSort === 'newest'   ? 'selected' : '' %>>Newest</option>
-          <option value="updated"  <%= currentSort === 'updated'  ? 'selected' : '' %>>Recently Updated</option>
-          <option value="views"    <%= currentSort === 'views'    ? 'selected' : '' %>>Most Viewed</option>
-          <option value="votes"    <%= currentSort === 'votes'    ? 'selected' : '' %>>Most Voted</option>
-          <option value="saves"    <%= currentSort === 'saves'    ? 'selected' : '' %>>Most Saved</option>
-          <option value="trending" <%= currentSort === 'trending' ? 'selected' : '' %>>Trending</option>
+          <option value="newest" <%= currentSort === 'newest' ? 'selected' : '' %>>Newest</option>
+          <option value="views"  <%= currentSort === 'views'  ? 'selected' : '' %>>Most Viewed</option>
+          <option value="votes"  <%= currentSort === 'votes'  ? 'selected' : '' %>>Most Voted</option>
         </select>
       </div>
     </div>
 
     <!-- ── Trending Strip (only on page 1, no active filters) ──── -->
     <%
-      var noFiltersActive = !q && !track && !difficulty && !status && !open_source && !has_demo && !contributors;
+      var noFiltersActive = !q && !track && !difficulty && !tech && !tag && !team_size;
       var isPageOne = (typeof page === 'undefined' || page == 1);
       var trendingProjects = (projects && projects.length >= 4) ? projects.slice(0, 4) : projects;
     %>
@@ -278,10 +264,9 @@
           if (q) params.push('q=' + encodeURIComponent(q));
           if (track) params.push('track=' + encodeURIComponent(track));
           if (difficulty) params.push('difficulty=' + encodeURIComponent(difficulty));
-          if (status) params.push('status=' + encodeURIComponent(status));
-          if (open_source) params.push('open_source=1');
-          if (has_demo) params.push('has_demo=1');
-          if (contributors) params.push('contributors=1');
+          if (typeof tech !== 'undefined' && tech) params.push('tech=' + encodeURIComponent(tech));
+          if (typeof tag !== 'undefined' && tag) params.push('tag=' + encodeURIComponent(tag));
+          if (typeof team_size !== 'undefined' && team_size) params.push('team_size=' + encodeURIComponent(team_size));
           if (sort) params.push('sort=' + encodeURIComponent(sort));
           params.push('page=' + p);
           return '/projects?' + params.join('&');
