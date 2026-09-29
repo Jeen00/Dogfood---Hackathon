@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { motion } from 'motion/react'
 import { Eye, EyeOff } from 'lucide-react'
 import DinoIcon from '../components/DinoIcon'
+import { PageContainer, Heading, Subheading, Label, Input, Select, PrimaryButton, SecondaryButton } from '../components/Theme'
 
 // ─── Reusable Components ──────────────────────────────────────────────────────
 
@@ -10,11 +11,11 @@ function StepItem({ number, text, active }) {
   return (
     <div className={`flex items-center gap-3.5 px-4 py-3 rounded-2xl border backdrop-blur-xl transition-all ${
       active
-        ? 'bg-white/90 text-black border-white shadow-[0_0_25px_rgba(255,255,255,0.15)]'
-        : 'bg-white/[0.05] text-white/70 border-white/10 hover:bg-white/[0.08]'
+        ? 'bg-white/10 text-white border-white/20 shadow-[0_0_25px_rgba(255,255,255,0.05)]'
+        : 'bg-white/5 text-white/60 border-white/5 hover:bg-white/10'
     }`}>
       <span className={`flex items-center justify-center w-6 h-6 rounded-full text-xs font-semibold flex-shrink-0 ${
-        active ? 'bg-black text-white' : 'bg-white/15 text-white/60'
+        active ? 'bg-white text-black' : 'bg-white/10 text-white/40'
       }`}>
         {number}
       </span>
@@ -45,19 +46,6 @@ function GitHubLogo() {
   )
 }
 
-function SocialButton({ children, label, onClick }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex items-center justify-center gap-3 h-12 w-full bg-white/[0.08] hover:bg-white/[0.14] backdrop-blur-xl border border-white/15 hover:border-white/30 rounded-[20px] transition-all cursor-pointer text-xs font-medium tracking-wider uppercase text-white/80 hover:text-white shadow-sm"
-    >
-      {children}
-      {label}
-    </button>
-  )
-}
-
 // ─── Stagger variants ─────────────────────────────────────────────────────────
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -78,8 +66,34 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false)
   const navigate = useNavigate()
 
+  const passwordStrength = useMemo(() => {
+    if (!password) return 'empty';
+    let score = 0;
+    if (password.length >= 8) score += 1;
+    if (/[A-Z]/.test(password)) score += 1;
+    if (/[a-z]/.test(password)) score += 1;
+    if (/[0-9]/.test(password)) score += 1;
+    if (/[^A-Za-z0-9]/.test(password)) score += 1;
+
+    if (score <= 2) return 'weak';
+    if (score < 5) return 'medium';
+    return 'strong';
+  }, [password])
+
+  const isEmailValid = useMemo(() => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  }, [email])
+
   const handleSignup = async (e) => {
     e.preventDefault()
+    if (!isEmailValid) {
+      alert('Please enter a valid email address.')
+      return
+    }
+    if (passwordStrength !== 'strong') {
+      alert('Password is not strong enough.')
+      return
+    }
     try {
       const res = await fetch('/auth/signup', {
         method: 'POST',
@@ -87,6 +101,7 @@ export default function SignupPage() {
         body: JSON.stringify({ firstName, lastName, email, password, role })
       })
       if (res.ok) {
+        localStorage.setItem('signupEmail', email);
         if (role === 'judge') navigate('/judge/dashboard')
         else navigate('/verify-email')
       } else {
@@ -100,201 +115,184 @@ export default function SignupPage() {
   }
 
   return (
-    <main className="relative flex min-h-screen w-full bg-[#0a0d12] text-white font-sans selection:bg-white/30 p-3 lg:h-screen lg:overflow-hidden lg:p-6 transition-all duration-500">
-
-      {/* ── Background Video covering full viewport ── */}
-      <video
-        className="fixed inset-0 w-full h-full object-cover z-0 pointer-events-none"
-        autoPlay
-        muted
-        loop
-        playsInline
-      >
-        <source
-          src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260826_124724_bc041163-d651-425f-aea3-2acc1efc2c96.mp4"
-          type="video/mp4"
-        />
-      </video>
-
-      {/* ── Left Column (Hero Card) ─────────────────────────────── */}
-      <div className="relative z-10 hidden lg:flex w-[50%] flex-col items-center justify-center p-8 lg:p-12 h-full">
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate="show"
-          className="relative z-10 w-full max-w-md p-8 sm:p-10 rounded-3xl bg-black/40 backdrop-blur-2xl border border-white/15 shadow-2xl space-y-8"
-        >
-          {/* Logo with Dinosaur & Royalty Typography */}
-          <motion.div variants={itemVariants} className="flex items-center gap-4 cursor-pointer" onClick={() => navigate('/')}>
-            <div className="relative flex flex-col items-center">
-              <DinoIcon className="w-10 h-8 -ml-1 text-white" style={{ fill: 'currentColor' }} />
-              <div className="w-8 h-[2px] mt-0.5 bg-white" />
-            </div>
-            <div className="h-6 w-px bg-white/20" />
-            <span className="font-bold tracking-[0.15em] text-lg uppercase flex items-start gap-1 text-white">
-              DOGFOOD<span className="text-[10px] mt-0.5 opacity-60">®</span>
-            </span>
-          </motion.div>
-
-          {/* Heading */}
-          <motion.div variants={itemVariants} className="space-y-3">
-            <h1 className="text-3xl sm:text-4xl font-light tracking-[0.1em] uppercase text-white">Join DOGFOOD</h1>
-            <p className="text-white/70 text-sm font-light leading-relaxed">
-              Follow these 3 quick phases to activate your team and begin submitting projects to the hackathon.
-            </p>
-          </motion.div>
-
-          {/* Steps */}
-          <motion.div variants={itemVariants} className="space-y-3">
-            <StepItem number="1" text="Register your identity" active />
-            <StepItem number="2" text="Join or create a team" />
-            <StepItem number="3" text="Submit your project" />
-          </motion.div>
-        </motion.div>
-      </div>
-
-      {/* ── Right Column (Form with Translucent Controls) ────────────────────── */}
-      <div className="relative z-10 flex-1 flex flex-col items-center px-4 sm:px-10 lg:px-14 xl:px-20 overflow-y-auto py-10"><div className="flex-1 min-h-[2rem]"></div>
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: 'easeOut' }}
-          className="w-full max-w-md p-8 sm:p-10 rounded-[40px] bg-black/45 backdrop-blur-2xl border border-white/15 shadow-2xl space-y-7 shrink-0"
-        >
-          {/* Header */}
-          <div className="space-y-2">
-            <button
-              onClick={() => navigate('/')}
-              className="group text-white/40 hover:text-white text-xs tracking-[0.2em] uppercase mb-4 inline-flex items-center gap-2 transition-colors cursor-pointer bg-transparent border-none font-medium"
-            >
-              <span className="transition-transform group-hover:-translate-x-1">←</span> Back to Home
-            </button>
-            <h2 className="text-2xl sm:text-3xl font-light tracking-[0.15em] uppercase text-white">Create Profile</h2>
-            <p className="text-white/60 text-xs sm:text-sm font-light tracking-wide">Input your basic details to begin the journey.</p>
-          </div>
-
-          {/* Social Buttons */}
-          <div className="grid grid-cols-2 gap-3.5">
-            <SocialButton label="Google" onClick={() => navigate('/login')}>
-              <GoogleLogo />
-            </SocialButton>
-            <SocialButton label="GitHub" onClick={() => window.location.href = 'http://localhost:8080/auth/github'}>
-              <GitHubLogo />
-            </SocialButton>
-          </div>
-
-          {/* Divider */}
-          <div className="relative flex items-center">
-            <div className="flex-1 border-t border-white/15" />
-            <span className="px-3 text-[10px] font-medium text-white/50 uppercase tracking-[0.25em]">Or</span>
-            <div className="flex-1 border-t border-white/15" />
-          </div>
-
-          {/* Form */}
-          <form onSubmit={handleSignup} className="space-y-4">
-
-            {/* Role Selector */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-medium text-white/70 tracking-[0.15em] uppercase">Account Type</label>
-                                              <div className="flex p-1 bg-white/[0.05] border border-white/10 rounded-[24px]">
-                  <button 
-                    type="button"
-                    onClick={() => setRole('participant')}
-                    className={`flex-1 py-2 text-xs font-medium uppercase tracking-wider rounded-[20px] transition-all ${role === 'participant' ? 'bg-white text-black shadow-md' : 'text-white/60 hover:text-white'}`}
-                  >Participant</button>
-                  <button 
-                    type="button"
-                    onClick={() => setRole('judge')}
-                    className={`flex-1 py-2 text-xs font-medium uppercase tracking-wider rounded-[20px] transition-all ${role === 'judge' ? 'bg-white text-black shadow-md' : 'text-white/60 hover:text-white'}`}
-                  >Judge</button>
+    <PageContainer className="p-3 lg:h-screen lg:overflow-hidden lg:p-6">
+      <div className="flex flex-col lg:flex-row w-full h-full flex-1">
+        
+        {/* ── Left Column (Hero Card) ─────────────────────────────── */}
+        <div className="relative z-10 w-[50%] hidden lg:flex flex-col items-center justify-center p-8 lg:p-12 h-full">
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate="show"
+            className="w-full max-w-md"
+          >
+            <div className="p-10 rounded-3xl bg-white/5 backdrop-blur-xl border border-white/10 space-y-8 shadow-2xl">
+              {/* Logo with Dinosaur & Royalty Typography */}
+              <motion.div variants={itemVariants} className="flex items-center gap-4 cursor-pointer" onClick={() => navigate('/')}>
+                <div className="relative flex flex-col items-center">
+                  <DinoIcon className="w-10 h-8 -ml-1 text-white" style={{ fill: 'currentColor' }} />
+                  <div className="w-8 h-[2px] mt-0.5 bg-white" />
                 </div>
-            </div>
+                <div className="h-6 w-px bg-white/20" />
+                <span className="font-bold tracking-[0.15em] text-lg uppercase flex items-start gap-1 text-white">
+                  DOGFOOD<span className="text-[10px] mt-0.5 opacity-60">®</span>
+                </span>
+              </motion.div>
 
-            {/* First & Last Name */}
-            <div className="grid grid-cols-2 gap-3.5">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-medium text-white/70 tracking-[0.15em] uppercase">First Name</label>
-                <input
-                  type="text"
-                  placeholder="Priya"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  className="w-full bg-white/[0.08] backdrop-blur-xl border border-white/15 rounded-[20px] h-12 px-4 text-white placeholder:text-white/35 focus:outline-none focus:ring-1 focus:ring-white/40 focus:border-white/40 focus:bg-white/[0.14] transition-all text-sm font-light tracking-wide shadow-inner"
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[11px] font-medium text-white/70 tracking-[0.15em] uppercase">Last Name</label>
-                <input
-                  type="text"
-                  placeholder="Sharma"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  className="w-full bg-white/[0.08] backdrop-blur-xl border border-white/15 rounded-[20px] h-12 px-4 text-white placeholder:text-white/35 focus:outline-none focus:ring-1 focus:ring-white/40 focus:border-white/40 focus:bg-white/[0.14] transition-all text-sm font-light tracking-wide shadow-inner"
-                />
-              </div>
-            </div>
+              {/* Heading */}
+              <motion.div variants={itemVariants} className="space-y-3">
+                <Heading>Join DOGFOOD</Heading>
+                <p className="text-white/70 text-sm font-light leading-relaxed">
+                  Follow these 3 quick phases to activate your team and begin submitting projects to the hackathon.
+                </p>
+              </motion.div>
 
-            {/* Email */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-medium text-white/70 tracking-[0.15em] uppercase">Email Address</label>
-              <input
-                type="email"
-                placeholder="you@example.org"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-white/[0.08] backdrop-blur-xl border border-white/15 rounded-[20px] h-12 px-4 text-white placeholder:text-white/35 focus:outline-none focus:ring-1 focus:ring-white/40 focus:border-white/40 focus:bg-white/[0.14] transition-all text-sm font-light tracking-wide shadow-inner"
-              />
+              {/* Steps */}
+              <motion.div variants={itemVariants} className="space-y-3">
+                <StepItem number="1" text="Register your identity" active />
+                <StepItem number="2" text="Join or create a team" />
+                <StepItem number="3" text="Submit your project" />
+              </motion.div>
             </div>
+          </motion.div>
+        </div>
 
-            {/* Password */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-medium text-white/70 tracking-[0.15em] uppercase">Password</label>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-white/[0.08] backdrop-blur-xl border border-white/15 rounded-[20px] h-12 px-4 pr-12 text-white placeholder:text-white/35 focus:outline-none focus:ring-1 focus:ring-white/40 focus:border-white/40 focus:bg-white/[0.14] transition-all text-sm font-light tracking-wide shadow-inner"
-                />
+        {/* ── Right Column (Form with Translucent Controls) ────────────────────── */}
+        <div className="relative z-10 flex-1 flex flex-col items-center px-4 sm:px-10 lg:px-14 xl:px-20 overflow-y-auto py-10">
+          <div className="flex-1 min-h-[2rem]"></div>
+          
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, ease: 'easeOut' }}
+            className="w-full max-w-md shrink-0 relative"
+          >
+            <div className="p-8 rounded-[32px] bg-black/40 backdrop-blur-2xl border border-white/10 shadow-2xl space-y-7">
+              {/* Header */}
+              <div className="space-y-2">
                 <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors cursor-pointer bg-transparent border-none"
+                  onClick={() => navigate('/')}
+                  className="text-white/40 hover:text-white text-xs tracking-[0.2em] uppercase mb-4 inline-flex items-center gap-2 transition-colors cursor-pointer bg-transparent border-none font-medium"
                 >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  <span className="transition-transform -translate-x-1">←</span> Back to Home
                 </button>
+                <Subheading>Create Profile</Subheading>
+                <p className="text-white/60 text-xs sm:text-sm font-light tracking-wide">Input your basic details to begin the journey.</p>
               </div>
-              <p className="text-[10px] text-white/40 mt-1 font-light tracking-wider">Requires at least 8 symbols.</p>
+
+              {/* Social Buttons */}
+              <div className="grid grid-cols-2 gap-3.5">
+                <SecondaryButton type="button" onClick={() => navigate('/login')}>
+                  <GoogleLogo />
+                  Google
+                </SecondaryButton>
+                <SecondaryButton type="button" onClick={() => window.location.href = 'http://localhost:8080/auth/github'}>
+                  <GitHubLogo />
+                  GitHub
+                </SecondaryButton>
+              </div>
+
+              {/* Divider */}
+              <div className="relative flex items-center">
+                <div className="flex-1 border-t border-white/15" />
+                <span className="px-3 text-[10px] font-medium text-white/50 uppercase tracking-[0.25em]">Or</span>
+                <div className="flex-1 border-t border-white/15" />
+              </div>
+
+              {/* Form */}
+              <form onSubmit={handleSignup} className="space-y-4">
+
+                {/* Role Selector */}
+                <div className="flex flex-col gap-1.5">
+                  <Label>Account Type</Label>
+                  <Select value={role} onChange={(e) => setRole(e.target.value)}>
+                    <option value="participant">Participant</option>
+                    <option value="judge">Judge</option>
+                  </Select>
+                </div>
+
+                {/* First & Last Name */}
+                <div className="grid grid-cols-2 gap-3.5">
+                  <div className="flex flex-col gap-1.5">
+                    <Label>First Name</Label>
+                    <Input
+                      type="text"
+                      placeholder="Priya"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label>Last Name</Label>
+                    <Input
+                      type="text"
+                      placeholder="Sharma"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Email */}
+                <div className="flex flex-col gap-1.5">
+                  <Label>Email Address</Label>
+                  <Input
+                    type="email"
+                    placeholder="you@example.org"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className={email && !isEmailValid ? 'border-red-500/50' : ''}
+                  />
+                  {email && !isEmailValid && <p className="text-[10px] text-red-400 mt-1 font-light tracking-wider">Invalid email format.</p>}
+                </div>
+
+                {/* Password */}
+                <div className="flex flex-col gap-1.5">
+                  <Label>Password</Label>
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="pr-12"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-white transition-colors cursor-pointer bg-transparent border-none"
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                  {password && (
+                    <div className="flex items-center gap-1 mt-1">
+                      <div className={`h-1 flex-1 rounded-full ${passwordStrength === 'weak' ? 'bg-red-500' : passwordStrength === 'medium' ? 'bg-yellow-500' : passwordStrength === 'strong' ? 'bg-green-500' : 'bg-white/10'}`}></div>
+                      <div className={`h-1 flex-1 rounded-full ${passwordStrength === 'medium' ? 'bg-yellow-500' : passwordStrength === 'strong' ? 'bg-green-500' : 'bg-white/10'}`}></div>
+                      <div className={`h-1 flex-1 rounded-full ${passwordStrength === 'strong' ? 'bg-green-500' : 'bg-white/10'}`}></div>
+                    </div>
+                  )}
+                  <p className="text-[10px] text-white/40 mt-1 font-light tracking-wider">Requires 8 chars, 1 upper, 1 lower, 1 number, 1 special.</p>
+                </div>
+
+                <PrimaryButton type="submit" className="mt-3" disabled={passwordStrength !== 'strong' || !isEmailValid}>
+                  Create Account
+                </PrimaryButton>
+              </form>
+
+              {/* Footer */}
+              <p className="text-center text-xs text-white/40 font-light tracking-wide">
+                Member of the team?{' '}
+                <Link to="/login" className="text-white/80 hover:text-white underline underline-offset-4 transition-colors font-normal">
+                  Log in
+                </Link>
+              </p>
+
             </div>
-
-            <button
-              type="submit"
-              className="w-full py-3.5 bg-white text-black font-medium tracking-[0.15em] uppercase text-xs rounded-full hover:bg-white/90 active:scale-[0.98] transition-all cursor-pointer shadow-lg mt-3"
-            >
-              Create Account
-            </button>
-          </form>
-
-          {/* Footer */}
-          <p className="text-center text-xs text-white/40 font-light tracking-wide">
-            Member of the team?{' '}
-            <Link to="/login" className="text-white/80 hover:text-white underline underline-offset-4 transition-colors font-normal">
-              Log in
-            </Link>
-          </p>
-
-        </motion.div>
-<div className="flex-1 min-h-[2rem]"></div>
-</div>
-</main>
+          </motion.div>
+          <div className="flex-1 min-h-[2rem]"></div>
+        </div>
+      </div>
+    </PageContainer>
   )
 }
-
-
-
-
-
-
-
-

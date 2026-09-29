@@ -11,6 +11,7 @@ const auth    = require('./middleware/auth');
 
 const galleryRouter       = require('./routes/gallery');
 const authRouter          = require('./routes/auth');
+const contactRouter       = require('./routes/contact');
 const eventsRouter        = require('./routes/events');
 const teamsRouter         = require('./routes/teams');
 const submissionsRouter   = require('./routes/submissions');
@@ -24,6 +25,9 @@ const invitesRouter       = require('./routes/invites');
 const app  = express();
 const PORT = process.env.PORT || 8080;
 
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
+
 // ─── Middleware ───────────────────────────────────────────────────────────────
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
@@ -34,11 +38,13 @@ app.use(auth);
 // ─── Routes ───────────────────────────────────────────────────────────────────
 app.use('/projects',              galleryRouter);
 app.use('/auth',                  authRouter);
+app.use('/api/contact',           contactRouter);
 app.use('/events',                eventsRouter);
 app.use('/api/events',            eventsRouter);
 app.use('/team',                  teamsRouter);
 
 app.use('/api/teams',             teamsRouter);
+app.get('/api/reviews', (req, res) => { try { res.json({ reviews: require('./db/db').getDb().prepare('SELECT * FROM reviews ORDER BY id').all() }) } catch (e) { res.status(500).json({ error: e.message }) } });
 app.get('/invite', (req, res) => res.redirect('http://localhost:5173/login'));
 app.get('/invite/:code', (req, res) => res.redirect('http://localhost:5173/participant/dashboard?code=' + encodeURIComponent(req.params.code)));
 app.use('/submissions',           submissionsRouter);
@@ -84,3 +90,5 @@ app.listen(PORT, () => {
 });
 
 module.exports = app;
+
+

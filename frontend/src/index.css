@@ -1,8 +1,17 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap');
 
 @custom-variant dark (&:is(.dark *));
+
+@theme {
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-pill: 999px;
+  --card-hover-bg: oklch(0.2 0.05 320 / 0.6);
+}
 
 @layer base {
   /* ── Reset: enforce base design rules ── */
@@ -160,7 +169,6 @@
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
 }
-@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap');
 
 @layer utilities {
   .font-instrument {
@@ -168,3 +176,43 @@
   }
 }
 
+
+@theme {
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-pill: 999px;
+}
+
+@layer components {
+  .glass-card-hover {
+    @apply transition-colors duration-500 hover:bg-[var(--card-hover,oklch(0.2_0.05_250/0.6))];
+  }
+}
+
+@layer components {
+  .glass-card-hover {
+    @apply transition-colors duration-500 hover:bg-[var(--card-hover,oklch(0.2_0.05_250/0.6))];
+  }
+
+  .shared-icon-hover-card {
+    transition: all 0.5s ease;
+  }
+
+  .shared-icon-hover-card:hover {
+    /* You changed 20% to 50% here for a stronger tint! */
+    background-color: color-mix(in srgb, var(--icon-color) 25%, rgba(0, 0, 0, 0.4)) !important;
+    border-color: color-mix(in srgb, var(--icon-color) 40%, rgba(255, 255, 255, 0.15)) !important;
+  }
+
+  .shared-icon-hover-card:hover p,
+  .shared-icon-hover-card:hover .text-white\/50,
+  .shared-icon-hover-card:hover .text-white\/60,
+  .shared-icon-hover-card:hover .text-white\/70 {
+    color: rgba(255, 255, 255, 0.9) !important;
+  }
+
+  .shared-icon-hover-glow:hover {
+    box-shadow: 0 0 40px color-mix(in srgb, var(--icon-color) 20%, transparent) !important;
+  }
+}

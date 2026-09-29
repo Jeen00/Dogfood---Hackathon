@@ -38,43 +38,37 @@ function seedDb() {
   const fixtures = JSON.parse(fs.readFileSync(FIXTURES, 'utf8'));
 
   // ─── Clear tables in dependency order ────────────────────────────────────
-  db.exec(`
-    DELETE FROM normalized_scores;
-    DELETE FROM scores;
-    DELETE FROM judge_assignments;
-    DELETE FROM judge_tracks;
-    DELETE FROM project_comments;
-    DELETE FROM project_votes;
-    DELETE FROM project_saves;
-    DELETE FROM project_views;
-    DELETE FROM projects;
-    DELETE FROM team_members;
-    DELETE FROM teams;
-    DELETE FROM rubric_criteria;
-    DELETE FROM prizes;
-    DELETE FROM tracks;
-    DELETE FROM events;
-    DELETE FROM sessions;
-    DELETE FROM audit_log;
-    DELETE FROM users;
-  `);
+  // Tables are no longer cleared to preserve data.
 
 
   console.log('[seed] Tables cleared.');
 
   // ─── Special users ────────────────────────────────────────────────────────
+  
+  const bcrypt = require('bcryptjs');
+  const defaultPassword = bcrypt.hashSync('Password@123', 10);
+  
   const insertUser = db.prepare(
-    'INSERT OR IGNORE INTO users (id, name, email, role, password_hash) VALUES (?, ?, ?, ?, ?)'
+    'INSERT OR IGNORE INTO users (id, name, email, role, password_hash, isVerified, profileComplete) VALUES (?, ?, ?, ?, ?, ?, ?)'
   );
+  
+  insertUser.run('usr_judge_seed', 'Seed Judge', 'judge@gmail.com', 'judge', defaultPassword, 1, 1);
+  insertUser.run('usr_part_seed', 'Seed Participant', 'participant@gmail.com', 'participant', defaultPassword, 1, 1);
+  insertUser.run('usr_org_seed', 'Seed Organizer', 'organizer@gmail.com', 'organizer', defaultPassword, 1, 1);
+  
+  insertUser.run('usr_organizer', 'Organizer', 'organizer@example.org', 'organizer', null, 1, 1);
+  insertUser.run('usr_prt_2e88', 'Priya Sharma', 'priya1@example.org', 'participant', null, 1, 1);
+  insertUser.run('usr_prt_b3f1', 'Demo Participant', 'demo2@example.org', 'participant', null, 1, 1);
 
-  insertUser.run('usr_organizer', 'Organizer', 'organizer@example.org', 'organizer', null);
-  insertUser.run('usr_prt_2e88', 'Priya Sharma', 'priya1@example.org', 'participant', null);
-  insertUser.run('usr_prt_b3f1', 'Demo Participant', 'demo2@example.org', 'participant', null);
   console.log('[seed] Special users created.');
+  const insertReview = db.prepare('INSERT OR IGNORE INTO reviews (id, name, role, rating, message, is_sample) VALUES (?, ?, ?, ?, ?, ?)');
+  insertReview.run('rev_1', 'Alice', 'participant', 5, 'Best hackathon ever! The platform made everything so seamless.', 1);
+  insertReview.run('rev_2', 'Bob', 'judge', 4, 'Great submissions. Z-score normalization works like a charm.', 1);
+  insertReview.run('rev_3', 'Charlie', 'organizer', 5, 'The platform made it incredibly easy to manage 5000 users.', 1);
 
   // ─── Fixed sessions ───────────────────────────────────────────────────────
   const insertSession = db.prepare(
-    'INSERT INTO sessions (id, user_id, role) VALUES (?, ?, ?)'
+    'INSERT OR IGNORE INTO sessions (id, user_id, role) VALUES (?, ?, ?)'
   );
   insertSession.run('org_7f2a',    'usr_organizer', 'organizer');
   insertSession.run('jdg_a_91bc',  'jdg_01',        'judge');
@@ -86,7 +80,7 @@ function seedDb() {
   // ─── Event ────────────────────────────────────────────────────────────────
   const evt = fixtures.event;
   const insertEvent = db.prepare(
-    'INSERT INTO events (id, name, submissions_open, submissions_close, voting_open, voting_close, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    'INSERT OR IGNORE INTO events (id, name, submissions_open, submissions_close, voting_open, voting_close, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)'
   );
   insertEvent.run(evt.id, evt.name, evt.submissions_open, evt.submissions_close, evt.voting_open, evt.voting_close, evt.created_by);
   
@@ -114,7 +108,7 @@ function seedDb() {
   console.log('[seed] Events seeded (Completed, Running, Upcoming).');
 
   // ─── Tracks ───────────────────────────────────────────────────────────────
-  const insertTrack = db.prepare('INSERT INTO tracks (id, event_id, name) VALUES (?, ?, ?)');
+  const insertTrack = db.prepare('INSERT OR IGNORE INTO tracks (id, event_id, name) VALUES (?, ?, ?)');
   for (const t of fixtures.tracks) {
     insertTrack.run(t.id, t.event_id, t.name);
   }
@@ -129,7 +123,7 @@ function seedDb() {
   console.log('[seed] Tracks seeded across events.');
 
   // ─── Rubric criteria ──────────────────────────────────────────────────────
-  const insertCrit = db.prepare('INSERT INTO rubric_criteria (id, event_id, name, weight) VALUES (?, ?, ?, ?)');
+  const insertCrit = db.prepare('INSERT OR IGNORE INTO rubric_criteria (id, event_id, name, weight) VALUES (?, ?, ?, ?)');
   for (const c of RUBRIC_CRITERIA) {
     insertCrit.run(c.id, c.event_id, c.name, c.weight);
   }
@@ -150,7 +144,7 @@ function seedDb() {
   );
 
   for (const j of fixtures.judges) {
-    insertUser.run(j.id, j.name, j.email, 'judge', null);
+    insertUser.run(j.id, j.name, j.email, 'judge', null, 1, 1);
     judgeTrackMap[j.id] = j.tracks;
     // Persist track preferences so auto-assignment can use them without fixtures.json
     for (const trackId of j.tracks) {
@@ -161,8 +155,8 @@ function seedDb() {
 
 
   // ─── Teams & Members ─────────────────────────────────────────────────────
-  const insertTeam   = db.prepare('INSERT INTO teams (id, event_id, name, invite_code, leader_id) VALUES (?, ?, ?, ?, ?)');
-  const insertMember = db.prepare('INSERT INTO team_members (team_id, user_id) VALUES (?, ?)');
+  const insertTeam   = db.prepare('INSERT OR IGNORE INTO teams (id, event_id, name, invite_code, leader_id) VALUES (?, ?, ?, ?, ?)');
+  const insertMember = db.prepare('INSERT OR IGNORE INTO team_members (team_id, user_id) VALUES (?, ?)');
 
   for (const team of fixtures.teams) {
     // leader = first member's resolved user id (set after we process members)
@@ -180,7 +174,7 @@ function seedDb() {
       if (existingUser) {
         userId = existingUser.id;
       } else {
-        insertUser.run(member.id, member.name, member.email, 'participant', null);
+        insertUser.run(member.id, member.name, member.email, 'participant', null, 1, 1);
       }
       try {
         insertMember.run(team.id, userId);
@@ -196,7 +190,7 @@ function seedDb() {
 
   // ─── Projects ─────────────────────────────────────────────────────────────
   const insertProject = db.prepare(
-    'INSERT INTO projects (id, event_id, team_id, track_id, title, summary, repo_url, status, submitted_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    'INSERT OR IGNORE INTO projects (id, event_id, team_id, track_id, title, summary, repo_url, status, submitted_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
   );
 
   // Build a set of (team_id, title) to detect duplicates as per spec
@@ -504,3 +498,4 @@ if (require.main === module) {
   initDb();
   seedDb();
 }
+

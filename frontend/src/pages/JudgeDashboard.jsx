@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'motion/react'
 import { ArrowRight } from 'lucide-react'
+import { PageContainer, DarkCard, WhiteCard, Heading, PrimaryButton, SecondaryButton } from '../components/Theme'
 
 export default function JudgeDashboard() {
   const navigate = useNavigate()
@@ -24,7 +25,7 @@ export default function JudgeDashboard() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-[#0a0d12] text-white font-sans selection:bg-white/30">
+    <PageContainer>
       {/* Navbar */}
       <header className="sticky top-0 z-50 bg-[#0a0d12]/80 backdrop-blur-2xl border-b border-white/5">
         <div className="max-w-6xl mx-auto px-6 h-20 flex items-center justify-between">
@@ -32,23 +33,22 @@ export default function JudgeDashboard() {
             onClick={() => navigate('/')}
             className="flex items-center gap-4 cursor-pointer group"
           >
-            <div className="w-8 h-[2px] bg-white transition-all group-hover:w-12" />
-            <span className="font-bold tracking-[0.2em] text-sm uppercase">DOGFOOD<span className="opacity-50">2026</span></span>
+            <span className="font-bold tracking-[0.2em] text-sm uppercase text-white">DOGFOOD<span className="opacity-50">2026</span></span>
           </div>
           <button 
             onClick={() => {
               fetch('/auth/logout', { method: 'POST' }).then(() => navigate('/login'))
             }}
-            className="text-[11px] tracking-[0.2em] uppercase text-white/50 hover:text-white transition-colors"
+            className="rounded-full px-4 py-2 bg-white/5 hover:bg-white/10 text-[11px] tracking-[0.2em] uppercase text-white/70 hover:text-white transition-colors"
           >
             Log Out
           </button>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-20">
+      <div className="max-w-6xl mx-auto px-6 py-20 w-full">
         <div className="mb-24">
-          <h1 className="text-4xl md:text-5xl font-light tracking-[0.1em] uppercase mb-4">Evaluation</h1>
+          <Heading className="mb-4">Evaluation</Heading>
           <p className="text-white/40 font-light text-sm max-w-xl leading-relaxed tracking-wide">
             Your assigned projects require rigorous review. Ensure objectivity across all criteria.
           </p>
@@ -62,7 +62,7 @@ export default function JudgeDashboard() {
         ) : (
           <div className="w-full">
             {/* Table Header */}
-            <div className="hidden md:grid grid-cols-12 gap-6 text-[10px] uppercase tracking-[0.2em] text-white/30 font-medium border-b border-white/10 pb-4 mb-4">
+            <div className="hidden md:grid grid-cols-12 gap-6 text-[10px] uppercase tracking-[0.2em] text-white/30 font-medium pb-4 mb-4 px-6">
               <div className="col-span-4">Project</div>
               <div className="col-span-3">Track</div>
               <div className="col-span-3">Status</div>
@@ -70,61 +70,71 @@ export default function JudgeDashboard() {
             </div>
 
             {/* List */}
-            <div className="flex flex-col">
-              {assignments.map((prj, i) => (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.05, duration: 0.4 }}
-                  key={prj.id}
-                  className="group grid grid-cols-1 md:grid-cols-12 gap-6 items-center py-6 border-b border-white/5 hover:border-white/20 transition-colors"
-                >
-                  <div className="col-span-4">
-                    <h3 className="text-lg font-medium tracking-wide text-white group-hover:text-white/90 transition-colors">{prj.title}</h3>
-                    <p className="text-white/30 font-mono text-[10px] uppercase tracking-widest mt-1">{prj.id}</p>
-                  </div>
-                  
-                  <div className="col-span-3">
-                    <span className="text-xs font-light text-white/50 tracking-wider">
-                      {prj.track_name}
-                    </span>
-                  </div>
+            <div className="flex flex-col gap-4">
+              {assignments.map((prj, i) => {
+                return (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.05, duration: 0.4 }}
+                    key={prj.id}
+                  >
+                    <DarkCard className="!p-6 grid grid-cols-1 md:grid-cols-12 gap-6 items-center group">
+                      <div className="col-span-4">
+                        <h3 className="text-lg font-medium tracking-wide transition-colors text-white group-hover:text-white/90">{prj.title}</h3>
+                        <p className="font-mono text-[10px] uppercase tracking-widest mt-1 text-white/30">{prj.id}</p>
+                      </div>
+                      
+                      <div className="col-span-3">
+                        <span className="text-xs font-light tracking-wider text-white/50">
+                          {prj.track_name}
+                        </span>
+                      </div>
 
-                  <div className="col-span-3">
-                    {prj.scored ? (
-                      <span className="text-[10px] uppercase tracking-[0.15em] text-emerald-400 font-medium">Scored</span>
-                    ) : (
-                      <span className="text-[10px] uppercase tracking-[0.15em] text-amber-400 font-medium flex items-center gap-2">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                        Pending
-                      </span>
-                    )}
-                  </div>
+                      <div className="col-span-3">
+                        {prj.scored ? (
+                          <span className="text-[10px] uppercase tracking-[0.15em] font-medium text-emerald-400">Scored</span>
+                        ) : (
+                          <span className="text-[10px] uppercase tracking-[0.15em] font-medium flex items-center gap-2 text-amber-400">
+                            <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-amber-400" />
+                            Pending
+                          </span>
+                        )}
+                      </div>
 
-                  <div className="col-span-2 flex justify-end">
-                    <button 
-                      onClick={() => navigate(`/judge/score/${prj.id}`, { state: { project: prj } })}
-                      className={`h-10 px-6 rounded-full text-xs font-medium uppercase tracking-widest transition-all flex items-center gap-3 ${
-                        prj.scored 
-                          ? 'bg-transparent border border-white/10 text-white/50 hover:text-white hover:border-white/30' 
-                          : 'bg-white text-black hover:bg-white/90 shadow-lg'
-                      }`}
-                    >
-                      {prj.scored ? 'Edit' : 'Score'} <ArrowRight size={14} />
-                    </button>
-                  </div>
-                </motion.div>
-              ))}
+                      <div className="col-span-2 flex justify-end">
+                        {prj.scored ? (
+                          <SecondaryButton 
+                            onClick={() => navigate(`/judge/score/${prj.id}`, { state: { project: prj } })}
+                            className="!w-auto !h-10 !px-6"
+                          >
+                            Edit <ArrowRight size={14} />
+                          </SecondaryButton>
+                        ) : (
+                          <PrimaryButton 
+                            onClick={() => navigate(`/judge/score/${prj.id}`, { state: { project: prj } })}
+                            className="!w-auto !h-10 !py-0 !px-6 flex items-center justify-center gap-3"
+                          >
+                            Score <ArrowRight size={14} />
+                          </PrimaryButton>
+                        )}
+                      </div>
+                    </DarkCard>
+                  </motion.div>
+                );
+              })}
 
               {assignments.length === 0 && (
-                <div className="py-20 text-center text-white/30 font-light text-sm tracking-wide">
-                  Your queue is currently empty.
-                </div>
+                <DarkCard className="py-20 text-center flex justify-center items-center">
+                  <div className="text-white/30 font-light text-sm tracking-wide">
+                    Your queue is currently empty.
+                  </div>
+                </DarkCard>
               )}
             </div>
           </div>
         )}
-      </main>
-    </div>
+      </div>
+    </PageContainer>
   )
 }

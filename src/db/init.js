@@ -66,6 +66,7 @@ function initDb() {
     "ALTER TABLE users ADD COLUMN registered_at TEXT",
     "ALTER TABLE users ADD COLUMN registration_type TEXT DEFAULT 'individual'",
     "CREATE TABLE IF NOT EXISTS registration_settings (event_id TEXT PRIMARY KEY, form_fields TEXT, auto_approval TEXT, allowed_domains TEXT)",
+    "CREATE TABLE IF NOT EXISTS reviews (id TEXT PRIMARY KEY, name TEXT, role TEXT, rating INTEGER, message TEXT, is_sample INTEGER DEFAULT 0)"
   ];
   for (const m of migrations) {
     try { db.exec(m); } catch (_) { /* column already exists — skip */ }
@@ -81,3 +82,4 @@ module.exports = initDb;
 if (require.main === module) {
   initDb();
 }
+

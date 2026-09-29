@@ -12,7 +12,18 @@ CREATE TABLE IF NOT EXISTS users (
   name          TEXT NOT NULL,
   email         TEXT UNIQUE NOT NULL,
   role          TEXT NOT NULL,
-  password_hash TEXT
+  password_hash TEXT,
+  isVerified INTEGER DEFAULT 0,
+  verification_token TEXT,
+  verification_expiry TEXT,
+  reset_token TEXT,
+  reset_expiry TEXT,
+  auth_provider TEXT DEFAULT 'local',
+  profileComplete INTEGER DEFAULT 0,
+  college TEXT,
+  phone TEXT,
+  organization TEXT,
+  expertise TEXT
 );
 
 CREATE TABLE IF NOT EXISTS events (

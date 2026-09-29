@@ -1,6 +1,7 @@
 'use strict';
 const express = require('express');
 const router  = express.Router();
+const { getDb } = require('../db/db');
 
 const CLIENT_ID     = process.env.GITHUB_CLIENT_ID;
 const CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET;
@@ -38,18 +39,65 @@ router.get('/auth/github/callback', async (req, res) => {
     const userRes = await fetch('https://api.github.com/user', {
       headers: { Authorization: `Bearer ${accessToken}`, 'User-Agent': 'DOGFOOD-2026' },
     });
-    const user = await userRes.json();
+    const githubUser = await userRes.json();
 
-    // For demo: set a simple session cookie and redirect to dashboard
-    // In production, you'd look up/create the user in the DB here
-    res.cookie('github_user', JSON.stringify({ id: user.id, login: user.login, avatar: user.avatar_url }), {
-      httpOnly: false,
-      maxAge: 24 * 60 * 60 * 1000, // 1 day
+    let email = githubUser.email;
+    if (!email) {
+      // Fetch emails
+      const emailsRes = await fetch('https://api.github.com/user/emails', {
+        headers: { Authorization: `Bearer ${accessToken}`, 'User-Agent': 'DOGFOOD-2026' }
+      });
+      const emails = await emailsRes.json();
+      const primaryEmail = emails.find(e => e.primary);
+      if (primaryEmail) email = primaryEmail.email;
+      else if (emails.length > 0) email = emails[0].email;
+    }
+
+    if (!email) return res.redirect(`${FRONTEND_URL}/login?error=no_email`);
+    email = email.toLowerCase();
+    const name = githubUser.name || githubUser.login;
+
+    const db = getDb();
+    let user = db.prepare('SELECT * FROM users WHERE LOWER(email) = ?').get(email);
+
+    if (!user) {
+      // create user
+      const userId = 'usr_' + Date.now();
+      db.prepare(`
+        INSERT INTO users (id, name, email, role, auth_provider, isVerified, profileComplete)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(userId, name, email, 'participant', 'github', 1, 0);
+      
+      user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+    } else {
+      if (user.auth_provider !== 'github') {
+        return res.redirect(`${FRONTEND_URL}/login?error=email_exists`);
+      }
+    }
+
+    // create session
+    let existing = db.prepare('SELECT * FROM sessions WHERE user_id = ?').get(user.id);
+    let sessionId;
+    if (existing) {
+      sessionId = existing.id;
+    } else {
+      sessionId = `sess_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+      db.prepare('INSERT INTO sessions (id, user_id, role) VALUES (?, ?, ?)').run(sessionId, user.id, user.role);
+    }
+
+    res.cookie('session', sessionId, {
+      httpOnly: true,
+      sameSite: 'lax',
+      maxAge:   7 * 24 * 60 * 60 * 1000 // 7 days
     });
 
-    // Redirect to frontend dashboard
-    res.redirect(`${FRONTEND_URL}/judge/dashboard?github=success&user=${encodeURIComponent(user.login)}`);
-
+    if (user.profileComplete === 1) {
+      if (user.role === 'judge') return res.redirect(`${FRONTEND_URL}/judge/dashboard`);
+      else if (user.role === 'organizer') return res.redirect(`${FRONTEND_URL}/organizer/events`);
+      else return res.redirect(`${FRONTEND_URL}/participant/dashboard`);
+    } else {
+      return res.redirect(`${FRONTEND_URL}/complete-profile`);
+    }
   } catch (err) {
     console.error('GitHub OAuth error:', err);
     res.redirect(`${FRONTEND_URL}/login?error=server_error`);

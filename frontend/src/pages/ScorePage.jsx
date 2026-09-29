@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Check } from 'lucide-react'
 import { motion } from 'motion/react'
+import { PageContainer, Heading, DarkCard, WhiteCard, Label, Input, PrimaryButton, SecondaryButton } from '../components/Theme'
 
 export default function ScorePage() {
   const { id } = useParams()
@@ -53,51 +54,54 @@ export default function ScorePage() {
     setSubmitting(false)
   }
 
-  const allScored = criteria.every(c => scores[c.name])
+  const allScored = criteria.length > 0 && criteria.every(c => scores[c.name])
   const weightedScore = criteria.reduce((sum, c) => sum + (scores[c.name] || 0) * c.weight, 0).toFixed(2)
 
   if (loading) return (
-    <div className="min-h-screen bg-[#0a0d12] flex items-center justify-center">
-      <div className="flex items-center gap-3 text-white/30 font-light uppercase tracking-widest text-xs">
-        <div className="w-3 h-3 rounded-full border border-white/20 border-t-white/80 animate-spin" />
-        Loading...
+    <PageContainer>
+      <div className="flex-1 flex items-center justify-center">
+        <div className="flex items-center gap-3 text-white/30 font-light uppercase tracking-widest text-xs">
+          <div className="w-3 h-3 rounded-full border border-white/20 border-t-white/80 animate-spin" />
+          Loading...
+        </div>
       </div>
-    </div>
+    </PageContainer>
   )
 
   return (
-    <div className="min-h-screen bg-[#0a0d12] text-white font-sans selection:bg-white/30">
+    <PageContainer>
       <header className="sticky top-0 z-50 bg-[#0a0d12]/80 backdrop-blur-2xl border-b border-white/5">
         <div className="max-w-4xl mx-auto px-6 h-20 flex items-center justify-between">
-          <button 
+          <SecondaryButton 
             onClick={() => navigate('/judge/dashboard')}
-            className="group flex items-center gap-3 text-[10px] tracking-[0.2em] uppercase text-white/50 hover:text-white transition-colors"
+            className="!w-auto px-6 !h-10"
           >
-            <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform" /> Back
-          </button>
+            <ArrowLeft size={14} /> Back
+          </SecondaryButton>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-6 py-20">
-        <header className="mb-20 pb-12 border-b border-white/10">
-          <h1 className="text-4xl md:text-5xl font-light tracking-wide mb-4">{project.title}</h1>
-          <p className="text-white/40 font-mono text-xs uppercase tracking-widest">ID: {id}</p>
-        </header>
+      <div className="max-w-4xl w-full mx-auto px-6 py-20 flex-1">
+        
+        <DarkCard className="mb-12">
+          <Heading className="mb-2">{project?.title || 'Unknown Project'}</Heading>
+          <p className="text-white/60 font-mono text-xs uppercase tracking-widest">ID: {id}</p>
+        </DarkCard>
 
-        <form className="space-y-16" onSubmit={handleSubmit}>
+        <form className="space-y-8" onSubmit={handleSubmit}>
           
-          <div className="space-y-12">
+          <WhiteCard className="space-y-12">
             {criteria.map((c, i) => (
               <motion.div 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.1, duration: 0.5 }}
                 key={c.name} 
-                className="space-y-6"
+                className="space-y-4"
               >
-                <div className="flex items-center justify-between border-b border-white/5 pb-4">
-                  <label className="text-sm font-light tracking-widest uppercase text-white/80">{c.name}</label>
-                  <span className="text-[10px] font-medium tracking-[0.2em] text-white/30 uppercase">
+                <div className="flex items-center justify-between border-b border-black/10 pb-4">
+                  <Label className="!text-black/80">{c.name}</Label>
+                  <span className="text-[10px] font-medium tracking-[0.2em] text-black/40 uppercase">
                     Weight {c.weight * 100}%
                   </span>
                 </div>
@@ -107,10 +111,10 @@ export default function ScorePage() {
                       key={val}
                       type="button"
                       onClick={() => setScores(s => ({ ...s, [c.name]: val }))}
-                      className={`flex-1 py-4 flex items-center justify-center transition-all cursor-pointer border-b-2 ${
+                      className={`flex-1 py-4 flex items-center justify-center transition-all cursor-pointer rounded-2xl border-2 ${
                         scores[c.name] === val 
-                          ? 'border-white text-white bg-white/5' 
-                          : 'border-transparent text-white/30 hover:bg-white/[0.02] hover:text-white/60'
+                          ? 'border-black text-white bg-black shadow-md' 
+                          : 'border-transparent text-black/40 hover:bg-black/5 hover:text-black/70'
                       }`}
                     >
                       <span className="font-light text-xl">{val}</span>
@@ -119,50 +123,38 @@ export default function ScorePage() {
                 </div>
               </motion.div>
             ))}
-          </div>
+          </WhiteCard>
 
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.4, duration: 0.5 }}
-            className="space-y-6 pt-8 border-t border-white/10"
-          >
-            <label className="text-sm font-light tracking-widest uppercase text-white/80 block">Qualitative Feedback</label>
-            <textarea 
-              rows={4}
-              value={comment}
-              onChange={e => setComment(e.target.value)}
-              placeholder="Provide constructive feedback for the team..."
-              className="w-full bg-transparent border-b border-white/10 p-4 text-white placeholder:text-white/20 focus:outline-none focus:border-white/50 transition-colors resize-none font-light leading-relaxed"
-            />
-          </motion.div>
-
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5, duration: 0.5 }}
-            className="flex flex-col sm:flex-row items-center justify-between gap-8 pt-12"
-          >
+          <DarkCard className="space-y-6">
             <div>
-              <div className="text-[10px] uppercase tracking-[0.2em] text-white/30 font-medium mb-2">Final Weighted Score</div>
-              <div className="text-4xl font-light">{weightedScore} <span className="text-white/20 text-2xl">/ 5.00</span></div>
+              <Label className="block mb-4">Qualitative Feedback</Label>
+              <Input 
+                value={comment}
+                onChange={e => setComment(e.target.value)}
+                placeholder="Provide constructive feedback for the team..."
+              />
             </div>
 
-            <button 
-              type="submit"
-              disabled={!allScored || submitting}
-              className={`h-14 px-10 rounded-full text-xs font-medium uppercase tracking-[0.2em] transition-all flex items-center gap-3 ${
-                !allScored || submitting
-                  ? 'bg-white/5 text-white/20 cursor-not-allowed'
-                  : 'bg-white text-black hover:bg-white/90 shadow-[0_0_40px_rgba(255,255,255,0.2)]'
-              }`}
-            >
-              {submitting ? 'Submitting...' : 'Submit Evaluation'}
-              <Check size={16} />
-            </button>
-          </motion.div>
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-8 pt-8 border-t border-white/10 mt-8">
+              <div>
+                <div className="text-[10px] uppercase tracking-[0.2em] text-white/50 font-medium mb-2">Final Weighted Score</div>
+                <div className="text-4xl font-light text-white">{weightedScore} <span className="text-white/40 text-2xl">/ 5.00</span></div>
+              </div>
+
+              <PrimaryButton 
+                type="submit"
+                disabled={!allScored || submitting}
+                className="w-full sm:w-auto px-10 flex items-center justify-center gap-3"
+              >
+                <span className="flex items-center gap-2">
+                  {submitting ? 'Submitting...' : 'Submit Evaluation'}
+                  <Check size={16} />
+                </span>
+              </PrimaryButton>
+            </div>
+          </DarkCard>
         </form>
-      </main>
-    </div>
+      </div>
+    </PageContainer>
   )
 }

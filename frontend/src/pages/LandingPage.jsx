@@ -3,7 +3,8 @@ import { UploadSimple, Scales, ChartBar, MathOperations } from '@phosphor-icons/
 import { motion, useScroll } from 'motion/react'
 import Lenis from 'lenis'
 import HeroSection from '../components/HeroSection'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
+import Footer from '../components/Footer'
 
 export default function LandingPage() {
   const navigate = useNavigate()
@@ -69,7 +70,7 @@ export default function LandingPage() {
                   Icon: UploadSimple,
                   color: 'text-sky-300',
                   bg: 'bg-sky-400/20',
-                  cardBg: 'bg-black/60 hover:bg-sky-900/60'
+                  hoverColor: 'var(--color-sky-400)'
                 },
                 { 
                   title: 'Track-based Judging', 
@@ -77,7 +78,7 @@ export default function LandingPage() {
                   Icon: Scales,
                   color: 'text-amber-300',
                   bg: 'bg-amber-400/20',
-                  cardBg: 'bg-black/60 hover:bg-amber-900/60'
+                  hoverColor: 'var(--color-amber-400)'
                 },
                 { 
                   title: 'Z-Score Normalization', 
@@ -85,7 +86,7 @@ export default function LandingPage() {
                   Icon: MathOperations,
                   color: 'text-fuchsia-300',
                   bg: 'bg-fuchsia-400/20',
-                  cardBg: 'bg-black/60 hover:bg-fuchsia-900/60'
+                  hoverColor: 'var(--color-fuchsia-400)'
                 },
                 { 
                   title: 'CSV Export', 
@@ -93,7 +94,7 @@ export default function LandingPage() {
                   Icon: ChartBar,
                   color: 'text-teal-300',
                   bg: 'bg-teal-400/20',
-                  cardBg: 'bg-black/60 hover:bg-teal-900/60'
+                  hoverColor: 'var(--color-teal-400)'
                 }
               ].map((feature, i) => (
                 <motion.div 
@@ -102,9 +103,10 @@ export default function LandingPage() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, margin: "-50px" }}
                   transition={{ duration: 0.6, delay: i * 0.1 }}
-                  className={`p-8 rounded-2xl ${feature.cardBg} backdrop-blur-2xl border border-white/20 shadow-2xl transition-colors duration-500 hover:border-white/50 hover:shadow-[0_0_40px_rgba(255,255,255,0.15)] cursor-pointer`}
+                  className={`p-8 rounded-2xl bg-black/60 backdrop-blur-2xl border border-white/20 shadow-2xl transition-all duration-500 shared-icon-hover-card shared-icon-hover-glow cursor-pointer`}
+                  style={{ '--icon-color': feature.hoverColor }}
                 >
-                  <div className={`h-12 w-12 rounded-full ${feature.bg} flex items-center justify-center mb-6`}>
+                  <div className={`h-12 w-12 rounded-2xl ${feature.bg} flex items-center justify-center mb-6`}>
                     <feature.Icon size={24} weight="duotone" className={feature.color} />
                   </div>
                   <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
@@ -217,7 +219,7 @@ export default function LandingPage() {
                       <tbody>
                         <tr><td className="py-3 border-b border-white/5">prj_41</td><td className="py-3 border-b border-white/5">4.1</td><td className="py-3 border-b border-white/5 text-white">+1.24</td></tr>
                         <tr><td className="py-3 border-b border-white/5">prj_12</td><td className="py-3 border-b border-white/5">2.8</td><td className="py-3 border-b border-white/5 text-white">-0.82</td></tr>
-                        <tr><td className="py-3">prj_07</td><td className="py-3">3.5</td><td className="py-3 text-white">+0.15</td></tr>
+                        <tr><td className="py-3 border-b border-white/5">prj_07</td><td className="py-3 border-b border-white/5">3.5</td><td className="py-3 border-b border-white/5 text-white">+0.15</td></tr>
                       </tbody>
                     </table>
                   </div>
@@ -253,24 +255,24 @@ export default function LandingPage() {
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.6 }}
-                className="p-10 rounded-3xl bg-black/60 backdrop-blur-2xl border border-white/20 flex flex-col shadow-2xl"
+                className="p-10 rounded-2xl bg-black/60 backdrop-blur-2xl border border-white/20 flex flex-col shadow-2xl"
               >
                 <h3 className="text-2xl font-medium mb-2">Participant</h3>
                 <p className="text-white/80 mb-8 flex-1">For hackers forming teams and submitting projects.</p>
                 <ul className="space-y-4 mb-10 text-white/90">
                   <li className="flex items-center gap-3">
-                    <div className="h-1.5 w-1.5 rounded-full bg-white/60" /> Submit your repository
+                    <div className="h-1.5 w-1.5 rounded-2xl bg-white/60" /> Submit your repository
                   </li>
                   <li className="flex items-center gap-3">
-                    <div className="h-1.5 w-1.5 rounded-full bg-white/60" /> Manage team members
+                    <div className="h-1.5 w-1.5 rounded-2xl bg-white/60" /> Manage team members
                   </li>
                   <li className="flex items-center gap-3">
-                    <div className="h-1.5 w-1.5 rounded-full bg-white/60" /> View public gallery
+                    <div className="h-1.5 w-1.5 rounded-2xl bg-white/60" /> View public gallery
                   </li>
                 </ul>
                 <button 
                   onClick={() => navigate('/signup')}
-                  className="w-full py-3 rounded-full bg-white/20 hover:bg-white/30 transition-colors font-semibold cursor-pointer"
+                  className="w-full py-3 rounded-2xl bg-white/20 hover:bg-white/30 transition-colors font-semibold cursor-pointer"
                 >
                   Register Now
                 </button>
@@ -282,27 +284,27 @@ export default function LandingPage() {
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.6 }}
-                className="p-10 rounded-3xl bg-white/60 backdrop-blur-2xl border border-white/50 relative text-black flex flex-col shadow-2xl"
+                className="p-10 rounded-2xl bg-white/60 backdrop-blur-2xl border border-white/50 relative text-black flex flex-col shadow-2xl"
               >
-                <div className="absolute top-0 right-10 -translate-y-1/2 bg-black text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">
+                <div className="absolute top-0 right-10 -translate-y-1/2 bg-black text-white text-xs font-bold px-3 py-1 rounded-2xl shadow-md">
                   OFFICIALS
                 </div>
                 <h3 className="text-2xl font-medium mb-2">Staff & Judges</h3>
                 <p className="text-black/80 mb-8 flex-1">For organizers managing the event and judges reviewing projects.</p>
                 <ul className="space-y-4 mb-10 text-black/90 font-medium">
                   <li className="flex items-center gap-3">
-                    <div className="h-1.5 w-1.5 rounded-full bg-black/60" /> Review assignments
+                    <div className="h-1.5 w-1.5 rounded-2xl bg-black/60" /> Review assignments
                   </li>
                   <li className="flex items-center gap-3">
-                    <div className="h-1.5 w-1.5 rounded-full bg-black/60" /> Score against rubrics
+                    <div className="h-1.5 w-1.5 rounded-2xl bg-black/60" /> Score against rubrics
                   </li>
                   <li className="flex items-center gap-3">
-                    <div className="h-1.5 w-1.5 rounded-full bg-black/60" /> Run normalization
+                    <div className="h-1.5 w-1.5 rounded-2xl bg-black/60" /> Run normalization
                   </li>
                 </ul>
                 <button 
                   onClick={() => navigate('/login')}
-                  className="w-full py-3 rounded-full bg-black/50 text-white hover:bg-black/60 transition-colors font-semibold cursor-pointer"
+                  className="w-full py-3 rounded-2xl bg-black/50 text-white hover:bg-black/60 transition-colors font-semibold cursor-pointer"
                 >
                   Staff Login
                 </button>
@@ -312,25 +314,10 @@ export default function LandingPage() {
         </section>
 
         {/* ── Footer ── */}
-        <footer ref={footerRef} className="relative z-20 w-full min-h-screen flex items-center justify-end py-24 bg-transparent pointer-events-none">
-          <div className="w-full md:w-1/2 flex flex-col items-center justify-center pointer-events-auto px-6">
-            <div className="flex flex-col items-center gap-8 mb-20">
-              {['About Us', 'Our Motive', 'Reviews', 'Contact Us'].map((link) => (
-                <a 
-                  key={link} 
-                  href="#" 
-                  className="text-2xl md:text-3xl font-light tracking-[0.2em] uppercase text-black/60 hover:text-black hover:tracking-[0.25em] transition-all duration-500"
-                >
-                  {link}
-                </a>
-              ))}
-            </div>
-            <p className="text-black/40 text-xs md:text-sm tracking-[0.1em] font-bold uppercase">
-              © 2026 DOGFOOD Hackathon Team. All rights reserved.
-            </p>
-          </div>
-        </footer>
+        <Footer ref={footerRef} />
       </div>
     </div>
   )
 }
+
+

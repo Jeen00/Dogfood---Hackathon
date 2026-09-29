@@ -7,7 +7,7 @@ export default function Navbar({ showBackButton = true }) {
 
   return (
     <div className="p-4 relative z-50">
-      <nav className="max-w-7xl mx-auto bg-black/40 backdrop-blur-2xl border border-white/10 rounded-[2rem] px-8 py-5 flex items-center justify-between shadow-2xl">
+      <nav className="max-w-7xl mx-auto bg-black/40 backdrop-blur-2xl border border-white/10 rounded-2xl px-8 py-5 flex items-center justify-between shadow-2xl">
         <div className="flex items-center gap-4 cursor-pointer group" onClick={() => navigate('/')}>
           {showBackButton && (
             <>
