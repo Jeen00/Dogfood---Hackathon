@@ -1,0 +1,145 @@
+<%- include('../layouts/header', { title: 'Certificates & Credentials', session, selectedEvent }) %>
+<% locals._page = 'certificates-templates'; %>
+<% var eid = (typeof selectedEvent !== 'undefined' && selectedEvent) ? selectedEvent.id : ''; %>
+
+<div class="org-layout">
+  <%- include('_sidebar') %>
+
+  <main class="org-content">
+    <div class="org-page-header">
+      <div>
+        <h1 class="org-page-title">🎓 Certificates & Digital Credentials</h1>
+        <p class="org-page-sub">Generate, customize, and issue verifiable digital certificates for participants, finalists, and winners of <%= selectedEvent ? selectedEvent.name : 'Hackathon' %></p>
+      </div>
+
+      <button class="org-action-btn" onclick="alert('Bulk certificate generation initiated.')">+ Bulk Generate All</button>
+    </div>
+
+    <!-- Tabs matching user's tree -->
+    <nav class="org-tabs">
+      <a href="#templates" class="org-tab-item active">Certificate Templates</a>
+      <a href="#participation" class="org-tab-item">Participation</a>
+      <a href="#finalist" class="org-tab-item">Finalist</a>
+      <a href="#winner" class="org-tab-item">Winner</a>
+      <a href="#special" class="org-tab-item">Special Award</a>
+      <a href="#generate" class="org-tab-item">Generate</a>
+      <a href="#history" class="org-tab-item">History</a>
+      <a href="#verify" class="org-tab-item">Verify Certificate</a>
+    </nav>
+
+    <!-- Certificate Templates Grid -->
+    <div class="org-stat-grid" id="templates" style="grid-template-columns:repeat(auto-fill, minmax(280px, 1fr));gap:20px;margin-bottom:24px;">
+
+      <!-- Participation -->
+      <div class="org-card" id="participation">
+        <div style="background:#e8f0fe;height:120px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:2.5rem;margin-bottom:12px;">
+          🎓
+        </div>
+        <h3 class="org-card-title">Certificate of Participation</h3>
+        <p style="font-size:0.83rem;color:#666;margin:6px 0 14px;">Issued to all registered builders who submitted a valid project.</p>
+        <form method="POST" action="/organizer/certificates/generate">
+          <input type="hidden" name="event_id" value="<%= eid %>">
+          <input type="hidden" name="type" value="participation">
+          <button type="submit" class="org-action-btn org-btn-sm">Issue Participation Certificates</button>
+        </form>
+      </div>
+
+      <!-- Finalist -->
+      <div class="org-card" id="finalist">
+        <div style="background:#fff3e0;height:120px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:2.5rem;margin-bottom:12px;">
+          🥈
+        </div>
+        <h3 class="org-card-title">Finalist Certificate</h3>
+        <p style="font-size:0.83rem;color:#666;margin:6px 0 14px;">Issued to top 10 ranked teams after normalized score evaluation.</p>
+        <form method="POST" action="/organizer/certificates/generate">
+          <input type="hidden" name="event_id" value="<%= eid %>">
+          <input type="hidden" name="type" value="finalist">
+          <button type="submit" class="org-action-btn org-btn-sm">Issue Finalist Certificates</button>
+        </form>
+      </div>
+
+      <!-- Winner -->
+      <div class="org-card" id="winner">
+        <div style="background:#fce8e6;height:120px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:2.5rem;margin-bottom:12px;">
+          🏆
+        </div>
+        <h3 class="org-card-title">Winner Certificate</h3>
+        <p style="font-size:0.83rem;color:#666;margin:6px 0 14px;">Grand Prize 1st, 2nd, and 3rd place credentials with prize endorsements.</p>
+        <form method="POST" action="/organizer/certificates/generate">
+          <input type="hidden" name="event_id" value="<%= eid %>">
+          <input type="hidden" name="type" value="winner">
+          <button type="submit" class="org-action-btn org-btn-sm">Issue Winner Certificates</button>
+        </form>
+      </div>
+
+      <!-- Special Award -->
+      <div class="org-card" id="special">
+        <div style="background:#e8f5e9;height:120px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:2.5rem;margin-bottom:12px;">
+          ⭐
+        </div>
+        <h3 class="org-card-title">Special Track Award</h3>
+        <p style="font-size:0.83rem;color:#666;margin:6px 0 14px;">Custom badge for Best AI, Most Innovative, Best Design, and Sponsor challenges.</p>
+        <form method="POST" action="/organizer/certificates/generate">
+          <input type="hidden" name="event_id" value="<%= eid %>">
+          <input type="hidden" name="type" value="all">
+          <button type="submit" class="org-action-btn org-btn-sm">Issue Track Awards</button>
+        </form>
+      </div>
+
+    </div>
+
+    <!-- Issued Certificates Table -->
+    <div class="org-card" id="history" style="margin-bottom:24px;">
+      <div class="org-card-header">
+        <h3 class="org-card-title">Issued Certificates (<%= (typeof certificates !== 'undefined' && certificates) ? certificates.length : 0 %>)</h3>
+        <a href="/api/export.csv?type=certificates<%= eid ? '&event_id=' + eid : '' %>" class="org-card-link">Export Certificates CSV →</a>
+      </div>
+
+      <% var certs = (typeof certificates !== 'undefined' && certificates) ? certificates : []; %>
+      <% if (certs.length === 0) { %>
+        <p class="org-empty">No certificates generated yet. Choose a template above to generate credentials.</p>
+      <% } else { %>
+        <table class="org-table">
+          <thead>
+            <tr>
+              <th>Recipient Name</th>
+              <th>Certificate Title</th>
+              <th>Type</th>
+              <th>Verification Code</th>
+              <th>Issue Date</th>
+              <th>Verification</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% certs.forEach(function(c) { %>
+              <tr>
+                <td><strong><%= c.recipient_name %></strong></td>
+                <td><%= c.title %></td>
+                <td><span class="badge badge-tech"><%= c.type %></span></td>
+                <td><code><%= c.cert_code %></code></td>
+                <td><%= c.issue_date %></td>
+                <td>
+                  <a href="/verify/<%= c.cert_code %>" target="_blank" class="org-action-btn org-action-btn-outline org-btn-sm">Verify ↗</a>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      <% } %>
+    </div>
+
+    <!-- Verify Certificate Search -->
+    <div class="org-card" id="verify">
+      <div class="org-card-header">
+        <h3 class="org-card-title">🔍 Verification Portal Check</h3>
+      </div>
+      <p style="font-size:0.85rem;color:#666;">Validate authenticity of any certificate code issued by this hackathon.</p>
+      <form onsubmit="event.preventDefault(); var code = document.getElementById('verifyInput').value.trim(); if(code) window.open('/verify/' + encodeURIComponent(code), '_blank');" style="display:flex;gap:10px;max-width:500px;">
+        <input type="text" id="verifyInput" class="org-input" placeholder="e.g. CERT-2026-DGF-8841A" required>
+        <button type="submit" class="org-action-btn">Verify Credential</button>
+      </form>
+    </div>
+  </main>
+</div>
+
+<%- include('../layouts/footer') %>

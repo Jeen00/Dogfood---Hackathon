@@ -1,0 +1,184 @@
+<%- include('../layouts/header', { title: 'Judging Center', session, selectedEvent }) %>
+<% locals._page = 'judging-overview'; %>
+<% var eid = (typeof selectedEvent !== 'undefined' && selectedEvent) ? selectedEvent.id : ''; %>
+
+<div class="org-layout">
+  <%- include('_sidebar') %>
+
+  <main class="org-content">
+    <div class="org-page-header">
+      <div>
+        <h1 class="org-page-title">⚖️ Judging Center</h1>
+        <p class="org-page-sub">Manage evaluation rubrics, score normalization, calibration, and integrity monitoring for <%= selectedEvent ? selectedEvent.name : 'Hackathon' %></p>
+      </div>
+
+      <div style="display:flex;gap:10px;">
+        <a href="/organizer/normalization<%= eid ? '?event_id=' + eid : '' %>" class="org-action-btn">Run Normalization</a>
+        <a href="/organizer/rubric<%= eid ? '?event_id=' + eid : '' %>" class="org-action-btn org-action-btn-outline">Edit Rubric</a>
+      </div>
+    </div>
+
+    <!-- Tabs matching user's tree -->
+    <nav class="org-tabs">
+      <a href="#overview" class="org-tab-item active">Judging Overview</a>
+      <a href="/organizer/rubric<%= eid ? '?event_id=' + eid : '' %>" class="org-tab-item">Rubric & Criteria</a>
+      <a href="#weights" class="org-tab-item">Criteria Weights</a>
+      <a href="#scale" class="org-tab-item">Score Scale</a>
+      <a href="#forms" class="org-tab-item">Evaluation Forms</a>
+      <a href="/organizer/normalization<%= eid ? '?event_id=' + eid : '' %>" class="org-tab-item">Evaluations & Normalization</a>
+      <a href="#pending" class="org-tab-item">Pending</a>
+      <a href="#completed" class="org-tab-item">Completed</a>
+      <a href="#comments" class="org-tab-item">Judge Comments</a>
+      <a href="#calibration" class="org-tab-item">Calibration</a>
+      <a href="/organizer/integrity<%= eid ? '?event_id=' + eid : '' %>" class="org-tab-item">Integrity Center</a>
+      <a href="/organizer/reevaluation<%= eid ? '?event_id=' + eid : '' %>" class="org-tab-item">Re-evaluation</a>
+      <a href="#settings" class="org-tab-item">Judging Settings</a>
+    </nav>
+
+    <!-- Judging KPIs -->
+    <% var jstats = (typeof judgeStats !== 'undefined' && judgeStats) ? judgeStats : { totalJudges: 0, pendingReviews: 0, completedReviews: 0 }; %>
+    <div class="org-stat-grid" id="overview" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px;">
+      <div class="org-stat-card">
+        <div class="org-stat-icon" style="background:#e8f0fe">📝</div>
+        <div class="org-stat-body">
+          <div class="org-stat-value"><%= (typeof totalRubrics !== 'undefined') ? totalRubrics : 3 %></div>
+          <div class="org-stat-label">Rubric Criteria</div>
+        </div>
+      </div>
+      <div class="org-stat-card">
+        <div class="org-stat-icon" style="background:#e6f4ea">⚖️</div>
+        <div class="org-stat-body">
+          <div class="org-stat-value"><%= jstats.totalJudges %></div>
+          <div class="org-stat-label">Active Judges</div>
+        </div>
+      </div>
+      <div class="org-stat-card">
+        <div class="org-stat-icon" style="background:#fff3e0">⏳</div>
+        <div class="org-stat-body">
+          <div class="org-stat-value" id="pending"><%= jstats.pendingReviews %></div>
+          <div class="org-stat-label">Pending Reviews</div>
+        </div>
+      </div>
+      <div class="org-stat-card">
+        <div class="org-stat-icon" style="background:#e8f5e9">✅</div>
+        <div class="org-stat-body">
+          <div class="org-stat-value" id="completed"><%= jstats.completedReviews %></div>
+          <div class="org-stat-label">Completed Reviews</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rubric, Scale & Calibration Two-Col -->
+    <div class="org-two-col">
+      <div class="org-card" id="weights">
+        <div class="org-card-header">
+          <h3 class="org-card-title">📝 Rubric Criteria & Weights</h3>
+          <a href="/organizer/rubric<%= eid ? '?event_id=' + eid : '' %>" class="org-card-link">Edit in Rubric Builder →</a>
+        </div>
+        <table class="org-table">
+          <thead>
+            <tr><th>Criterion</th><th>Description</th><th>Weight</th></tr>
+          </thead>
+          <tbody>
+            <% if (typeof rubricCriteria !== 'undefined' && rubricCriteria.length > 0) { %>
+              <% rubricCriteria.forEach(function(rc) { %>
+                <tr>
+                  <td><strong><%= rc.name %></strong></td>
+                  <td><%= rc.description || 'Evaluation criterion' %></td>
+                  <td><span class="badge badge-tech"><%= Math.round((rc.weight || 0.33) * 100) %>%</span></td>
+                </tr>
+              <% }); %>
+            <% } else { %>
+              <tr><td><strong>Innovation & Originality</strong></td><td>Creativity and novelty of the concept</td><td><span class="badge badge-tech">35%</span></td></tr>
+              <tr><td><strong>Technical Execution</strong></td><td>Architecture, code quality, stability</td><td><span class="badge badge-tech">40%</span></td></tr>
+              <tr><td><strong>Design & User Experience</strong></td><td>Interface polishedness and usability</td><td><span class="badge badge-tech">25%</span></td></tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="org-card" id="scale">
+        <div class="org-card-header">
+          <h3 class="org-card-title">📏 Score Scale & Calibration</h3>
+        </div>
+        <form method="POST" action="/organizer/judging/settings">
+          <input type="hidden" name="event_id" value="<%= eid %>">
+          <div class="org-form-group">
+            <label class="org-form-label">Scoring Scale Range</label>
+            <select name="score_scale" class="org-select">
+              <option value="1-10">1 to 10 points (Standard)</option>
+              <option value="1-5">1 to 5 points (Fast Review)</option>
+              <option value="1-100">1 to 100 points (Granular)</option>
+            </select>
+          </div>
+          <div class="org-form-group" id="calibration">
+            <label class="org-form-label">Normalization Method</label>
+            <select name="normalization_method" class="org-select">
+              <option value="z-score">Z-score normalization (Adjusts for harsh vs generous judges)</option>
+              <option value="min-max">Min-Max scaling (0 to 100)</option>
+              <option value="percentile">Percentile rank ranking</option>
+            </select>
+          </div>
+          <div class="org-form-group">
+            <label class="org-form-label"><input type="checkbox" name="require_feedback" value="1" checked> Require written judge feedback for every score</label>
+          </div>
+          <button type="submit" class="org-action-btn org-btn-sm" style="margin-top:8px;">Save Judging Settings</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Judge Comments & Recent Evaluations -->
+    <div class="org-card" id="comments" style="margin-top:24px;">
+      <div class="org-card-header">
+        <h3 class="org-card-title">💬 Recent Judge Feedback & Comments</h3>
+        <a href="/organizer/normalization<%= eid ? '?event_id=' + eid : '' %>" class="org-card-link">View Normalized Table →</a>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <% if (typeof recentReviews !== 'undefined' && recentReviews.length > 0) { %>
+          <% recentReviews.forEach(function(rev) { %>
+            <div style="padding:12px 14px;border:1px solid #eee;border-radius:6px;background:#fafafa;">
+              <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+                <strong><%= rev.judge_name %></strong> on <em><%= rev.project_title %> (<%= rev.team_name || 'Team' %>)</em>
+                <span style="font-size:0.75rem;color:#888;"><%= rev.submitted_at ? rev.submitted_at.slice(0, 10) : '' %></span>
+              </div>
+              <p style="margin:0;font-size:0.85rem;color:#555;">"<%= rev.comment || 'No written feedback provided.' %>"</p>
+            </div>
+          <% }); %>
+        <% } else { %>
+          <p class="org-empty">No judge evaluations recorded yet.</p>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- Evaluation Forms & Settings -->
+    <div class="org-two-col" style="margin-top:24px;">
+      <div class="org-card" id="forms">
+        <div class="org-card-header">
+          <h3 class="org-card-title">📋 Evaluation Form Setup</h3>
+        </div>
+        <p style="font-size:0.84rem;color:#666;">Form fields presented to judges on their review assignment view:</p>
+        <ul style="font-size:0.85rem;color:#444;line-height:1.8;">
+          <li>Criteria sliders (1-10) with rubrics guidance</li>
+          <li>Strengths (freeform text area)</li>
+          <li>Areas for improvement (freeform text area)</li>
+          <li>Confidential note to organizer (checkbox + text)</li>
+        </ul>
+      </div>
+
+      <div class="org-card" id="settings">
+        <div class="org-card-header">
+          <h3 class="org-card-title">⚙️ Judging Rules & Settings</h3>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;font-size:0.85rem;">
+          <label><input type="checkbox" checked> Blind evaluation (Hide participant names from judges)</label>
+          <label><input type="checkbox" checked> Prevent judges from reviewing teams with conflicts</label>
+          <label><input type="checkbox" checked> Allow judges to revise scores before deadline closes</label>
+          <label><input type="checkbox" checked> Auto-flag score variance above 2.5 points between judges</label>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<%- include('../layouts/footer') %>

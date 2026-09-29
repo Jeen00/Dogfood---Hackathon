@@ -1,0 +1,222 @@
+<%- include('../layouts/header', { title: 'Event Page Builder', session, selectedEvent }) %>
+<% locals._page = 'eventpage-basic'; %>
+<% var eid = (typeof selectedEvent !== 'undefined' && selectedEvent) ? selectedEvent.id : ''; %>
+
+<div class="org-layout">
+  <%- include('_sidebar') %>
+
+  <main class="org-content">
+    <div class="org-page-header">
+      <div>
+        <h1 class="org-page-title">🎨 Event Page Builder</h1>
+        <p class="org-page-sub">Customize the public hackathon landing page for <%= selectedEvent ? selectedEvent.name : 'Selected Event' %></p>
+      </div>
+
+      <div style="display:flex;gap:10px;align-items:center;">
+        <a href="/projects?event_id=<%= eid %>" target="_blank" class="org-action-btn org-action-btn-outline" title="Preview public project gallery for this hackathon">
+          👁️ Preview Public Page ↗
+        </a>
+      </div>
+    </div>
+
+    <!-- Alert Banners -->
+    <% if (typeof success !== 'undefined' && success) { %>
+      <div style="background:#e6f4ea;color:#137333;border:1px solid #34a853;border-radius:6px;padding:12px 16px;margin-bottom:18px;font-size:0.9rem;">
+        ✅ <%= success %>
+      </div>
+    <% } %>
+
+    <!-- Navigation links for all 13 Event Page sub-items -->
+    <nav class="org-tabs">
+      <a href="#basic" class="org-tab-item active">Basic Info</a>
+      <a href="#branding" class="org-tab-item">Banner & Branding</a>
+      <a href="#about" class="org-tab-item">About</a>
+      <a href="#problem" class="org-tab-item">Problem Statement</a>
+      <a href="#rules" class="org-tab-item">Rules & Guidelines</a>
+      <a href="#eligibility" class="org-tab-item">Eligibility</a>
+      <a href="#dates" class="org-tab-item">Important Dates</a>
+      <a href="#prizes" class="org-tab-item">Prizes</a>
+      <a href="#faqs" class="org-tab-item">FAQs</a>
+      <a href="#sponsors" class="org-tab-item">Sponsors</a>
+      <a href="#partners" class="org-tab-item">Partners</a>
+      <a href="#contact" class="org-tab-item">Contact</a>
+    </nav>
+
+    <% if (!selectedEvent) { %>
+      <p class="org-empty">Please select a hackathon from the top navigation first.</p>
+    <% } else { %>
+      <form method="POST" action="/organizer/event-page" class="org-card" style="max-width:900px;">
+        <input type="hidden" name="event_id" value="<%= selectedEvent.id %>">
+
+        <!-- 1. Basic Information -->
+        <section id="basic" style="margin-bottom:32px;">
+          <h3 class="org-card-title" style="margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid #eee;">
+            1. 🏷️ Basic Information
+          </h3>
+          <div class="org-form-group">
+            <label class="org-form-label">Event Title *</label>
+            <input type="text" name="name" class="org-input" required value="<%= selectedEvent.name %>">
+          </div>
+          <div class="org-form-group">
+            <label class="org-form-label">Headline / Tagline</label>
+            <input type="text" name="description" class="org-input" value="<%= selectedEvent.description || '' %>" placeholder="Short impactful tagline describing the theme">
+          </div>
+        </section>
+
+        <!-- 2. Banner & Branding -->
+        <section id="branding" style="margin-bottom:32px;">
+          <h3 class="org-card-title" style="margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid #eee;">
+            2. 🖼️ Banner & Branding
+          </h3>
+          <div class="org-form-group">
+            <label class="org-form-label">Banner Image URL</label>
+            <input type="url" name="banner_url" class="org-input" value="<%= selectedEvent.banner_url || '' %>" placeholder="https://images.unsplash.com/photo-...">
+            <span class="org-form-hint">Recommended aspect ratio 16:9 or 3:1 (1200x400px)</span>
+          </div>
+          <% if (selectedEvent.banner_url) { %>
+            <div style="margin-top:8px;border-radius:6px;overflow:hidden;border:1px solid #ddd;max-height:160px;">
+              <img src="<%= selectedEvent.banner_url %>" alt="Banner Preview" style="width:100%;height:100%;object-fit:cover;">
+            </div>
+          <% } %>
+        </section>
+
+        <!-- 3. About Hackathon -->
+        <section id="about" style="margin-bottom:32px;">
+          <h3 class="org-card-title" style="margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid #eee;">
+            3. 📖 About Hackathon
+          </h3>
+          <div class="org-form-group">
+            <label class="org-form-label">Event Story, Overview & Background</label>
+            <textarea name="about" class="org-textarea" rows="4" placeholder="Describe the mission, the organizers, and what builders will achieve during this hackathon"><%= selectedEvent.about || '' %></textarea>
+          </div>
+        </section>
+
+        <!-- 4. Problem Statement -->
+        <section id="problem" style="margin-bottom:32px;">
+          <h3 class="org-card-title" style="margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid #eee;">
+            4. 💡 Problem Statement
+          </h3>
+          <div class="org-form-group">
+            <label class="org-form-label">Challenge Overview & Context</label>
+            <textarea name="problem_statement" class="org-textarea" rows="3" placeholder="What key challenges are participants solving? What real-world impact are you seeking?"><%= selectedEvent.problem_statement || '' %></textarea>
+          </div>
+        </section>
+
+        <!-- 5. Rules & Guidelines -->
+        <section id="rules" style="margin-bottom:32px;">
+          <h3 class="org-card-title" style="margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid #eee;">
+            5. ⚖️ Rules & Guidelines
+          </h3>
+          <div class="org-form-group">
+            <label class="org-form-label">Hackathon Rules & Code of Conduct</label>
+            <textarea name="rules" class="org-textarea" rows="4" placeholder="• All code must be written during the event&#10;• Open source libraries are allowed&#10;• Teams can have 1 to 4 members&#10;• Original work only"><%= selectedEvent.rules || '' %></textarea>
+          </div>
+        </section>
+
+        <!-- 6. Eligibility -->
+        <section id="eligibility" style="margin-bottom:32px;">
+          <h3 class="org-card-title" style="margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid #eee;">
+            6. 🎓 Eligibility
+          </h3>
+          <div class="org-form-group">
+            <label class="org-form-label">Who Can Participate</label>
+            <input type="text" name="eligibility" class="org-input" value="<%= selectedEvent.eligibility || '' %>" placeholder="e.g. Open to developers, students, and founders worldwide (18+)">
+          </div>
+        </section>
+
+        <!-- 7. Important Dates -->
+        <section id="dates" style="margin-bottom:32px;">
+          <h3 class="org-card-title" style="margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid #eee;">
+            7. 📅 Important Dates
+          </h3>
+          <div class="org-form-grid">
+            <div class="org-form-group">
+              <label class="org-form-label">Submissions Open</label>
+              <input type="datetime-local" name="submissions_open" class="org-input" value="<%= selectedEvent.submissions_open ? selectedEvent.submissions_open.slice(0,16) : '' %>">
+            </div>
+            <div class="org-form-group">
+              <label class="org-form-label">Submissions Close</label>
+              <input type="datetime-local" name="submissions_close" class="org-input" value="<%= selectedEvent.submissions_close ? selectedEvent.submissions_close.slice(0,16) : '' %>">
+            </div>
+            <div class="org-form-group">
+              <label class="org-form-label">Judging Window Opens</label>
+              <input type="datetime-local" name="judging_open" class="org-input" value="<%= selectedEvent.judging_open ? selectedEvent.judging_open.slice(0,16) : '' %>">
+            </div>
+            <div class="org-form-group">
+              <label class="org-form-label">Judging Window Closes</label>
+              <input type="datetime-local" name="judging_close" class="org-input" value="<%= selectedEvent.judging_close ? selectedEvent.judging_close.slice(0,16) : '' %>">
+            </div>
+          </div>
+        </section>
+
+        <!-- 8. Prizes -->
+        <section id="prizes" style="margin-bottom:32px;">
+          <h3 class="org-card-title" style="margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid #eee;">
+            8. 🏆 Prizes
+          </h3>
+          <div class="org-form-group">
+            <label class="org-form-label">Prizes Breakdown & Perks</label>
+            <textarea name="prizes_summary" class="org-textarea" rows="3" placeholder="🥇 1st Place: $15,000 + Cloud Credits&#10;🥈 2nd Place: $8,000&#10;🥉 3rd Place: $4,000&#10;🏅 Best Track Prizes: $2,000 each"><%= selectedEvent.prizes_summary || '' %></textarea>
+          </div>
+        </section>
+
+        <!-- 9. FAQs -->
+        <section id="faqs" style="margin-bottom:32px;">
+          <h3 class="org-card-title" style="margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid #eee;">
+            9. ❓ FAQs
+          </h3>
+          <div class="org-form-group">
+            <label class="org-form-label">Frequently Asked Questions</label>
+            <textarea name="faqs" class="org-textarea" rows="4" placeholder="Q: What is the registration fee?&#10;A: Participation is 100% free!&#10;&#10;Q: How will projects be judged?&#10;A: Projects are scored on innovation, execution, track fit, and design."><%= selectedEvent.faqs || '' %></textarea>
+          </div>
+        </section>
+
+        <!-- 10. Sponsors & 11. Partners -->
+        <section id="sponsors" style="margin-bottom:32px;">
+          <h3 class="org-card-title" style="margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid #eee;">
+            10. 🤝 Sponsors & 11. Partners
+          </h3>
+          <div class="org-form-grid">
+            <div class="org-form-group">
+              <label class="org-form-label">Sponsors</label>
+              <textarea name="sponsors" class="org-textarea" rows="3" placeholder="Google Cloud, Docker, MongoDB"><%= selectedEvent.sponsors || '' %></textarea>
+            </div>
+            <div class="org-form-group">
+              <label class="org-form-label">Community Partners</label>
+              <textarea name="partners" class="org-textarea" rows="3" placeholder="Major League Hacking, Devpost, GDG"><%= selectedEvent.partners || '' %></textarea>
+            </div>
+          </div>
+        </section>
+
+        <!-- 12. Contact Information -->
+        <section id="contact" style="margin-bottom:32px;">
+          <h3 class="org-card-title" style="margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid #eee;">
+            12. ✉️ Contact Information
+          </h3>
+          <div class="org-form-grid">
+            <div class="org-form-group">
+              <label class="org-form-label">Support Email</label>
+              <input type="email" name="contact_email" class="org-input" value="<%= selectedEvent.contact_email || '' %>" placeholder="support@hackathon.org">
+            </div>
+            <div class="org-form-group">
+              <label class="org-form-label">Website URL</label>
+              <input type="url" name="website_url" class="org-input" value="<%= selectedEvent.website_url || '' %>" placeholder="https://myhackathon.com">
+            </div>
+          </div>
+        </section>
+
+        <!-- Save Button -->
+        <div style="display:flex;gap:12px;align-items:center;padding-top:16px;border-top:1px solid #eee;">
+          <button type="submit" class="org-action-btn" style="padding:10px 24px;font-size:0.95rem;">
+            💾 Save Event Page
+          </button>
+          <a href="/projects?event_id=<%= eid %>" target="_blank" class="org-action-btn org-action-btn-outline">
+            13. Preview Public Page ↗
+          </a>
+        </div>
+      </form>
+    <% } %>
+  </main>
+</div>
+
+<%- include('../layouts/footer') %>

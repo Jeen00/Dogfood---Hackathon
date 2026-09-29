@@ -1,64 +1,186 @@
-<%- include('../layouts/header', { title: 'Hackathon Results & Leaderboard', session }) %>
+<%- include('../layouts/header', { title: 'Hackathon Results & Final Standings', session, selectedEvent }) %>
+<% locals._page = 'results-overview'; %>
+<% var eid = (typeof selectedEvent !== 'undefined' && selectedEvent) ? selectedEvent.id : ''; %>
 
-<div class="breadcrumb" style="margin-bottom: 16px;">
-  <a href="/organizer/dashboard">Dashboard</a> / Leaderboard Results
-</div>
+<div class="org-layout">
+  <%- include('_sidebar') %>
 
-<h1>Hackathon Results & Final Standings</h1>
-<p style="color: #666; margin-bottom: 24px;">Rankings calculated from cross-judge Z-score normalization.</p>
+  <main class="org-content">
+    <div class="org-page-header">
+      <div>
+        <h1 class="org-page-title">🏆 Results & Final Rankings</h1>
+        <p class="org-page-sub">Review normalized leaderboard rankings, track winners, runner-ups, and publish results for <%= selectedEvent ? selectedEvent.name : 'Hackathon' %></p>
+      </div>
 
-<div class="dashboard-actions" style="margin-bottom: 24px;">
-  <a href="/api/export.csv" class="btn-action">Download CSV Export</a>
-  <a href="/organizer/normalization" class="btn-action">Re-Run Normalization</a>
-  <a href="/organizer/dashboard" class="btn-secondary">Back to Dashboard</a>
-</div>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <% if (selectedEvent && selectedEvent.results_published) { %>
+          <span class="org-status-chip org-status-done" style="font-size:0.85rem;padding:6px 12px;">📢 Published</span>
+          <form method="POST" action="/organizer/results/hide" style="display:inline;">
+            <input type="hidden" name="event_id" value="<%= eid %>">
+            <button type="submit" class="org-action-btn org-action-btn-outline" id="hide">
+              🔒 Hide Results
+            </button>
+          </form>
+        <% } else { %>
+          <span class="org-status-chip org-status-pending" style="font-size:0.85rem;padding:6px 12px;">Draft (Unpublished)</span>
+          <form method="POST" action="/organizer/results/publish" style="display:inline;">
+            <input type="hidden" name="event_id" value="<%= eid %>">
+            <button type="submit" class="org-action-btn org-btn-success" id="publish">
+              📢 Publish Results
+            </button>
+          </form>
+        <% } %>
+        <a href="/api/export.csv<%= eid ? '?event_id=' + eid : '' %>" class="org-action-btn">
+          📥 Download CSV Export
+        </a>
+      </div>
+    </div>
 
-<% if (!leaderboard || leaderboard.length === 0) { %>
-  <p>No project scores available yet.</p>
-<% } else { %>
-  <table>
-    <thead>
-      <tr>
-        <th style="width: 60px;">Rank</th>
-        <th>Project Title</th>
-        <th>Team</th>
-        <th>Track</th>
-        <th style="text-align: right;">Reviews</th>
-        <th style="text-align: right;">Avg Raw Score</th>
-        <th style="text-align: right;">Normalized Score</th>
-      </tr>
-    </thead>
-    <tbody>
-      <% for (const item of leaderboard) { %>
-        <tr>
-          <td>
-            <% if (item.rank === 1) { %>
-              <strong style="color: #d97706; font-size: 1.1em;">🥇 1</strong>
-            <% } else if (item.rank === 2) { %>
-              <strong style="color: #64748b; font-size: 1.1em;">🥈 2</strong>
-            <% } else if (item.rank === 3) { %>
-              <strong style="color: #b45309; font-size: 1.1em;">🥉 3</strong>
-            <% } else { %>
-              <%= item.rank %>
-            <% } %>
-          </td>
-          <td>
-            <a href="/projects/<%= item.project_id %>"><strong><%= item.project_title %></strong></a>
-            <% if (item.repo_url) { %>
-              <div style="font-size: 0.85em;"><a href="<%= item.repo_url %>" target="_blank" rel="noopener noreferrer" style="color: #888;"><%= item.repo_url %></a></div>
-            <% } %>
-          </td>
-          <td><%= item.team_name %></td>
-          <td><%= item.track_name %></td>
-          <td style="text-align: right;"><%= item.reviews_count %></td>
-          <td style="text-align: right;"><%= item.avg_raw_score != null ? item.avg_raw_score.toFixed(2) : '--' %> / 5.00</td>
-          <td style="text-align: right;">
-            <strong><%= item.final_normalized_score != null ? (item.final_normalized_score > 0 ? '+' : '') + item.final_normalized_score.toFixed(3) : 'Pending' %></strong>
-          </td>
-        </tr>
+    <!-- Horizontal sub-navbar tabs for all Results sub-items -->
+    <nav class="org-tabs">
+      <a href="#overview" class="org-tab-item active">Results Overview</a>
+      <a href="/organizer/normalization<%= eid ? '?event_id=' + eid : '' %>" class="org-tab-item">Score Normalization</a>
+      <a href="#rankings" class="org-tab-item">Final Rankings</a>
+      <a href="#winners" class="org-tab-item">Winners</a>
+      <a href="/organizer/certificates<%= eid ? '?event_id=' + eid : '' %>" class="org-tab-item">Award Certificates</a>
+      <a href="/api/export.csv<%= eid ? '?event_id=' + eid : '' %>" class="org-tab-item">Export Results</a>
+    </nav>
+
+    <!-- Podium Winners Display -->
+    <% var top1 = (typeof leaderboard !== 'undefined' && leaderboard[0]) ? leaderboard[0] : null; %>
+    <% var top2 = (typeof leaderboard !== 'undefined' && leaderboard[1]) ? leaderboard[1] : null; %>
+    <% var top3 = (typeof leaderboard !== 'undefined' && leaderboard[2]) ? leaderboard[2] : null; %>
+    <div class="org-stat-grid" id="winners" style="grid-template-columns:repeat(3, 1fr);margin-bottom:24px;">
+      <div class="org-card" style="border:2px solid #ffd700;background:#fffdf0;text-align:center;">
+        <div style="font-size:2.5rem;margin-bottom:4px;">🥇</div>
+        <div style="font-weight:700;font-size:1.1rem;color:#b45309;">1st Place Winner</div>
+        <div style="font-size:1rem;font-weight:600;margin:6px 0;">
+          <%= top1 ? top1.project_title : 'Pending Final Review' %>
+        </div>
+        <span class="badge badge-tech"><%= top1 ? top1.track_name : 'Track' %></span>
+        <div style="margin-top:10px;font-size:0.9rem;font-weight:700;color:#137333;">
+          <%= top1 ? 'Norm Score: ' + top1.final_normalized_score : 'Score Pending' %> ($15,000)
+        </div>
+      </div>
+
+      <div class="org-card" style="border:2px solid #c0c0c0;background:#fafafa;text-align:center;">
+        <div style="font-size:2.5rem;margin-bottom:4px;">🥈</div>
+        <div style="font-weight:700;font-size:1.1rem;color:#64748b;">2nd Place Winner</div>
+        <div style="font-size:1rem;font-weight:600;margin:6px 0;">
+          <%= top2 ? top2.project_title : 'Pending Final Review' %>
+        </div>
+        <span class="badge badge-tech"><%= top2 ? top2.track_name : 'Track' %></span>
+        <div style="margin-top:10px;font-size:0.9rem;font-weight:700;color:#137333;">
+          <%= top2 ? 'Norm Score: ' + top2.final_normalized_score : 'Score Pending' %> ($8,000)
+        </div>
+      </div>
+
+      <div class="org-card" id="runner-ups" style="border:2px solid #cd7f32;background:#fffaf5;text-align:center;">
+        <div style="font-size:2.5rem;margin-bottom:4px;">🥉</div>
+        <div style="font-weight:700;font-size:1.1rem;color:#b45309;">3rd Place Winner</div>
+        <div style="font-size:1rem;font-weight:600;margin:6px 0;">
+          <%= top3 ? top3.project_title : 'Pending Final Review' %>
+        </div>
+        <span class="badge badge-tech"><%= top3 ? top3.track_name : 'Track' %></span>
+        <div style="margin-top:10px;font-size:0.9rem;font-weight:700;color:#137333;">
+          <%= top3 ? 'Norm Score: ' + top3.final_normalized_score : 'Score Pending' %> ($4,000)
+        </div>
+      </div>
+    </div>
+
+    <!-- Final Rankings Table -->
+    <div class="org-card" id="rankings">
+      <div class="org-card-header">
+        <h3 class="org-card-title">Official Final Standings (Cross-Judge Normalized)</h3>
+        <a href="/organizer/normalization<%= eid ? '?event_id=' + eid : '' %>" class="org-card-link">Re-Run Normalization →</a>
+      </div>
+
+      <% if (typeof leaderboard === 'undefined' || !leaderboard || leaderboard.length === 0) { %>
+        <p class="org-empty">No normalized scores computed yet. Run score normalization first.</p>
+      <% } else { %>
+        <table class="org-table">
+          <thead>
+            <tr>
+              <th style="width:70px;">Rank</th>
+              <th>Project Title</th>
+              <th>Team</th>
+              <th>Track</th>
+              <th style="text-align:right;">Reviews</th>
+              <th style="text-align:right;">Avg Raw Score</th>
+              <th style="text-align:right;">Normalized Score</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% leaderboard.forEach(function(item) { %>
+              <tr>
+                <td>
+                  <% if (item.rank === 1) { %>
+                    <strong style="color:#d97706;font-size:1.1rem;">🥇 1</strong>
+                  <% } else if (item.rank === 2) { %>
+                    <strong style="color:#64748b;font-size:1.1rem;">🥈 2</strong>
+                  <% } else if (item.rank === 3) { %>
+                    <strong style="color:#b45309;font-size:1.1rem;">🥉 3</strong>
+                  <% } else { %>
+                    <strong>#<%= item.rank %></strong>
+                  <% } %>
+                </td>
+                <td>
+                  <a href="/projects/<%= item.project_id %>" style="color:#1a73e8;font-weight:600;"><%= item.project_title %></a>
+                  <% if (item.repo_url) { %>
+                    <div style="font-size:0.75rem;"><a href="<%= item.repo_url %>" target="_blank" style="color:#888;"><%= item.repo_url %></a></div>
+                  <% } %>
+                </td>
+                <td><%= item.team_name %></td>
+                <td><span class="org-track-chip"><%= item.track_name %></span></td>
+                <td style="text-align:right;"><%= item.reviews_count %></td>
+                <td style="text-align:right;"><%= item.avg_raw_score != null ? item.avg_raw_score.toFixed(2) : '--' %> / 10</td>
+                <td style="text-align:right;">
+                  <strong><%= item.final_normalized_score != null ? (item.final_normalized_score > 0 ? '+' : '') + item.final_normalized_score.toFixed(3) : 'Pending' %></strong>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
       <% } %>
-    </tbody>
-  </table>
-<% } %>
+    </div>
+
+    <!-- Special Awards & Track Winners Two-Col -->
+    <div class="org-two-col" style="margin-top:24px;">
+      <div class="org-card" id="track-winners">
+        <div class="org-card-header">
+          <h3 class="org-card-title">🎯 Track Winners</h3>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;font-size:0.86rem;">
+          <div style="padding:10px;border:1px solid #eee;border-radius:6px;background:#fafafa;">
+            <strong>Best Web & Cloud Solution:</strong> EcoRoute EV Charging ($2,500)
+          </div>
+          <div style="padding:10px;border:1px solid #eee;border-radius:6px;background:#fafafa;">
+            <strong>Best AI/ML Application:</strong> Healthcare Triage Assistant ($2,500)
+          </div>
+          <div style="padding:10px;border:1px solid #eee;border-radius:6px;background:#fafafa;">
+            <strong>Best Mobile Experience:</strong> Dry Harbour Emergency App ($2,500)
+          </div>
+        </div>
+      </div>
+
+      <div class="org-card" id="special">
+        <div class="org-card-header">
+          <h3 class="org-card-title">⭐ Special Award Categories</h3>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;font-size:0.86rem;">
+          <div style="padding:10px;border:1px solid #eee;border-radius:6px;background:#fafafa;">
+            <strong>People's Choice Award:</strong> Autonomous Drone Delivery (48 Votes)
+          </div>
+          <div style="padding:10px;border:1px solid #eee;border-radius:6px;background:#fafafa;">
+            <strong>Best UI / UX Design:</strong> Smart Expense Tracker
+          </div>
+          <div style="padding:10px;border:1px solid #eee;border-radius:6px;background:#fafafa;">
+            <strong>Sustainability Champion:</strong> Solar Grid Optimizer
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
 
 <%- include('../layouts/footer') %>

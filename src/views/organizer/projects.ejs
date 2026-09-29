@@ -1,0 +1,209 @@
+<%- include('../layouts/header', { title: 'Projects Management', session, selectedEvent }) %>
+<% locals._page = 'projects-all'; %>
+<% var eid = (typeof selectedEvent !== 'undefined' && selectedEvent) ? selectedEvent.id : ''; %>
+<% var curS = (typeof currentStatus !== 'undefined') ? currentStatus : 'all'; %>
+<% var curT = (typeof currentTrack !== 'undefined') ? currentTrack : ''; %>
+<% var queryStr = (typeof q !== 'undefined') ? q : ''; %>
+
+<div class="org-layout">
+  <%- include('_sidebar') %>
+
+  <main class="org-content">
+    <div class="org-page-header">
+      <div>
+        <h1 class="org-page-title">📁 Projects Management</h1>
+        <p class="org-page-sub">Review submissions, repositories, demo links, tech stacks and shortlisted entries for <%= selectedEvent ? selectedEvent.name : 'Hackathon' %></p>
+      </div>
+
+      <div style="display:flex;gap:10px;">
+        <a href="/projects<%= eid ? '?event_id=' + eid : '' %>" target="_blank" class="org-action-btn org-action-btn-outline">🔭 Public Gallery</a>
+        <a href="/api/export.csv?type=projects<%= eid ? '&event_id=' + eid : '' %>" class="org-action-btn">📤 Export Projects CSV</a>
+      </div>
+    </div>
+
+    <!-- Tabs matching user's tree -->
+    <nav class="org-tabs">
+      <a href="/organizer/projects<%= eid ? '?event_id=' + eid : '' %>" class="org-tab-item <%= curS === 'all' ? 'active' : '' %>">All Projects</a>
+      <a href="/organizer/projects?status=draft<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item <%= curS === 'draft' ? 'active' : '' %>">Draft Projects</a>
+      <a href="/organizer/projects?status=submitted<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item <%= curS === 'submitted' ? 'active' : '' %>">Submitted</a>
+      <a href="/organizer/projects?status=late<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item <%= curS === 'late' ? 'active' : '' %>">Late Submissions</a>
+      <a href="/organizer/projects?status=shortlisted<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item <%= curS === 'shortlisted' ? 'active' : '' %>">Shortlisted</a>
+      <a href="/organizer/projects?status=rejected<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item <%= curS === 'rejected' ? 'active' : '' %>">Rejected</a>
+      <a href="/api/export.csv?type=projects<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item">Export Projects</a>
+    </nav>
+
+    <!-- KPI Stats Grid -->
+    <% var pstats = (typeof projectStats !== 'undefined' && projectStats) ? projectStats : { total: 0, submitted: 0, shortlisted: 0, late: 0 }; %>
+    <div class="org-stat-grid" style="grid-template-columns:repeat(4, 1fr);margin-bottom:24px;">
+      <div class="org-stat-card">
+        <div class="org-stat-icon" style="background:#e8f0fe">📁</div>
+        <div class="org-stat-body">
+          <div class="org-stat-value"><%= pstats.total %></div>
+          <div class="org-stat-label">Total Projects</div>
+        </div>
+      </div>
+      <div class="org-stat-card">
+        <div class="org-stat-icon" style="background:#e6f4ea">✅</div>
+        <div class="org-stat-body">
+          <div class="org-stat-value"><%= pstats.submitted %></div>
+          <div class="org-stat-label">Active Submissions</div>
+        </div>
+      </div>
+      <div class="org-stat-card">
+        <div class="org-stat-icon" style="background:#fff3e0">⭐</div>
+        <div class="org-stat-body">
+          <div class="org-stat-value"><%= pstats.shortlisted %></div>
+          <div class="org-stat-label">Shortlisted</div>
+        </div>
+      </div>
+      <div class="org-stat-card">
+        <div class="org-stat-icon" style="background:#fce8e6">⏰</div>
+        <div class="org-stat-body">
+          <div class="org-stat-value"><%= pstats.late %></div>
+          <div class="org-stat-label">Late Submissions</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Projects Table & Controls -->
+    <div class="org-card">
+      <div class="org-card-header" style="flex-wrap:wrap;gap:12px;">
+        <h3 class="org-card-title">Projects List (<%= (typeof projectList !== 'undefined' && projectList) ? projectList.length : 0 %>)</h3>
+
+        <!-- Search & Filter Form -->
+        <form method="GET" action="/organizer/projects" style="display:flex;gap:8px;align-items:center;">
+          <% if (eid) { %><input type="hidden" name="event_id" value="<%= eid %>"><% } %>
+          <% if (curS !== 'all') { %><input type="hidden" name="status" value="<%= curS %>"><% } %>
+          <input type="text" name="q" value="<%= queryStr %>" placeholder="Search project or team..." class="org-input" style="padding:4px 10px;font-size:0.82rem;width:180px;">
+          <% if (typeof tracks !== 'undefined' && tracks.length > 0) { %>
+            <select name="track" class="org-select" style="padding:4px 10px;font-size:0.82rem;width:140px;" onchange="this.form.submit()">
+              <option value="">All Tracks</option>
+              <% tracks.forEach(function(tr) { %>
+                <option value="<%= tr.id %>" <%= curT === tr.id ? 'selected' : '' %>><%= tr.name %></option>
+              <% }); %>
+            </select>
+          <% } %>
+          <button type="submit" class="org-action-btn org-btn-sm">Search</button>
+          <% if (queryStr || curT) { %>
+            <a href="/organizer/projects<%= eid ? '?event_id=' + eid : '' %>" class="org-action-btn org-action-btn-outline org-btn-sm">Clear</a>
+          <% } %>
+        </form>
+      </div>
+
+      <!-- Bulk Actions Bar -->
+      <form method="POST" action="/organizer/projects/bulk" id="bulkForm" style="margin-bottom:12px;">
+        <input type="hidden" name="event_id" value="<%= eid %>">
+        <input type="hidden" name="action" id="bulkActionInput" value="shortlist">
+        <div style="display:flex;gap:8px;align-items:center;background:#f8f9fa;padding:8px 12px;border-radius:6px;">
+          <span style="font-size:0.82rem;color:#555;">Selected Items:</span>
+          <button type="button" class="org-action-btn org-btn-secondary org-btn-sm" onclick="submitBulk('shortlist')">⭐ Bulk Shortlist</button>
+          <button type="button" class="org-action-btn org-btn-danger org-btn-sm" onclick="submitBulk('reject')">✕ Bulk Reject</button>
+          <button type="button" class="org-action-btn org-action-btn-outline org-btn-sm" onclick="submitBulk('restore')">↺ Bulk Restore</button>
+        </div>
+
+        <% var projs = (typeof projectList !== 'undefined' && projectList) ? projectList : []; %>
+        <% if (projs.length === 0) { %>
+          <p class="org-empty" style="margin-top:16px;">No projects found for this filter.</p>
+        <% } else { %>
+          <table class="org-table" style="margin-top:12px;">
+            <thead>
+              <tr>
+                <th style="width:28px;"><input type="checkbox" id="selectAllBox" onclick="toggleSelectAll(this)"></th>
+                <th>Project Title</th>
+                <th>Team</th>
+                <th>Track</th>
+                <th>Repository</th>
+                <th>Demo</th>
+                <th>Reviews</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% projs.forEach(function(p) { %>
+                <tr>
+                  <td><input type="checkbox" name="project_ids" value="<%= p.id %>" class="row-checkbox"></td>
+                  <td>
+                    <a href="/projects/<%= p.id %>" target="_blank" style="font-weight:600;color:#1a73e8;"><%= p.title %></a>
+                    <% if (p.is_shortlisted) { %><span class="badge" style="background:#fff3e0;color:#e37400;margin-left:4px;">⭐ Shortlisted</span><% } %>
+                  </td>
+                  <td><%= p.team_name || 'Team' %></td>
+                  <td><span class="org-track-chip"><%= p.track_name || 'General' %></span></td>
+                  <td>
+                    <% if (p.repo_url) { %>
+                      <a href="<%= p.repo_url %>" target="_blank" class="badge badge-tech" style="text-decoration:none;">GitHub ↗</a>
+                    <% } else { %>—<% } %>
+                  </td>
+                  <td>
+                    <% if (p.live_demo_url) { %>
+                      <a href="<%= p.live_demo_url %>" target="_blank" style="color:#137333;font-size:0.8rem;text-decoration:none;">🟢 Demo</a>
+                    <% } else { %>—<% } %>
+                  </td>
+                  <td><span class="badge badge-tech"><%= p.review_count || 0 %> reviews</span></td>
+                  <td>
+                    <% if (p.status === 'shortlisted' || p.is_shortlisted) { %>
+                      <span class="org-status-chip org-status-done">Shortlisted</span>
+                    <% } else if (p.status === 'rejected') { %>
+                      <span class="org-status-chip org-status-rejected">Rejected</span>
+                    <% } else if (p.status === 'late') { %>
+                      <span class="org-status-chip org-status-pending">Late</span>
+                    <% } else { %>
+                      <span class="org-status-chip org-status-done"><%= p.status || 'Submitted' %></span>
+                    <% } %>
+                  </td>
+                  <td>
+                    <div style="display:flex;gap:4px;align-items:center;">
+                      <a href="/projects/<%= p.id %>" target="_blank" class="org-action-btn org-action-btn-outline org-btn-sm">View</a>
+                      <% if (p.is_shortlisted || p.status === 'shortlisted') { %>
+                        <button type="button" class="org-action-btn org-action-btn-outline org-btn-sm" onclick="setProjectStatus('<%= p.id %>', 'submitted')">Un-star</button>
+                      <% } else { %>
+                        <button type="button" class="org-action-btn org-btn-secondary org-btn-sm" onclick="setProjectStatus('<%= p.id %>', 'shortlisted')">⭐ Star</button>
+                      <% } %>
+                      <% if (p.status === 'rejected') { %>
+                        <button type="button" class="org-action-btn org-action-btn-outline org-btn-sm" onclick="setProjectStatus('<%= p.id %>', 'submitted')">Restore</button>
+                      <% } else { %>
+                        <button type="button" class="org-action-btn org-btn-danger org-btn-sm" onclick="setProjectStatus('<%= p.id %>', 'rejected')">✕</button>
+                      <% } %>
+                    </div>
+                  </td>
+                </tr>
+              <% }); %>
+            </tbody>
+          </table>
+        <% } %>
+      </form>
+    </div>
+  </main>
+</div>
+
+<!-- Hidden form for individual status updates -->
+<form id="singleStatusForm" method="POST" action="/organizer/projects/status" style="display:none;">
+  <input type="hidden" name="event_id" value="<%= eid %>">
+  <input type="hidden" name="project_id" id="status_project_id">
+  <input type="hidden" name="status" id="status_value">
+</form>
+
+<script>
+function toggleSelectAll(master) {
+  var boxes = document.querySelectorAll('.row-checkbox');
+  boxes.forEach(function(b) { b.checked = master.checked; });
+}
+
+function submitBulk(action) {
+  var checked = document.querySelectorAll('.row-checkbox:checked');
+  if (checked.length === 0) {
+    alert('Please select at least one project.');
+    return;
+  }
+  document.getElementById('bulkActionInput').value = action;
+  document.getElementById('bulkForm').submit();
+}
+
+function setProjectStatus(projectId, status) {
+  document.getElementById('status_project_id').value = projectId;
+  document.getElementById('status_value').value = status;
+  document.getElementById('singleStatusForm').submit();
+}
+</script>
+
+<%- include('../layouts/footer') %>

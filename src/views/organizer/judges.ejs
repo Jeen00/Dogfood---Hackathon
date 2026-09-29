@@ -1,0 +1,125 @@
+<%- include('../layouts/header', { title: 'Judges Management', session, selectedEvent }) %>
+<% locals._page = 'judges-all'; %>
+<% var eid = (typeof selectedEvent !== 'undefined' && selectedEvent) ? selectedEvent.id : ''; %>
+
+<div class="org-layout">
+  <%- include('_sidebar') %>
+
+  <main class="org-content">
+    <div class="org-page-header">
+      <div>
+        <h1 class="org-page-title">🧑‍⚖️ Judges Management</h1>
+        <p class="org-page-sub">Manage judge invitations, expertise profiles, workload distribution, and performance for <%= selectedEvent ? selectedEvent.name : 'Hackathon' %></p>
+      </div>
+
+      <div style="display:flex;gap:10px;">
+        <a href="/organizer/invite-judge<%= eid ? '?event_id=' + eid : '' %>" class="org-action-btn">+ Add Judge</a>
+        <a href="/organizer/assignments<%= eid ? '?event_id=' + eid : '' %>" class="org-action-btn org-action-btn-outline">Assign Judges</a>
+      </div>
+    </div>
+
+    <!-- Sub-navigation tabs matching user's tree -->
+    <nav class="org-tabs">
+      <a href="/organizer/judges<%= eid ? '?event_id=' + eid : '' %>" class="org-tab-item active">All Judges</a>
+      <a href="/organizer/invites<%= eid ? '?event_id=' + eid : '' %>" class="org-tab-item">Invite Judges</a>
+      <a href="/organizer/invite-judge<%= eid ? '?event_id=' + eid : '' %>" class="org-tab-item">+ Add Judge</a>
+      <a href="/organizer/assignments<%= eid ? '?event_id=' + eid : '' %>" class="org-tab-item">Assignments Matrix</a>
+      <a href="/organizer/judges/conflicts<%= eid ? '?event_id=' + eid : '' %>" class="org-tab-item">Conflicts of Interest</a>
+      <a href="/organizer/judging<%= eid ? '?event_id=' + eid : '' %>" class="org-tab-item">Judging Center</a>
+      <a href="/api/export.csv?type=judges<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item">Export Judges</a>
+    </nav>
+
+    <!-- Workload & Performance Overview -->
+    <% var jstats = (typeof judgeStats !== 'undefined' && judgeStats) ? judgeStats : { total: 0, assignments: 0, avgWorkload: 0, responseRate: 0 }; %>
+    <div class="org-stat-grid" id="workload" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px;">
+      <div class="org-stat-card">
+        <div class="org-stat-icon" style="background:#e8f0fe">⚖️</div>
+        <div class="org-stat-body">
+          <div class="org-stat-value"><%= jstats.total %></div>
+          <div class="org-stat-label">Total Judges</div>
+        </div>
+      </div>
+      <div class="org-stat-card">
+        <div class="org-stat-icon" style="background:#e6f4ea">📋</div>
+        <div class="org-stat-body">
+          <div class="org-stat-value"><%= jstats.assignments %></div>
+          <div class="org-stat-label">Total Assignments</div>
+        </div>
+      </div>
+      <div class="org-stat-card">
+        <div class="org-stat-icon" style="background:#fff3e0">📊</div>
+        <div class="org-stat-body">
+          <div class="org-stat-value"><%= jstats.avgWorkload %></div>
+          <div class="org-stat-label">Avg Workload / Judge</div>
+        </div>
+      </div>
+      <div class="org-stat-card">
+        <div class="org-stat-icon" style="background:#fce8e6">⚡</div>
+        <div class="org-stat-body">
+          <div class="org-stat-value"><%= jstats.responseRate %>%</div>
+          <div class="org-stat-label">Completion Rate</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Judges Roster Table -->
+    <div class="org-card">
+      <div class="org-card-header">
+        <h3 class="org-card-title">Judges Roster & Profiles</h3>
+        <a href="/api/export.csv?type=judges<%= eid ? '&event_id=' + eid : '' %>" class="org-card-link">Export Judges CSV →</a>
+      </div>
+
+      <% var judges = (typeof judgeList !== 'undefined' && judgeList) ? judgeList : []; %>
+      <% if (judges.length === 0) { %>
+        <p class="org-empty">No judges registered yet. <a href="/organizer/invite-judge">+ Invite a judge</a></p>
+      <% } else { %>
+        <table class="org-table">
+          <thead>
+            <tr>
+              <th>Judge Name</th>
+              <th>Email</th>
+              <th>Expertise / Track</th>
+              <th>Assigned</th>
+              <th>Completed</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% judges.forEach(function(j) { %>
+              <tr>
+                <td><strong><%= j.name %></strong></td>
+                <td><%= j.email %></td>
+                <td><span class="badge badge-tech"><%= j.expertise || 'General & Full Stack' %></span></td>
+                <td><strong><%= j.assigned != null ? j.assigned : 0 %></strong></td>
+                <td><%= j.completed != null ? j.completed : 0 %></td>
+                <td>
+                  <% if (j.is_active === 0) { %>
+                    <span class="org-status-chip org-status-rejected">Inactive</span>
+                  <% } else { %>
+                    <span class="org-status-chip org-status-done">Active</span>
+                  <% } %>
+                </td>
+                <td>
+                  <div style="display:flex;gap:6px;align-items:center;">
+                    <a href="/organizer/assignments<%= eid ? '?event_id=' + eid : '' %>" class="org-action-btn org-action-btn-outline org-btn-sm">Assign</a>
+                    <form method="POST" action="/organizer/judges/status" style="display:inline;">
+                      <input type="hidden" name="judge_id" value="<%= j.id %>">
+                      <input type="hidden" name="is_active" value="<%= j.is_active === 0 ? 1 : 0 %>">
+                      <input type="hidden" name="event_id" value="<%= eid %>">
+                      <button type="submit" class="org-action-btn <%= j.is_active === 0 ? 'org-btn-success' : 'org-action-btn-outline' %> org-btn-sm">
+                        <%= j.is_active === 0 ? 'Activate' : 'Deactivate' %>
+                      </button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      <% } %>
+    </div>
+  </main>
+</div>
+
+<%- include('../layouts/footer') %>

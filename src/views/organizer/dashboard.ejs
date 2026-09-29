@@ -1,88 +1,619 @@
-<%- include('../layouts/header', { title: (typeof selectedEvent !== 'undefined' && selectedEvent ? selectedEvent.name : 'Organizer Dashboard'), session, selectedEvent }) %>
+<%- include('../layouts/header', { title: 'Dashboard — ' + (selectedEvent ? selectedEvent.name : 'Organizer'), session, selectedEvent }) %>
+<% locals._page = 'dashboard'; %>
 
-<div style="margin-bottom: 20px;">
-  <div style="margin-bottom: 6px;">
-    <a href="/organizer/events" style="text-decoration: none; font-size: 0.9rem; font-weight: bold; color: #1a73e8;">&larr; All Hackathons</a>
-  </div>
-  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-    <h1 style="margin: 0; padding: 0; border: none;"><%= typeof selectedEvent !== 'undefined' && selectedEvent ? selectedEvent.name : 'Organizer Dashboard' %></h1>
-    <% if (typeof statusInfo !== 'undefined' && statusInfo) { %>
-      <div style="display: flex; align-items: center; gap: 10px;">
-        <span class="status-badge <%= statusInfo.badgeClass %>"><%= statusInfo.label %></span>
-        <span style="font-weight: bold; font-size: 0.95rem; color: <%= statusInfo.status === 'running' ? '#137333' : '#555' %>;">
-          ⏱ <%= statusInfo.timeText %>
-        </span>
+<div class="org-layout">
+  <%- include('_sidebar') %>
+
+  <main class="org-content">
+
+    <!-- ── Page Header ──────────────────────────────────────── -->
+    <div class="org-page-header">
+      <div>
+        <h1 class="org-page-title">🏠 Dashboard</h1>
+        <p class="org-page-sub"><%= selectedEvent ? selectedEvent.name : 'Organizer Overview' %></p>
       </div>
-    <% } %>
-  </div>
+      <% if (typeof statusInfo !== 'undefined' && statusInfo) { %>
+      <div class="org-header-status">
+        <span class="status-badge <%= statusInfo.badgeClass %>"><%= statusInfo.label %></span>
+        <span class="org-time-text">⏱ <%= statusInfo.timeText %></span>
+      </div>
+      <% } %>
+    </div>
+
+    <!-- ── Sub-options Nav Bar ────────────────────────────── -->
+    <nav class="org-tabs" style="margin-bottom:24px;">
+      <a href="#overview"         class="org-tab-item active">Overview</a>
+      <a href="#live-activity"    class="org-tab-item">Live Activity</a>
+      <a href="#registration"     class="org-tab-item">Registration Statistics</a>
+      <a href="#submissions"      class="org-tab-item">Submission Statistics</a>
+      <a href="#judging"          class="org-tab-item">Judging Statistics</a>
+      <a href="#timeline"         class="org-tab-item">Event Timeline</a>
+      <a href="#pending"          class="org-tab-item">Pending Actions</a>
+      <a href="#quick-actions"    class="org-tab-item">Quick Actions</a>
+    </nav>
+
+    <!-- ════════════════════════════════════════════════════════
+         1. OVERVIEW
+    ════════════════════════════════════════════════════════ -->
+    <section id="overview" class="dash-section">
+      <h2 class="dash-section-title">📊 Overview</h2>
+      <div class="org-stat-grid" style="grid-template-columns:repeat(4,1fr)">
+        <div class="org-stat-card">
+          <div class="org-stat-icon" style="background:#e8f0fe">👥</div>
+          <div class="org-stat-body">
+            <div class="org-stat-value"><%= totalTeams %></div>
+            <div class="org-stat-label">Teams</div>
+          </div>
+        </div>
+        <div class="org-stat-card">
+          <div class="org-stat-icon" style="background:#e6f4ea">🙋</div>
+          <div class="org-stat-body">
+            <div class="org-stat-value"><%= totalParticipants %></div>
+            <div class="org-stat-label">Participants</div>
+          </div>
+        </div>
+        <div class="org-stat-card">
+          <div class="org-stat-icon" style="background:#fff3e0">📁</div>
+          <div class="org-stat-body">
+            <div class="org-stat-value"><%= totalProjects %></div>
+            <div class="org-stat-label">Projects</div>
+          </div>
+        </div>
+        <div class="org-stat-card">
+          <div class="org-stat-icon" style="background:#fce8e6">⚖️</div>
+          <div class="org-stat-body">
+            <div class="org-stat-value"><%= totalJudges %></div>
+            <div class="org-stat-label">Judges</div>
+          </div>
+        </div>
+        <div class="org-stat-card">
+          <div class="org-stat-icon" style="background:#e8f5e9">✅</div>
+          <div class="org-stat-body">
+            <div class="org-stat-value"><%= totalScores %></div>
+            <div class="org-stat-label">Scores Submitted</div>
+          </div>
+        </div>
+        <div class="org-stat-card">
+          <div class="org-stat-icon" style="background:#ede7f6">📋</div>
+          <div class="org-stat-body">
+            <div class="org-stat-value"><%= totalAssignments %></div>
+            <div class="org-stat-label">Total Assignments</div>
+          </div>
+        </div>
+        <div class="org-stat-card">
+          <div class="org-stat-icon" style="background:#e3f2fd">📊</div>
+          <div class="org-stat-body">
+            <div class="org-stat-value"><%= completionPct %>%</div>
+            <div class="org-stat-label">Judging Complete</div>
+          </div>
+        </div>
+        <div class="org-stat-card">
+          <div class="org-stat-icon" style="background:#fce4ec">⭐</div>
+          <div class="org-stat-body">
+            <div class="org-stat-value"><%= avgScore %></div>
+            <div class="org-stat-label">Avg Score</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Overall completion ring -->
+      <div class="dash-completion-row">
+        <div class="dash-ring-wrap">
+          <svg viewBox="0 0 120 120" class="dash-ring-svg">
+            <circle cx="60" cy="60" r="50" fill="none" stroke="#e0e0e0" stroke-width="12"/>
+            <circle cx="60" cy="60" r="50" fill="none" stroke="#1a73e8" stroke-width="12"
+              stroke-dasharray="<%= Math.round(314 * completionPct / 100) %> 314"
+              stroke-dashoffset="78.5" stroke-linecap="round"/>
+            <text x="60" y="65" text-anchor="middle" font-size="22" font-weight="700" fill="#1a1a2e"><%= completionPct %>%</text>
+          </svg>
+          <div class="dash-ring-label">Judging<br>Completion</div>
+        </div>
+        <div class="dash-coverage-summary">
+          <%
+            var covered   = projectCoverage.filter(function(p){ return p.reviews_received > 0; }).length;
+            var fullyCov  = projectCoverage.filter(function(p){ return p.reviews_received >= p.reviews_needed && p.reviews_needed > 0; }).length;
+            var noCov     = projectCoverage.filter(function(p){ return p.reviews_received === 0; }).length;
+          %>
+          <div class="dash-cov-item dash-cov-done">
+            <span class="dash-cov-num"><%= fullyCov %></span>
+            <span class="dash-cov-lbl">Fully Reviewed</span>
+          </div>
+          <div class="dash-cov-item dash-cov-partial">
+            <span class="dash-cov-num"><%= covered - fullyCov %></span>
+            <span class="dash-cov-lbl">Partially Reviewed</span>
+          </div>
+          <div class="dash-cov-item dash-cov-none">
+            <span class="dash-cov-num"><%= noCov %></span>
+            <span class="dash-cov-lbl">Not Reviewed</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════
+         2. LIVE ACTIVITY
+    ════════════════════════════════════════════════════════ -->
+    <section id="live-activity" class="dash-section">
+      <h2 class="dash-section-title">⚡ Live Activity</h2>
+      <div class="org-card">
+        <% if (!liveActivity || liveActivity.length === 0) { %>
+          <p class="org-empty">No activity recorded yet.</p>
+        <% } else { %>
+          <div class="dash-activity-feed">
+            <% liveActivity.forEach(function(ev) {
+                 var actionIcon = {
+                   'score_submitted':    '⭐',
+                   'judge_assigned':     '👨‍⚖️',
+                   'judge_unassigned':   '❌',
+                   'rubric_updated':     '📝',
+                   'team_created':       '👥',
+                   'team_joined':        '➕',
+                   'team_left':          '🚪',
+                   'invite_sent':        '✉️',
+                   'invitation_accepted':'✅',
+                   'member_removed':     '🗑️',
+                   'leader_changed':     '👑',
+                   'judge_invited':      '📨',
+                 }[ev.action] || '📌';
+                 var timeAgo = ev.created_at ? ev.created_at.slice(0,16).replace('T',' ') : '';
+               %>
+            <div class="dash-activity-item">
+              <span class="dash-activity-icon"><%= actionIcon %></span>
+              <div class="dash-activity-body">
+                <span class="dash-activity-actor"><%= ev.actor_name || 'System' %></span>
+                <span class="dash-activity-action"><%= ev.action.replace(/_/g,' ') %></span>
+                <% if (ev.detail) { %><span class="dash-activity-detail"><%= ev.detail.slice(0,60) %></span><% } %>
+              </div>
+              <span class="dash-activity-time"><%= timeAgo %></span>
+            </div>
+            <% }); %>
+          </div>
+        <% } %>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════
+         3. REGISTRATION STATISTICS
+    ════════════════════════════════════════════════════════ -->
+    <section id="registration" class="dash-section">
+      <h2 class="dash-section-title">📋 Registration Statistics</h2>
+      <div class="org-two-col">
+        <!-- Role breakdown -->
+        <div class="org-card">
+          <div class="org-card-header"><h3 class="org-card-title">Registrations by Role</h3></div>
+          <div class="dash-reg-bars">
+            <% var regMax = Math.max.apply(null, participantsByRole.map(function(r){ return r.count; })) || 1; %>
+            <% participantsByRole.forEach(function(r, i) {
+                 var hue = [220, 142, 36][i % 3];
+                 var pct = Math.round((r.count / regMax) * 100);
+               %>
+            <div class="org-track-bar-row">
+              <div class="org-track-bar-label"><%= r.role %></div>
+              <div class="org-track-bar-wrap">
+                <div class="org-track-bar-fill" style="width:<%= pct %>%;background:hsl(<%= hue %>,65%,45%)"></div>
+              </div>
+              <div class="org-track-bar-pct" style="width:32px"><%= r.count %></div>
+            </div>
+            <% }); %>
+          </div>
+        </div>
+
+        <!-- Team stats -->
+        <div class="org-card">
+          <div class="org-card-header"><h3 class="org-card-title">Team Overview</h3></div>
+          <table class="org-table">
+            <tbody>
+              <tr><td>Total Teams</td><td><strong><%= totalTeams %></strong></td></tr>
+              <tr><td>Total Participants</td><td><strong><%= totalParticipants %></strong></td></tr>
+              <tr><td>Avg Team Size</td><td><strong><%= totalTeams > 0 ? (totalParticipants / totalTeams).toFixed(1) : '—' %></strong></td></tr>
+              <tr><td>Total Judges</td><td><strong><%= totalJudges %></strong></td></tr>
+              <tr><td>Assign Ratio</td><td><strong><%= totalJudges > 0 ? (totalProjects / totalJudges).toFixed(1) : '—' %> projects/judge</strong></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════
+         4. SUBMISSION STATISTICS
+    ════════════════════════════════════════════════════════ -->
+    <section id="submissions" class="dash-section">
+      <h2 class="dash-section-title">📁 Submission Statistics</h2>
+      <div class="org-two-col">
+
+        <!-- By track -->
+        <div class="org-card">
+          <div class="org-card-header"><h3 class="org-card-title">Projects by Track</h3></div>
+          <% if (!submissionsByTrack || submissionsByTrack.length === 0) { %>
+            <p class="org-empty">No submissions yet.</p>
+          <% } else { %>
+            <% var subMax = Math.max.apply(null, submissionsByTrack.map(function(r){ return r.c; })) || 1; %>
+            <div class="org-track-bars">
+              <% submissionsByTrack.forEach(function(t, i) {
+                   var pct = Math.round((t.c / subMax) * 100);
+                   var hue = (i * 47) % 360;
+                 %>
+              <div class="org-track-bar-row">
+                <div class="org-track-bar-label" style="width:140px"><%= t.track %></div>
+                <div class="org-track-bar-wrap">
+                  <div class="org-track-bar-fill" style="width:<%= pct %>%;background:hsl(<%= hue %>,55%,45%)"></div>
+                </div>
+                <div class="org-track-bar-pct"><%= t.c %></div>
+              </div>
+              <% }); %>
+            </div>
+          <% } %>
+        </div>
+
+        <!-- By status -->
+        <div class="org-card">
+          <div class="org-card-header"><h3 class="org-card-title">Projects by Status</h3></div>
+          <% if (!submissionsByStatus || submissionsByStatus.length === 0) { %>
+            <p class="org-empty">No projects yet.</p>
+          <% } else { %>
+            <div class="dash-status-pills">
+              <%
+                var statusColors = {
+                  submitted: '#1a73e8', completed: '#137333', live: '#0d904f',
+                  in_development: '#e37400', idea: '#7b1fa2', open_for_contributors: '#00838f'
+                };
+                var totalAllProjects = submissionsByStatus.reduce(function(s,r){ return s+r.c; }, 0) || 1;
+              %>
+              <% submissionsByStatus.forEach(function(r) {
+                   var color = statusColors[r.status] || '#999';
+                   var pct = Math.round((r.c / totalAllProjects) * 100);
+                 %>
+              <div class="dash-status-pill-row">
+                <span class="dash-status-dot" style="background:<%= color %>"></span>
+                <span class="dash-status-pill-label"><%= r.status.replace(/_/g,' ') %></span>
+                <div class="dash-status-pill-bar-wrap">
+                  <div style="width:<%= pct %>%;height:100%;background:<%= color %>;border-radius:3px;opacity:0.85"></div>
+                </div>
+                <span class="dash-status-pill-count"><%= r.c %></span>
+              </div>
+              <% }); %>
+            </div>
+          <% } %>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════
+         5. JUDGING STATISTICS
+    ════════════════════════════════════════════════════════ -->
+    <section id="judging" class="dash-section">
+      <h2 class="dash-section-title">⚖️ Judging Statistics</h2>
+      <div class="org-two-col">
+
+        <!-- Judge progress -->
+        <div class="org-card">
+          <div class="org-card-header">
+            <h3 class="org-card-title">Judge Progress</h3>
+            <a href="/organizer/assignments<%= selectedEvent ? '?event_id='+selectedEvent.id : '' %>" class="org-card-link">Manage →</a>
+          </div>
+          <% if (!judgeProgress || judgeProgress.length === 0) { %>
+            <p class="org-empty">No judges assigned.</p>
+          <% } else { %>
+            <div class="org-progress-list">
+              <% judgeProgress.slice(0, 12).forEach(function(j) {
+                   var pct = j.assigned > 0 ? Math.round((j.completed / j.assigned) * 100) : 0;
+                   var barColor = pct >= 100 ? '#137333' : pct >= 60 ? '#1a73e8' : pct >= 30 ? '#e37400' : '#c62828';
+                 %>
+              <div class="org-progress-item">
+                <div class="org-progress-meta">
+                  <span class="org-progress-name"><%= j.judge_name %></span>
+                  <span class="org-progress-stat"><%= j.completed %>/<%= j.assigned %> &nbsp;<strong><%= pct %>%</strong></span>
+                </div>
+                <div class="org-progress-bar-bg">
+                  <div class="org-progress-bar-fill" style="width:<%= pct %>%;background:<%= barColor %>"></div>
+                </div>
+              </div>
+              <% }); %>
+            </div>
+          <% } %>
+        </div>
+
+        <!-- Average scores by track -->
+        <div class="org-card">
+          <div class="org-card-header"><h3 class="org-card-title">Avg Score by Track</h3></div>
+          <% if (!scoresByTrack || scoresByTrack.length === 0) { %>
+            <p class="org-empty">No scores yet.</p>
+          <% } else { %>
+            <% var scoreMax = Math.max.apply(null, scoresByTrack.map(function(r){ return r.avg_score || 0; })) || 1; %>
+            <div class="org-track-bars">
+              <% scoresByTrack.forEach(function(t, i) {
+                   var pct = Math.round(((t.avg_score || 0) / scoreMax) * 100);
+                   var hue = (i * 53) % 360;
+                 %>
+              <div class="org-track-bar-row">
+                <div class="org-track-bar-label" style="width:140px"><%= t.track %></div>
+                <div class="org-track-bar-wrap">
+                  <div class="org-track-bar-fill" style="width:<%= pct %>%;background:hsl(<%= hue %>,55%,45%)"></div>
+                </div>
+                <div class="org-track-bar-pct"><%= t.avg_score || 0 %></div>
+              </div>
+              <% }); %>
+            </div>
+            <p style="font-size:0.78rem;color:#999;margin-top:10px">Overall avg: <strong><%= avgScore %></strong></p>
+          <% } %>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════
+         6. EVENT TIMELINE
+    ════════════════════════════════════════════════════════ -->
+    <section id="timeline" class="dash-section">
+      <h2 class="dash-section-title">📅 Event Timeline</h2>
+      <div class="org-card">
+        <% if (!timeline || timeline.length === 0) { %>
+          <p class="org-empty">No event dates configured. <a href="/organizer/event/settings<%= selectedEvent ? '?event_id='+selectedEvent.id : '' %>">Set dates →</a></p>
+        <% } else { %>
+          <div class="dash-timeline">
+            <% var nowStr = new Date().toISOString(); %>
+            <% timeline.forEach(function(t, i) {
+                 var isCurrent = !t.done && (i === 0 || timeline[i-1].done);
+               %>
+            <div class="dash-tl-item <%= t.done ? 'dash-tl-done' : isCurrent ? 'dash-tl-current' : 'dash-tl-future' %>">
+              <div class="dash-tl-dot"></div>
+              <div class="dash-tl-line"></div>
+              <div class="dash-tl-content">
+                <div class="dash-tl-label"><%= t.label %></div>
+                <div class="dash-tl-date"><%= t.date ? t.date.slice(0,16).replace('T',' ') : '—' %></div>
+                <% if (t.done) { %><span class="dash-tl-badge dash-tl-badge-done">✅ Done</span>
+                <% } else if (isCurrent) { %><span class="dash-tl-badge dash-tl-badge-current">▶ Current Phase</span>
+                <% } else { %><span class="dash-tl-badge dash-tl-badge-future">⌛ Upcoming</span><% } %>
+              </div>
+            </div>
+            <% }); %>
+          </div>
+        <% } %>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════
+         7. PENDING ACTIONS
+    ════════════════════════════════════════════════════════ -->
+    <section id="pending" class="dash-section">
+      <h2 class="dash-section-title">⚠️ Pending Actions</h2>
+      <div class="org-card">
+        <% if (!pendingActions || pendingActions.length === 0) { %>
+          <div style="display:flex;align-items:center;gap:12px;color:#137333;padding:8px 0">
+            <span style="font-size:1.5rem">✅</span>
+            <span>Everything looks good — no pending actions!</span>
+          </div>
+        <% } else { %>
+          <div class="dash-pending-list">
+            <% pendingActions.forEach(function(a) { %>
+            <div class="dash-pending-item">
+              <span class="dash-pending-icon"><%= a.icon %></span>
+              <span class="dash-pending-label"><%= a.label %></span>
+              <a href="<%= a.href %>" class="org-action-btn" style="font-size:0.8rem;padding:5px 12px;white-space:nowrap"><%= a.action %></a>
+            </div>
+            <% }); %>
+          </div>
+        <% } %>
+      </div>
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════
+         8. QUICK ACTIONS
+    ════════════════════════════════════════════════════════ -->
+    <section id="quick-actions" class="dash-section">
+      <h2 class="dash-section-title">⚡ Quick Actions</h2>
+      <% var eid = selectedEvent ? '?event_id=' + selectedEvent.id : ''; %>
+      <div class="dash-qa-grid">
+        <a href="/organizer/assignments<%= eid %>" class="dash-qa-card">
+          <div class="dash-qa-icon">👨‍⚖️</div>
+          <div class="dash-qa-label">Assign Judges</div>
+          <div class="dash-qa-sub">Assign or auto-assign judges to projects</div>
+        </a>
+        <a href="/organizer/results<%= eid %>" class="dash-qa-card">
+          <div class="dash-qa-icon">🏆</div>
+          <div class="dash-qa-label">Leaderboard</div>
+          <div class="dash-qa-sub">View ranked results and final scores</div>
+        </a>
+        <a href="/organizer/rubric<%= eid %>" class="dash-qa-card">
+          <div class="dash-qa-icon">📝</div>
+          <div class="dash-qa-label">Edit Rubric</div>
+          <div class="dash-qa-sub">Adjust judging criteria and weights</div>
+        </a>
+        <a href="/organizer/normalization<%= eid %>" class="dash-qa-card">
+          <div class="dash-qa-icon">⚙️</div>
+          <div class="dash-qa-label">Normalization</div>
+          <div class="dash-qa-sub">Run score normalization across judges</div>
+        </a>
+        <a href="/organizer/invites<%= eid %>" class="dash-qa-card">
+          <div class="dash-qa-icon">✉️</div>
+          <div class="dash-qa-label">Invite Judges</div>
+          <div class="dash-qa-sub">Add new judges to the hackathon</div>
+        </a>
+        <a href="/api/export.csv<%= eid %>" class="dash-qa-card">
+          <div class="dash-qa-icon">📤</div>
+          <div class="dash-qa-label">Export CSV</div>
+          <div class="dash-qa-sub">Download all scores and rankings</div>
+        </a>
+        <a href="/organizer/event/settings<%= eid %>" class="dash-qa-card">
+          <div class="dash-qa-icon">⚙️</div>
+          <div class="dash-qa-label">Event Settings</div>
+          <div class="dash-qa-sub">Configure dates, rules and settings</div>
+        </a>
+        <a href="/projects<%= eid ? eid.replace('?event_id=','?event_id=') : '' %>" class="dash-qa-card">
+          <div class="dash-qa-icon">🔭</div>
+          <div class="dash-qa-label">View Gallery</div>
+          <div class="dash-qa-sub">Browse all submitted projects publicly</div>
+        </a>
+      </div>
+    </section>
+
+  </main>
 </div>
 
-<div class="dashboard-actions" style="margin-bottom: 24px;">
-  <a href="/organizer/results<%= typeof selectedEvent !== 'undefined' && selectedEvent ? '?event_id=' + selectedEvent.id : '' %>" class="btn-action">Leaderboard Results</a>
-  <a href="/api/export.csv<%= typeof selectedEvent !== 'undefined' && selectedEvent ? '?event_id=' + selectedEvent.id : '' %>" class="btn-action">Download CSV</a>
-  <a href="/organizer/normalization<%= typeof selectedEvent !== 'undefined' && selectedEvent ? '?event_id=' + selectedEvent.id : '' %>" class="btn-action">Run Normalization</a>
-  <a href="/organizer/assignments<%= typeof selectedEvent !== 'undefined' && selectedEvent ? '?event_id=' + selectedEvent.id : '' %>" class="btn-action">View Assignments</a>
-  <a href="/organizer/invites<%= typeof selectedEvent !== 'undefined' && selectedEvent ? '?event_id=' + selectedEvent.id : '' %>" class="btn-action">Invite Judges</a>
-  <a href="/organizer/rubric<%= typeof selectedEvent !== 'undefined' && selectedEvent ? '?event_id=' + selectedEvent.id : '' %>" class="btn-action">Rubric</a>
-</div>
+<style>
+/* ── Section nav ─────────────────────────────────────────── */
+.dash-section-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 28px;
+  border-bottom: 2px solid #e0e0e0;
+  padding-bottom: 0;
+}
+.dash-snav-link {
+  padding: 8px 14px;
+  font-size: 0.83rem;
+  font-weight: 600;
+  color: #666;
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  border-radius: 4px 4px 0 0;
+  transition: color 0.15s, border-color 0.15s;
+}
+.dash-snav-link:hover { color: #1a73e8; border-color: #1a73e8; }
 
+/* ── Section wrapper ─────────────────────────────────────── */
+.dash-section { margin-bottom: 36px; scroll-margin-top: 80px; }
+.dash-section-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin: 0 0 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  padding: 0;
+}
 
+/* ── Completion ring ─────────────────────────────────────── */
+.dash-completion-row {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  margin-top: 20px;
+  padding: 20px;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+}
+.dash-ring-wrap { text-align: center; }
+.dash-ring-svg  { width: 110px; height: 110px; transform: rotate(-90deg); }
+.dash-ring-svg text { transform: rotate(90deg) translate(0px,-120px); }
+.dash-ring-label { font-size: 0.78rem; color: #666; margin-top: 6px; line-height: 1.3; }
+.dash-coverage-summary { display: flex; gap: 24px; flex-wrap: wrap; }
+.dash-cov-item { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.dash-cov-num  { font-size: 2rem; font-weight: 700; line-height: 1; }
+.dash-cov-lbl  { font-size: 0.78rem; color: #666; }
+.dash-cov-done    .dash-cov-num { color: #137333; }
+.dash-cov-partial .dash-cov-num { color: #1a73e8; }
+.dash-cov-none    .dash-cov-num { color: #e37400; }
 
-<h2>Judge Progress</h2>
-<% if (judgeProgress.length === 0) { %>
-  <p>No judges found.</p>
-<% } else { %>
-  <table>
-    <thead>
-      <tr>
-        <th>Judge</th>
-        <th>Assigned</th>
-        <th>Completed</th>
-        <th>Completion</th>
-      </tr>
-    </thead>
-    <tbody>
-      <% for (const j of judgeProgress) { %>
-        <%
-          var pct = j.assigned > 0
-            ? Math.round((j.completed / j.assigned) * 100)
-            : 0;
-        %>
-        <tr>
-          <td><%= j.judge_name %></td>
-          <td><%= j.assigned %></td>
-          <td><%= j.completed %></td>
-          <td><%= pct %>%</td>
-        </tr>
-      <% } %>
-    </tbody>
-  </table>
-<% } %>
+/* ── Activity feed ───────────────────────────────────────── */
+.dash-activity-feed { display: flex; flex-direction: column; gap: 0; }
+.dash-activity-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #f5f5f5;
+  font-size: 0.85rem;
+}
+.dash-activity-item:last-child { border-bottom: none; }
+.dash-activity-icon { font-size: 1.1rem; width: 26px; flex-shrink: 0; margin-top: 1px; }
+.dash-activity-body { flex: 1; line-height: 1.4; }
+.dash-activity-actor { font-weight: 700; color: #333; }
+.dash-activity-action { color: #555; margin-left: 6px; }
+.dash-activity-detail { display: block; font-size: 0.78rem; color: #999; margin-top: 2px; }
+.dash-activity-time { font-size: 0.75rem; color: #aaa; white-space: nowrap; flex-shrink: 0; }
 
-<h2>Project Coverage</h2>
-<% if (projectCoverage.length === 0) { %>
-  <p>No projects found.</p>
-<% } else { %>
-  <table>
-    <thead>
-      <tr>
-        <th>Project Title</th>
-        <th>Track</th>
-        <th>Reviews Received</th>
-        <th>Reviews Needed</th>
-      </tr>
-    </thead>
-    <tbody>
-      <% for (const p of projectCoverage) { %>
-        <tr>
-          <td><a href="/projects/<%= p.project_id %>"><%= p.project_title %></a></td>
-          <td><%= p.track_name %></td>
-          <td><%= p.reviews_received %></td>
-          <td><%= p.reviews_needed %></td>
-        </tr>
-      <% } %>
-    </tbody>
-  </table>
-<% } %>
+/* ── Registration bars ───────────────────────────────────── */
+.dash-reg-bars { display: flex; flex-direction: column; gap: 12px; }
+
+/* ── Status pills ────────────────────────────────────────── */
+.dash-status-pills { display: flex; flex-direction: column; gap: 10px; }
+.dash-status-pill-row { display: flex; align-items: center; gap: 10px; font-size: 0.85rem; }
+.dash-status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.dash-status-pill-label { width: 140px; color: #444; flex-shrink: 0; text-transform: capitalize; }
+.dash-status-pill-bar-wrap { flex: 1; height: 8px; background: #f0f0f0; border-radius: 4px; overflow: hidden; }
+.dash-status-pill-count { width: 28px; text-align: right; font-weight: 700; color: #333; }
+
+/* ── Timeline ────────────────────────────────────────────── */
+.dash-timeline { position: relative; padding-left: 32px; }
+.dash-tl-item  { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 24px; position: relative; }
+.dash-tl-dot   {
+  width: 16px; height: 16px; border-radius: 50%;
+  border: 3px solid #ccc; background: #fff;
+  position: absolute; left: -40px; top: 3px; flex-shrink: 0;
+}
+.dash-tl-line  {
+  position: absolute; left: -33px; top: 19px; bottom: -24px;
+  width: 2px; background: #e0e0e0;
+}
+.dash-tl-item:last-child .dash-tl-line { display: none; }
+
+.dash-tl-done    .dash-tl-dot { border-color: #137333; background: #137333; }
+.dash-tl-current .dash-tl-dot { border-color: #1a73e8; background: #1a73e8; box-shadow: 0 0 0 4px #d2e3fc; }
+.dash-tl-future  .dash-tl-dot { border-color: #ccc; background: #fff; }
+
+.dash-tl-content { padding-bottom: 4px; }
+.dash-tl-label   { font-weight: 700; font-size: 0.9rem; color: #333; }
+.dash-tl-date    { font-size: 0.82rem; color: #777; margin-top: 2px; }
+.dash-tl-badge   { display: inline-block; font-size: 0.75rem; padding: 2px 8px; border-radius: 12px; margin-top: 4px; font-weight: 600; }
+.dash-tl-badge-done    { background: #e6f4ea; color: #137333; }
+.dash-tl-badge-current { background: #e8f0fe; color: #1a73e8; }
+.dash-tl-badge-future  { background: #f5f5f5; color: #999; }
+
+/* ── Pending actions ─────────────────────────────────────── */
+.dash-pending-list { display: flex; flex-direction: column; gap: 12px; }
+.dash-pending-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #fff8e1;
+  border: 1px solid #ffe082;
+  border-radius: 6px;
+  font-size: 0.87rem;
+}
+.dash-pending-icon { font-size: 1.2rem; flex-shrink: 0; }
+.dash-pending-label { flex: 1; color: #444; }
+
+/* ── Quick actions grid ──────────────────────────────────── */
+.dash-qa-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+.dash-qa-card {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 20px 16px;
+  text-decoration: none;
+  text-align: center;
+  transition: box-shadow 0.15s, transform 0.15s, border-color 0.15s;
+}
+.dash-qa-card:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+  transform: translateY(-2px);
+  border-color: #1a73e8;
+}
+.dash-qa-icon  { font-size: 2rem; margin-bottom: 8px; }
+.dash-qa-label { font-size: 0.9rem; font-weight: 700; color: #1a1a2e; margin-bottom: 4px; }
+.dash-qa-sub   { font-size: 0.75rem; color: #888; line-height: 1.3; }
+
+@media (max-width: 900px) {
+  .dash-qa-grid { grid-template-columns: repeat(2, 1fr); }
+  .dash-completion-row { flex-direction: column; align-items: flex-start; }
+}
+@media (max-width: 600px) {
+  .dash-qa-grid { grid-template-columns: 1fr 1fr; }
+  .dash-section-nav { gap: 2px; }
+  .dash-snav-link { padding: 6px 10px; font-size: 0.78rem; }
+}
+</style>
 
 <%- include('../layouts/footer') %>

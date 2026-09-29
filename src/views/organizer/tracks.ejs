@@ -1,0 +1,220 @@
+<%- include('../layouts/header', { title: 'Tracks Management', session, selectedEvent }) %>
+<% locals._page = 'tracks-all'; %>
+<% var eid = (typeof selectedEvent !== 'undefined' && selectedEvent) ? selectedEvent.id : ''; %>
+
+<div class="org-layout">
+  <%- include('_sidebar') %>
+
+  <main class="org-content">
+    <div class="org-page-header">
+      <div>
+        <h1 class="org-page-title">🎯 Tracks Management</h1>
+        <p class="org-page-sub">Configure challenges, eligibility, judges, and prizes for tracks in <%= selectedEvent ? selectedEvent.name : 'Hackathon' %></p>
+      </div>
+
+      <button class="org-action-btn" onclick="document.getElementById('createTrackModal').style.display='flex'">+ Create Track</button>
+    </div>
+
+    <!-- Sub-navigation tabs matching user's tree -->
+    <nav class="org-tabs">
+      <a href="#all" class="org-tab-item active">All Tracks</a>
+      <a href="javascript:void(0)" onclick="document.getElementById('createTrackModal').style.display='flex'" class="org-tab-item">+ Create Track</a>
+      <a href="#details" class="org-tab-item">Track Details</a>
+      <a href="#problems" class="org-tab-item">Problem Statements</a>
+      <a href="#eligibility" class="org-tab-item">Eligibility</a>
+      <a href="#judges" class="org-tab-item">Track Judges</a>
+      <a href="#submissions" class="org-tab-item">Submissions</a>
+      <a href="#prizes" class="org-tab-item">Prizes</a>
+      <a href="#stats" class="org-tab-item">Statistics</a>
+    </nav>
+
+    <!-- Track Statistics Row -->
+    <%
+      var trackList = (typeof tracks !== 'undefined' && tracks) ? tracks : [];
+      var totalTrackProjects = trackList.reduce(function(s,t){ return s + (t.project_count || 0); }, 0);
+    %>
+    <div class="org-stat-grid" id="stats" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px;">
+      <div class="org-stat-card">
+        <div class="org-stat-icon" style="background:#e8f0fe">🎯</div>
+        <div class="org-stat-body">
+          <div class="org-stat-value"><%= trackList.length %></div>
+          <div class="org-stat-label">Total Tracks</div>
+        </div>
+      </div>
+      <div class="org-stat-card">
+        <div class="org-stat-icon" style="background:#e6f4ea">📁</div>
+        <div class="org-stat-body">
+          <div class="org-stat-value"><%= totalTrackProjects %></div>
+          <div class="org-stat-label">Track Submissions</div>
+        </div>
+      </div>
+      <div class="org-stat-card">
+        <div class="org-stat-icon" style="background:#fff3e0">⚖️</div>
+        <div class="org-stat-body">
+          <div class="org-stat-value">30</div>
+          <div class="org-stat-label">Assigned Judges</div>
+        </div>
+      </div>
+      <div class="org-stat-card">
+        <div class="org-stat-icon" style="background:#fce8e6">🏆</div>
+        <div class="org-stat-body">
+          <div class="org-stat-value"><%= trackList.length %></div>
+          <div class="org-stat-label">Track Winner Awards</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tracks List Table -->
+    <div class="org-card" id="all">
+      <div class="org-card-header">
+        <h3 class="org-card-title">Configured Tracks</h3>
+      </div>
+
+      <% if (trackList.length === 0) { %>
+        <p class="org-empty">No tracks configured yet. Click "+ Create Track" to add your first track.</p>
+      <% } else { %>
+        <table class="org-table">
+          <thead>
+            <tr>
+              <th>Track Name</th>
+              <th>Track ID</th>
+              <th>Submissions</th>
+              <th>Judges</th>
+              <th>Prizes</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% trackList.forEach(function(t, idx) {
+                 var hue = (idx * 47) % 360;
+               %>
+              <tr>
+                <td>
+                  <span class="org-track-chip" style="background:hsl(<%= hue %>,55%,92%);color:hsl(<%= hue %>,55%,30%);">
+                    <%= t.name %>
+                  </span>
+                </td>
+                <td><code><%= t.id %></code></td>
+                <td><strong><%= t.project_count || 0 %></strong> projects</td>
+                <td><%= t.judge_count || 3 %> judges</td>
+                <td><%= t.prize_title || '$2,000 Award' %></td>
+                <td>
+                  <div style="display:flex;gap:6px;align-items:center;">
+                    <a href="/projects?track=<%= t.id %>" target="_blank" class="org-action-btn org-action-btn-outline org-btn-sm">Gallery</a>
+                    <button type="button" class="org-action-btn org-btn-secondary org-btn-sm" onclick="openEditTrack('<%= t.id %>', '<%= t.name.replace(/'/g, "\\'") %>', '<%= (t.prize_title || '').replace(/'/g, "\\'") %>', '<%= (t.problem_statement || '').replace(/'/g, "\\'") %>')">Edit</button>
+                    <form method="POST" action="/organizer/tracks/duplicate" style="display:inline;">
+                      <input type="hidden" name="id" value="<%= t.id %>">
+                      <input type="hidden" name="event_id" value="<%= eid %>">
+                      <button type="submit" class="org-action-btn org-action-btn-outline org-btn-sm" title="Duplicate">Copy</button>
+                    </form>
+                    <form method="POST" action="/organizer/tracks/delete" style="display:inline;" onsubmit="return confirm('Delete this track?');">
+                      <input type="hidden" name="id" value="<%= t.id %>">
+                      <input type="hidden" name="event_id" value="<%= eid %>">
+                      <button type="submit" class="org-action-btn org-btn-danger org-btn-sm" title="Delete">✕</button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      <% } %>
+    </div>
+
+    <!-- Track Problem Statements & Eligibility -->
+    <div class="org-two-col" style="margin-top:24px;">
+      <div class="org-card" id="problems">
+        <div class="org-card-header">
+          <h3 class="org-card-title">💡 Track Problem Statements</h3>
+        </div>
+        <p style="font-size:0.84rem;color:#666;">Each track can have dedicated problem statements to guide builders.</p>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <% trackList.forEach(function(t) { %>
+            <div style="padding:10px;border:1px solid #f0f0f0;border-radius:6px;background:#fafafa;">
+              <strong style="font-size:0.88rem;color:#1a73e8;"><%= t.name %></strong>
+              <p style="margin:4px 0 0;font-size:0.82rem;color:#555;"><%= t.problem_statement || 'Design scalable, accessible, and high-impact solutions leveraging ' + t.name + ' technologies.' %></p>
+            </div>
+          <% }); %>
+        </div>
+      </div>
+
+      <div class="org-card" id="eligibility">
+        <div class="org-card-header">
+          <h3 class="org-card-title">🛡️ Track Eligibility & Multi-Track Rules</h3>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;font-size:0.85rem;">
+          <label><input type="checkbox" checked> Allow projects to submit to at most 1 primary track</label>
+          <label><input type="checkbox" checked> Allow sponsor challenge add-ons</label>
+          <label><input type="checkbox" checked> Separate track winner pool from Grand Prize</label>
+          <label><input type="checkbox"> Require minimum 2 team members for Enterprise track</label>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Modal for Create Track -->
+<div id="createTrackModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:8px;padding:24px;max-width:480px;width:90%;box-shadow:0 8px 30px rgba(0,0,0,0.2);">
+    <h3 style="margin:0 0 14px;">Create New Track</h3>
+    <form method="POST" action="/organizer/tracks">
+      <input type="hidden" name="event_id" value="<%= eid %>">
+      <div class="org-form-group">
+        <label class="org-form-label">Track Name *</label>
+        <input type="text" name="name" class="org-input" required placeholder="e.g. Artificial Intelligence & ML">
+      </div>
+      <div class="org-form-group">
+        <label class="org-form-label">Track Prize Title</label>
+        <input type="text" name="prize_title" class="org-input" placeholder="e.g. Best AI Implementation ($2,500)">
+      </div>
+      <div class="org-form-group">
+        <label class="org-form-label">Problem Statement</label>
+        <textarea name="problem_statement" class="org-textarea" rows="3" placeholder="Challenge description or specific problem to solve..."></textarea>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;">
+        <button type="button" class="org-action-btn org-action-btn-outline" onclick="document.getElementById('createTrackModal').style.display='none'">Cancel</button>
+        <button type="submit" class="org-action-btn">Create Track</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal for Edit Track -->
+<div id="editTrackModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:8px;padding:24px;max-width:480px;width:90%;box-shadow:0 8px 30px rgba(0,0,0,0.2);">
+    <h3 style="margin:0 0 14px;">Edit Track</h3>
+    <form method="POST" action="/organizer/tracks/update">
+      <input type="hidden" name="event_id" value="<%= eid %>">
+      <input type="hidden" name="id" id="edit_track_id">
+      <div class="org-form-group">
+        <label class="org-form-label">Track Name *</label>
+        <input type="text" name="name" id="edit_track_name" class="org-input" required>
+      </div>
+      <div class="org-form-group">
+        <label class="org-form-label">Track Prize Title</label>
+        <input type="text" name="prize_title" id="edit_track_prize" class="org-input">
+      </div>
+      <div class="org-form-group">
+        <label class="org-form-label">Problem Statement</label>
+        <textarea name="problem_statement" id="edit_track_problem" class="org-textarea" rows="3"></textarea>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;">
+        <button type="button" class="org-action-btn org-action-btn-outline" onclick="document.getElementById('editTrackModal').style.display='none'">Cancel</button>
+        <button type="submit" class="org-action-btn">Save Changes</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openEditTrack(id, name, prize, problem) {
+  document.getElementById('edit_track_id').value = id;
+  document.getElementById('edit_track_name').value = name;
+  document.getElementById('edit_track_prize').value = prize;
+  document.getElementById('edit_track_problem').value = problem;
+  document.getElementById('editTrackModal').style.display = 'flex';
+}
+</script>
+
+<%- include('../layouts/footer') %>

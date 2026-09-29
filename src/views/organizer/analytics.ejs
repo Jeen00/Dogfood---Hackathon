@@ -1,0 +1,185 @@
+<%- include('../layouts/header', { title: 'Analytics & Insights', session, selectedEvent }) %>
+<% locals._page = 'analytics-overview'; %>
+<% var eid = (typeof selectedEvent !== 'undefined' && selectedEvent) ? selectedEvent.id : ''; %>
+
+<div class="org-layout">
+  <%- include('_sidebar') %>
+
+  <main class="org-content">
+    <div class="org-page-header">
+      <div>
+        <h1 class="org-page-title">📊 Analytics & Reporting</h1>
+        <p class="org-page-sub">Comprehensive data analytics covering registration velocity, submission conversion, score distribution, and judge metrics</p>
+      </div>
+
+      <a href="/api/export.csv?type=complete<%= eid ? '&event_id=' + eid : '' %>" class="org-action-btn">
+        📥 Export Analytics Bundle
+      </a>
+    </div>
+
+    <!-- Tabs matching user's tree -->
+    <nav class="org-tabs">
+      <a href="#overview" class="org-tab-item active">Overview</a>
+      <a href="#reg" class="org-tab-item">Registration</a>
+      <a href="#part" class="org-tab-item">Participants</a>
+      <a href="#teams" class="org-tab-item">Teams</a>
+      <a href="#subs" class="org-tab-item">Submissions</a>
+      <a href="#tracks" class="org-tab-item">Tracks</a>
+      <a href="#judges" class="org-tab-item">Judges</a>
+      <a href="#progress" class="org-tab-item">Judging Progress</a>
+      <a href="#scores" class="org-tab-item">Score Distribution</a>
+      <a href="#voting" class="org-tab-item">Voting Analytics</a>
+      <a href="#engagement" class="org-tab-item">Engagement</a>
+      <a href="#views" class="org-tab-item">Traffic / Views</a>
+      <a href="#reports" class="org-tab-item">Custom Reports</a>
+    </nav>
+
+    <!-- KPI Cards Overview -->
+    <% var st = (typeof stats !== 'undefined' && stats) ? stats : { totalParticipants: 0, totalTeams: 0, totalSubmissions: 0, totalViews: 0, conversionRate: 0, totalVotes: 0, trackBreakdown: [] }; %>
+    <div class="org-stat-grid" id="overview" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px;">
+      <div class="org-stat-card">
+        <div class="org-stat-icon" style="background:#e8f0fe">👥</div>
+        <div class="org-stat-body">
+          <div class="org-stat-value"><%= st.totalParticipants %></div>
+          <div class="org-stat-label">Total Participants</div>
+        </div>
+      </div>
+      <div class="org-stat-card">
+        <div class="org-stat-icon" style="background:#e6f4ea">📁</div>
+        <div class="org-stat-body">
+          <div class="org-stat-value"><%= st.totalSubmissions %></div>
+          <div class="org-stat-label">Submitted Projects</div>
+        </div>
+      </div>
+      <div class="org-stat-card">
+        <div class="org-stat-icon" style="background:#fff3e0">📈</div>
+        <div class="org-stat-body">
+          <div class="org-stat-value"><%= st.conversionRate %>%</div>
+          <div class="org-stat-label">Team Submission Rate</div>
+        </div>
+      </div>
+      <div class="org-stat-card">
+        <div class="org-stat-icon" style="background:#fce8e6">👁️</div>
+        <div class="org-stat-body">
+          <div class="org-stat-value"><%= Number(st.totalViews).toLocaleString() %></div>
+          <div class="org-stat-label">Gallery Page Views</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Two-Col Analytics Charts -->
+    <div class="org-two-col">
+
+      <!-- Registration & Participant Velocity -->
+      <div class="org-card" id="reg">
+        <div class="org-card-header">
+          <h3 class="org-card-title">📈 Participation & Submission Volume</h3>
+        </div>
+        <div class="dash-status-pills">
+          <div class="dash-status-pill-row">
+            <span class="dash-status-pill-label">Participants</span>
+            <div class="dash-status-pill-bar-wrap">
+              <div style="width:100%;height:100%;background:#1a73e8;border-radius:4px;"></div>
+            </div>
+            <span class="dash-status-pill-count"><%= st.totalParticipants %></span>
+          </div>
+          <div class="dash-status-pill-row" id="teams">
+            <span class="dash-status-pill-label">Formed Teams</span>
+            <div class="dash-status-pill-bar-wrap">
+              <div style="width:<%= st.totalParticipants ? Math.min(100, Math.round(st.totalTeams / st.totalParticipants * 100)) : 0 %>%;height:100%;background:#137333;border-radius:4px;"></div>
+            </div>
+            <span class="dash-status-pill-count"><%= st.totalTeams %></span>
+          </div>
+          <div class="dash-status-pill-row" id="subs">
+            <span class="dash-status-pill-label">Submissions</span>
+            <div class="dash-status-pill-bar-wrap">
+              <div style="width:<%= st.totalTeams ? Math.min(100, Math.round(st.totalSubmissions / st.totalTeams * 100)) : 0 %>%;height:100%;background:#e37400;border-radius:4px;"></div>
+            </div>
+            <span class="dash-status-pill-count"><%= st.totalSubmissions %></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Track Submissions Breakdown -->
+      <div class="org-card" id="tracks">
+        <div class="org-card-header">
+          <h3 class="org-card-title">🎯 Submissions by Track</h3>
+        </div>
+        <div class="dash-status-pills">
+          <% if (st.trackBreakdown && st.trackBreakdown.length > 0) { %>
+            <% st.trackBreakdown.forEach(function(tr, idx) {
+                 var maxCount = Math.max.apply(null, st.trackBreakdown.map(function(b){ return b.count; })) || 1;
+                 var pct = Math.round((tr.count / maxCount) * 100);
+                 var hue = (idx * 55) % 360;
+               %>
+              <div class="dash-status-pill-row">
+                <span class="dash-status-pill-label"><%= tr.name %></span>
+                <div class="dash-status-pill-bar-wrap">
+                  <div style="width:<%= pct %>%;height:100%;background:hsl(<%= hue %>, 60%, 50%);border-radius:4px;"></div>
+                </div>
+                <span class="dash-status-pill-count"><%= tr.count %></span>
+              </div>
+            <% }); %>
+          <% } else { %>
+            <p class="org-empty">No track submission data available.</p>
+          <% } %>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Judging Progress & Voting Summary -->
+    <div class="org-two-col" style="margin-top:24px;">
+
+      <div class="org-card" id="progress">
+        <div class="org-card-header">
+          <h3 class="org-card-title">⚖️ Judging Completion Progress</h3>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px;margin-top:10px;">
+          <div style="display:flex;justify-content:space-between;font-size:0.85rem;">
+            <span>Review Completion Rate</span>
+            <strong><%= st.judgingRate || 0 %>%</strong>
+          </div>
+          <div style="height:10px;background:#eee;border-radius:6px;overflow:hidden;">
+            <div style="width:<%= st.judgingRate || 0 %>%;height:100%;background:#137333;"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:0.82rem;color:#666;">
+            <span>Completed: <%= st.completedReviews || 0 %></span>
+            <span>Pending: <%= st.pendingReviews || 0 %></span>
+            <span>Total: <%= st.totalAssignments || 0 %></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="org-card" id="voting">
+        <div class="org-card-header">
+          <h3 class="org-card-title">🗳️ Voting & Engagement</h3>
+        </div>
+        <table class="org-table">
+          <tbody>
+            <tr><td>Total Public Votes Cast</td><td><strong><%= st.totalVotes || 0 %></strong></td></tr>
+            <tr><td>Public Views Accumulated</td><td><strong><%= Number(st.totalViews).toLocaleString() %></strong></td></tr>
+            <tr><td>Active Submissions</td><td><strong><%= st.totalSubmissions %></strong></td></tr>
+            <tr><td>Evaluation Reviews Completed</td><td><strong><%= st.completedReviews || 0 %></strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+
+    <!-- Custom Reports Section -->
+    <div class="org-card" id="reports" style="margin-top:24px;">
+      <div class="org-card-header">
+        <h3 class="org-card-title">📄 Generate Custom Reports</h3>
+      </div>
+      <p style="font-size:0.85rem;color:#666;">Export filtered datasets tailored for sponsors, academic partners, or leadership decks.</p>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;">
+        <a href="/api/export.csv?type=complete<%= eid ? '&event_id=' + eid : '' %>" class="org-action-btn org-action-btn-outline">📥 Executive Summary Export (CSV)</a>
+        <a href="/api/export.csv?type=participants<%= eid ? '&event_id=' + eid : '' %>" class="org-action-btn org-action-btn-outline">👥 Participant Demographics (CSV)</a>
+        <a href="/api/export.csv?type=scores<%= eid ? '&event_id=' + eid : '' %>" class="org-action-btn org-action-btn-outline">⚖️ Full Scoring Audit Report (CSV)</a>
+      </div>
+    </div>
+  </main>
+</div>
+
+<%- include('../layouts/footer') %>

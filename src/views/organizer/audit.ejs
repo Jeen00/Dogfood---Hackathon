@@ -1,0 +1,81 @@
+<%- include('../layouts/header', { title: 'Audit Log & Security', session, selectedEvent }) %>
+<% locals._page = 'audit-all'; %>
+<% var eid = (typeof selectedEvent !== 'undefined' && selectedEvent) ? selectedEvent.id : ''; %>
+
+<div class="org-layout">
+  <%- include('_sidebar') %>
+
+  <main class="org-content">
+    <div class="org-page-header">
+      <div>
+        <h1 class="org-page-title">📜 Audit Log & Security Events</h1>
+        <p class="org-page-sub">Tamper-evident system activity log tracking administrative decisions, judge scoring, and system events</p>
+      </div>
+
+      <a href="/api/export.csv?type=audit<%= eid ? '&event_id=' + eid : '' %>" class="org-action-btn org-action-btn-outline">
+        📥 Export Audit Log (CSV)
+      </a>
+    </div>
+
+    <!-- Tabs matching user's tree -->
+    <nav class="org-tabs">
+      <a href="/organizer/audit<%= eid ? '?event_id=' + eid : '' %>" class="org-tab-item active">All Activities</a>
+      <a href="/api/export.csv?type=audit<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item">Export Audit Log</a>
+    </nav>
+
+    <!-- Activity Log Table -->
+    <div class="org-card">
+      <div class="org-card-header">
+        <h3 class="org-card-title">Recent System Events</h3>
+        <form method="GET" action="/organizer/audit" style="display:flex;gap:6px;">
+          <% if (eid) { %><input type="hidden" name="event_id" value="<%= eid %>"><% } %>
+          <input type="text" name="q" value="<%= typeof q !== 'undefined' ? q : '' %>" placeholder="Search audit trail..." class="org-input" style="padding:4px 10px;font-size:0.82rem;width:200px;">
+          <button type="submit" class="org-action-btn org-btn-sm">Search</button>
+          <% if (typeof q !== 'undefined' && q) { %>
+            <a href="/organizer/audit<%= eid ? '?event_id=' + eid : '' %>" class="org-action-btn org-action-btn-outline org-btn-sm">Clear</a>
+          <% } %>
+        </form>
+      </div>
+
+      <%
+        var logs = (typeof auditLogs !== 'undefined' && auditLogs) ? auditLogs : [];
+      %>
+
+      <% if (logs.length === 0) { %>
+        <p class="org-empty">No activity records found matching filter.</p>
+      <% } else { %>
+        <table class="org-table">
+          <thead>
+            <tr>
+              <th>Timestamp (UTC)</th>
+              <th>Actor</th>
+              <th>Action Category</th>
+              <th>Target ID</th>
+              <th>Details / Context</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% logs.forEach(function(l) {
+                 var actionBadge = 'badge-tech';
+                 if (l.action.includes('judge')) actionBadge = 'badge-purple';
+                 if (l.action.includes('event')) actionBadge = 'badge-blue';
+                 if (l.action.includes('score')) actionBadge = 'badge-green';
+               %>
+              <tr>
+                <td style="font-family:monospace;font-size:0.8rem;color:#777;">
+                  <%= l.created_at ? l.created_at.slice(0, 19).replace('T', ' ') : '—' %>
+                </td>
+                <td><strong><%= l.actor_name || 'System' %></strong></td>
+                <td><span class="badge <%= actionBadge %>"><%= l.action.replace(/_/g, ' ') %></span></td>
+                <td><code><%= l.target_id || '—' %></code></td>
+                <td style="font-size:0.83rem;color:#555;"><%= l.detail || '—' %></td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      <% } %>
+    </div>
+  </main>
+</div>
+
+<%- include('../layouts/footer') %>

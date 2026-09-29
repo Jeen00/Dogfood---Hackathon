@@ -1,0 +1,176 @@
+<%- include('../layouts/header', { title: 'Global Platform Settings', session, selectedEvent }) %>
+<% locals._page = 'settings-general'; %>
+<% var eid = (typeof selectedEvent !== 'undefined' && selectedEvent) ? selectedEvent.id : ''; %>
+
+<div class="org-layout">
+  <%- include('_sidebar') %>
+
+  <main class="org-content">
+    <div class="org-page-header">
+      <div>
+        <h1 class="org-page-title">⚙️ Organizer & Platform Settings</h1>
+        <p class="org-page-sub">Configure platform defaults, permissions, integrations, API keys, and event rules</p>
+      </div>
+    </div>
+
+    <!-- Sub-tabs covering all 13 items in user's tree -->
+    <nav class="org-tabs">
+      <a href="#general" class="org-tab-item active">General</a>
+      <a href="#registration" class="org-tab-item">Registration</a>
+      <a href="#team" class="org-tab-item">Teams</a>
+      <a href="#submission" class="org-tab-item">Submissions</a>
+      <a href="#judging" class="org-tab-item">Judging</a>
+      <a href="#voting" class="org-tab-item">Voting</a>
+      <a href="#notifications" class="org-tab-item">Notifications</a>
+      <a href="#privacy" class="org-tab-item">Privacy</a>
+      <a href="#roles" class="org-tab-item">Roles & Permissions</a>
+      <a href="#integrations" class="org-tab-item">Integrations</a>
+      <a href="#apikeys" class="org-tab-item">API Keys</a>
+      <a href="#webhooks" class="org-tab-item">Webhooks</a>
+      <a href="#danger" class="org-tab-item" style="color:#d93025;">Danger Zone</a>
+    </nav>
+
+    <div style="display:flex;flex-direction:column;gap:24px;max-width:900px;">
+
+      <% if (typeof query !== 'undefined' && query.saved) { %>
+        <div style="background:#e6f4ea;color:#137333;padding:12px 16px;border-radius:6px;font-weight:600;border:1px solid #ceead6;">
+          ✓ Platform settings saved and applied successfully.
+        </div>
+      <% } %>
+
+      <form method="POST" action="/organizer/settings" style="display:flex;flex-direction:column;gap:24px;">
+        <input type="hidden" name="event_id" value="<%= eid %>">
+
+        <!-- 1. General Settings -->
+        <section id="general" class="org-card">
+          <h3 class="org-card-title" style="margin-bottom:14px;">1. 🌐 General Platform Settings</h3>
+          <div class="org-form-grid">
+            <div class="org-form-group">
+              <label class="org-form-label">Platform Name</label>
+              <input type="text" name="platform_name" class="org-input" value="<%= (typeof settings !== 'undefined' && settings.platform_name) ? settings.platform_name : 'DOGFOOD Hackathon Platform' %>">
+            </div>
+            <div class="org-form-group">
+              <label class="org-form-label">Primary Timezone</label>
+              <select name="primary_timezone" class="org-select">
+                <option value="UTC" <%= (typeof settings !== 'undefined' && settings.primary_timezone === 'UTC') ? 'selected' : '' %>>UTC (Coordinated Universal Time)</option>
+                <option value="EST" <%= (typeof settings !== 'undefined' && settings.primary_timezone === 'EST') ? 'selected' : '' %>>EST / EDT (Eastern Time)</option>
+                <option value="PST" <%= (typeof settings !== 'undefined' && settings.primary_timezone === 'PST') ? 'selected' : '' %>>PST / PDT (Pacific Time)</option>
+                <option value="IST" <%= (typeof settings !== 'undefined' && settings.primary_timezone === 'IST') ? 'selected' : '' %>>IST (Indian Standard Time)</option>
+              </select>
+            </div>
+          </div>
+        </section>
+
+        <!-- 2. Registration Settings & 3. Team Settings -->
+        <section id="registration" class="org-card">
+          <h3 class="org-card-title" style="margin-bottom:14px;">2. 👥 Registration & 3. 👨‍👩‍👧 Team Rules</h3>
+          <div class="org-form-grid">
+            <div class="org-form-group">
+              <label class="org-form-label">Max Participants Capacity</label>
+              <input type="number" name="max_participants" class="org-input" value="<%= (typeof settings !== 'undefined' && settings.max_participants) ? settings.max_participants : '1000' %>">
+            </div>
+            <div class="org-form-group" id="team">
+              <label class="org-form-label">Team Size Limit (Min - Max)</label>
+              <div style="display:flex;gap:10px;">
+                <input type="number" name="team_size_min" class="org-input" value="<%= (typeof settings !== 'undefined' && settings.team_size_min) ? settings.team_size_min : '1' %>" placeholder="Min" style="width:100px;">
+                <input type="number" name="team_size_max" class="org-input" value="<%= (typeof settings !== 'undefined' && settings.team_size_max) ? settings.team_size_max : '4' %>" placeholder="Max" style="width:100px;">
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;font-size:0.85rem;">
+            <label><input type="checkbox" name="allow_solo" value="1" checked> Allow solo builders (Team size = 1)</label>
+            <label><input type="checkbox" name="allow_transfers" value="1" checked> Allow team leader transfers</label>
+            <label><input type="checkbox" name="require_invite_codes" value="1" checked> Require invite codes to join teams</label>
+          </div>
+        </section>
+
+        <!-- 4. Submission & 5. Judging & 6. Voting -->
+        <section id="submission" class="org-card">
+          <h3 class="org-card-title" style="margin-bottom:14px;">4. 📁 Submissions, 5. ⚖️ Judging & 6. 🗳️ Voting Rules</h3>
+          <div class="org-form-grid">
+            <div class="org-form-group">
+              <label class="org-form-label">Require GitHub Repo</label>
+              <select name="require_github" class="org-select">
+                <option value="mandatory" <%= (typeof settings !== 'undefined' && settings.require_github === 'mandatory') ? 'selected' : '' %>>Mandatory for all submissions</option>
+                <option value="optional" <%= (typeof settings !== 'undefined' && settings.require_github === 'optional') ? 'selected' : '' %>>Optional</option>
+              </select>
+            </div>
+            <div class="org-form-group" id="judging">
+              <label class="org-form-label">Reviews Required per Project</label>
+              <input type="number" name="reviews_required" class="org-input" value="<%= (typeof settings !== 'undefined' && settings.reviews_required) ? settings.reviews_required : '3' %>" min="1" max="10">
+            </div>
+            <div class="org-form-group" id="voting">
+              <label class="org-form-label">Public Voting Access</label>
+              <select name="voting_access" class="org-select">
+                <option value="authenticated" <%= (typeof settings !== 'undefined' && settings.voting_access === 'authenticated') ? 'selected' : '' %>>Authenticated users only (1 vote per project)</option>
+                <option value="verified" <%= (typeof settings !== 'undefined' && settings.voting_access === 'verified') ? 'selected' : '' %>>Anyone with email verification</option>
+                <option value="disabled" <%= (typeof settings !== 'undefined' && settings.voting_access === 'disabled') ? 'selected' : '' %>>Disabled</option>
+              </select>
+            </div>
+          </div>
+        </section>
+
+        <!-- 7. Notifications & 8. Privacy -->
+        <section id="notifications" class="org-card">
+          <h3 class="org-card-title" style="margin-bottom:14px;">7. 🔔 Notifications & 8. 🔒 Privacy</h3>
+          <div style="display:flex;flex-direction:column;gap:10px;font-size:0.85rem;" id="privacy">
+            <label><input type="checkbox" name="notif_submission" value="1" checked> Send automated email confirmation on project submission</label>
+            <label><input type="checkbox" name="notif_digest" value="1" checked> Send weekly digest to registered judges</label>
+            <label><input type="checkbox" name="privacy_mask_emails" value="1" checked> Mask participant emails from public gallery</label>
+            <label><input type="checkbox" name="privacy_audit_logging" value="1" checked> Enable audit logging for all organizer actions</label>
+          </div>
+        </section>
+
+        <!-- 9. Roles & Permissions -->
+        <section id="roles" class="org-card">
+          <h3 class="org-card-title" style="margin-bottom:14px;">9. 🛡️ Roles & Permissions</h3>
+          <table class="org-table">
+            <thead>
+              <tr><th>Role</th><th>Manage Events</th><th>Assign Judges</th><th>Edit Rubric</th><th>View Leaderboard</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><strong>Organizer (Admin)</strong></td><td>✅ Full</td><td>✅ Full</td><td>✅ Full</td><td>✅ Full</td></tr>
+              <tr><td><strong>Judge</strong></td><td>❌ None</td><td>❌ None</td><td>👁️ Read Only</td><td>👁️ After Publish</td></tr>
+              <tr><td><strong>Participant</strong></td><td>❌ None</td><td>❌ None</td><td>👁️ Read Only</td><td>👁️ Public</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <!-- 10. Integrations, 11. API Keys & 12. Webhooks -->
+        <section id="integrations" class="org-card">
+          <h3 class="org-card-title" style="margin-bottom:14px;">10. 🔌 Integrations, 11. 🔑 API Keys & 12. ⚡ Webhooks</h3>
+          <div class="org-form-group" id="apikeys">
+            <label class="org-form-label">Platform API Key</label>
+            <div style="display:flex;gap:10px;">
+              <input type="text" class="org-input" readonly value="dgf_live_9a7bc384e0214f9d8a1e" style="font-family:monospace;background:#f5f5f5;">
+            </div>
+          </div>
+
+          <div class="org-form-group" id="webhooks" style="margin-top:16px;">
+            <label class="org-form-label">Webhook URL (Event Triggers)</label>
+            <input type="url" name="webhook_url" class="org-input" placeholder="https://api.yourdomain.com/hackathon-webhook" value="<%= (typeof settings !== 'undefined' && settings.webhook_url) ? settings.webhook_url : '' %>">
+            <span class="org-form-hint">Sends JSON payload on <code>project.submitted</code>, <code>judge.scored</code>, <code>results.published</code></span>
+          </div>
+        </section>
+
+        <!-- 13. Danger Zone -->
+        <section id="danger" class="org-card" style="border:1px solid #fce8e6;background:#fff8f8;">
+          <h3 class="org-card-title" style="color:#d93025;margin-bottom:10px;">13. ⚠️ Danger Zone</h3>
+          <p style="font-size:0.85rem;color:#666;margin-bottom:14px;">Irreversible administrative actions for this instance.</p>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;">
+            <button type="button" class="org-action-btn org-btn-danger" onclick="if(confirm('Flush temporary caches?')) location.reload();">Flush System Cache</button>
+          </div>
+        </section>
+
+        <div>
+          <button type="submit" class="org-action-btn" style="padding:10px 24px;font-size:0.95rem;">
+            💾 Save All Settings
+          </button>
+        </div>
+      </form>
+
+    </div>
+  </main>
+</div>
+
+<%- include('../layouts/footer') %>
