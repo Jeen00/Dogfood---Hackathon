@@ -1105,12 +1105,13 @@ router.get('/tracks', requireRole('organizer', 'admin'), (req, res) => {
 router.post('/tracks', requireRole('organizer', 'admin'), (req, res) => {
   try {
     const db = getDb();
-    const { event_id, name } = req.body;
+    const { event_id, name, description, prize_title, problem_statement } = req.body;
     if (!name) return res.status(400).render('error', { message: 'Track name is required', session: req.session });
     const eid = event_id || req.session?.selectedEventId || ACTIVE_EVENT_ID;
     const trackId = `trk_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
 
-    db.prepare('INSERT INTO tracks (id, event_id, name) VALUES (?, ?, ?)').run(trackId, eid, name);
+    db.prepare('INSERT INTO tracks (id, event_id, name, description, prize_title, problem_statement, status) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .run(trackId, eid, name.trim(), description || '', prize_title || '', problem_statement || '', 'active');
     const now = new Date().toISOString();
     db.prepare('INSERT INTO audit_log (id, actor_id, action, target_id, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)')
       .run(`al_${Date.now()}`, req.session.userId, 'track_created', trackId, name, now);
@@ -1119,6 +1120,68 @@ router.post('/tracks', requireRole('organizer', 'admin'), (req, res) => {
   } catch (err) {
     console.error('[organizer:tracks POST]', err.message);
     return res.status(500).render('error', { message: 'Failed to create track', session: req.session });
+  }
+});
+
+router.post('/tracks/update', requireRole('organizer', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const { id, name, description, prize_title, problem_statement, status, event_id } = req.body;
+    if (!id || !name) return res.status(400).render('error', { message: 'Track ID and name are required', session: req.session });
+    const eid = event_id || req.session?.selectedEventId || ACTIVE_EVENT_ID;
+
+    db.prepare(`
+      UPDATE tracks
+      SET name = ?, description = ?, prize_title = ?, problem_statement = ?, status = ?
+      WHERE id = ?
+    `).run(name.trim(), description || '', prize_title || '', problem_statement || '', status || 'active', id);
+
+    db.prepare('INSERT INTO audit_log (id, actor_id, action, target_id, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(`al_${Date.now()}`, req.session.userId, 'track_updated', id, name, new Date().toISOString());
+
+    return res.redirect(`/organizer/tracks?event_id=${eid}`);
+  } catch (err) {
+    console.error('[organizer:tracks/update POST]', err.message);
+    return res.status(500).render('error', { message: 'Failed to update track', session: req.session });
+  }
+});
+
+router.post('/tracks/delete', requireRole('organizer', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const { id, event_id } = req.body;
+    const eid = event_id || req.session?.selectedEventId || ACTIVE_EVENT_ID;
+
+    db.prepare('DELETE FROM tracks WHERE id = ?').run(id);
+    db.prepare('INSERT INTO audit_log (id, actor_id, action, target_id, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(`al_${Date.now()}`, req.session.userId, 'track_deleted', id, '', new Date().toISOString());
+
+    return res.redirect(`/organizer/tracks?event_id=${eid}`);
+  } catch (err) {
+    console.error('[organizer:tracks/delete POST]', err.message);
+    return res.status(500).render('error', { message: 'Failed to delete track', session: req.session });
+  }
+});
+
+router.post('/tracks/duplicate', requireRole('organizer', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const { id, event_id } = req.body;
+    const eid = event_id || req.session?.selectedEventId || ACTIVE_EVENT_ID;
+    const original = db.prepare('SELECT * FROM tracks WHERE id = ?').get(id);
+    if (!original) return res.status(404).render('error', { message: 'Track not found', session: req.session });
+
+    const newTrackId = `trk_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    db.prepare('INSERT INTO tracks (id, event_id, name, description, prize_title, problem_statement, status) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .run(newTrackId, eid, `${original.name} (Copy)`, original.description || '', original.prize_title || '', original.problem_statement || '', 'active');
+
+    db.prepare('INSERT INTO audit_log (id, actor_id, action, target_id, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(`al_${Date.now()}`, req.session.userId, 'track_duplicated', newTrackId, original.name, new Date().toISOString());
+
+    return res.redirect(`/organizer/tracks?event_id=${eid}`);
+  } catch (err) {
+    console.error('[organizer:tracks/duplicate POST]', err.message);
+    return res.status(500).render('error', { message: 'Failed to duplicate track', session: req.session });
   }
 });
 
@@ -1371,7 +1434,9 @@ router.post('/registrations/import', requireRole('organizer', 'admin'), (req, re
 });
 
 /**
- * GET /organizer/teams
+ * ─────────────────────────────────────────────────────────────────────────────
+ * TEAMS MANAGEMENT
+ * ─────────────────────────────────────────────────────────────────────────────
  */
 router.get('/teams', requireRole('organizer', 'admin'), (req, res) => {
   try {
@@ -1380,25 +1445,128 @@ router.get('/teams', requireRole('organizer', 'admin'), (req, res) => {
     res.locals.selectedEvent = selectedEvent;
     res.locals._page = 'teams-all';
 
-    const teamList = db.prepare(`
-      SELECT t.id, t.name, t.invite_code, u.name AS leader_name,
+    const filter = req.query.filter || 'all';
+    const q = (req.query.q || '').trim();
+
+    let sql = `
+      SELECT t.id, t.name, t.invite_code, t.status AS team_status, t.track_id,
+        u.name AS leader_name, u.email AS leader_email,
         (SELECT COUNT(*) FROM team_members tm WHERE tm.team_id = t.id) AS member_count,
-        (SELECT title FROM projects p WHERE p.team_id = t.id AND p.status = 'submitted' LIMIT 1) AS project_title
+        (SELECT title FROM projects p WHERE p.team_id = t.id LIMIT 1) AS project_title,
+        (SELECT status FROM projects p WHERE p.team_id = t.id LIMIT 1) AS project_status
       FROM teams t
       LEFT JOIN users u ON u.id = t.leader_id
       WHERE t.event_id = ?
-      ORDER BY t.name ASC
+    `;
+    const params = [selectedEvent.id];
+
+    if (q) {
+      sql += ` AND (t.name LIKE ? OR t.invite_code LIKE ? OR u.name LIKE ?)`;
+      params.push(`%${q}%`, `%${q}%`, `%${q}%`);
+    }
+
+    if (filter === 'incomplete') {
+      sql += ` AND (SELECT COUNT(*) FROM team_members tm WHERE tm.team_id = t.id) < 2`;
+    } else if (filter === 'disqualified') {
+      sql += ` AND t.status = 'disqualified'`;
+    } else if (filter === 'eligible') {
+      sql += ` AND (t.status IS NULL OR t.status != 'disqualified') AND (SELECT COUNT(*) FROM team_members tm WHERE tm.team_id = t.id) >= 1`;
+    } else if (filter === 'leaders') {
+      sql += ` AND t.leader_id IS NOT NULL`;
+    }
+
+    if (filter === 'size') {
+      sql += ` ORDER BY member_count DESC, t.name ASC`;
+    } else {
+      sql += ` ORDER BY t.name ASC`;
+    }
+
+    const teamList = db.prepare(sql).all(...params);
+
+    // Compute team stats for header KPIs
+    const allTeams = db.prepare(`
+      SELECT t.status, (SELECT COUNT(*) FROM team_members tm WHERE tm.team_id = t.id) AS member_count,
+        (SELECT COUNT(*) FROM projects p WHERE p.team_id = t.id AND p.status = 'submitted') AS has_sub
+      FROM teams t WHERE t.event_id = ?
     `).all(selectedEvent.id);
 
-    return res.render('organizer/teams', { teamList, selectedEvent, session: req.session });
+    const teamStats = {
+      total: allTeams.length,
+      solo: allTeams.filter(t => t.member_count === 1).length,
+      complete: allTeams.filter(t => t.member_count >= 2).length,
+      disqualified: allTeams.filter(t => t.status === 'disqualified').length,
+      withSubmissions: allTeams.filter(t => t.has_sub > 0).length
+    };
+
+    return res.render('organizer/teams', { teamList, teamStats, currentFilter: filter, q, selectedEvent, session: req.session });
   } catch (err) {
     console.error('[organizer:teams GET]', err.message);
     return res.status(500).render('error', { message: 'Failed to load teams', session: req.session });
   }
 });
 
+router.post('/teams/create', requireRole('organizer', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const { name, event_id, track_id } = req.body;
+    if (!name) return res.status(400).render('error', { message: 'Team name is required', session: req.session });
+    const eid = event_id || req.session?.selectedEventId || ACTIVE_EVENT_ID;
+    const teamId = `tm_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const inviteCode = `INV-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
+    db.prepare('INSERT INTO teams (id, event_id, name, invite_code, status, track_id) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(teamId, eid, name.trim(), inviteCode, 'active', track_id || null);
+
+    db.prepare('INSERT INTO audit_log (id, actor_id, action, target_id, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(`al_${Date.now()}`, req.session.userId, 'team_created', teamId, name, new Date().toISOString());
+
+    return res.redirect(`/organizer/teams?event_id=${eid}`);
+  } catch (err) {
+    console.error('[organizer:teams/create POST]', err.message);
+    return res.status(500).render('error', { message: 'Failed to create team', session: req.session });
+  }
+});
+
+router.post('/teams/status', requireRole('organizer', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const { team_id, status, event_id } = req.body;
+    const eid = event_id || req.session?.selectedEventId || ACTIVE_EVENT_ID;
+
+    db.prepare('UPDATE teams SET status = ? WHERE id = ?').run(status || 'active', team_id);
+    db.prepare('INSERT INTO audit_log (id, actor_id, action, target_id, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(`al_${Date.now()}`, req.session.userId, 'team_status_updated', team_id, `Status: ${status}`, new Date().toISOString());
+
+    return res.redirect(`/organizer/teams?event_id=${eid}`);
+  } catch (err) {
+    console.error('[organizer:teams/status POST]', err.message);
+    return res.status(500).render('error', { message: 'Failed to update team status', session: req.session });
+  }
+});
+
+router.post('/teams/delete', requireRole('organizer', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const { team_id, event_id } = req.body;
+    const eid = event_id || req.session?.selectedEventId || ACTIVE_EVENT_ID;
+
+    db.prepare('DELETE FROM team_members WHERE team_id = ?').run(team_id);
+    db.prepare('DELETE FROM teams WHERE id = ?').run(team_id);
+
+    db.prepare('INSERT INTO audit_log (id, actor_id, action, target_id, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(`al_${Date.now()}`, req.session.userId, 'team_deleted', team_id, '', new Date().toISOString());
+
+    return res.redirect(`/organizer/teams?event_id=${eid}`);
+  } catch (err) {
+    console.error('[organizer:teams/delete POST]', err.message);
+    return res.status(500).render('error', { message: 'Failed to delete team', session: req.session });
+  }
+});
+
 /**
- * GET /organizer/projects
+ * ─────────────────────────────────────────────────────────────────────────────
+ * PROJECTS MANAGEMENT
+ * ─────────────────────────────────────────────────────────────────────────────
  */
 router.get('/projects', requireRole('organizer', 'admin'), (req, res) => {
   try {
@@ -1407,24 +1575,123 @@ router.get('/projects', requireRole('organizer', 'admin'), (req, res) => {
     res.locals.selectedEvent = selectedEvent;
     res.locals._page = 'projects-all';
 
-    const projectList = db.prepare(`
-      SELECT p.*, t.name AS team_name, tr.name AS track_name
+    const statusFilter = req.query.status || 'all';
+    const trackFilter = req.query.track || '';
+    const q = (req.query.q || '').trim();
+
+    let sql = `
+      SELECT p.*, t.name AS team_name, tr.name AS track_name,
+        (SELECT COUNT(*) FROM scores s WHERE s.project_id = p.id) AS review_count
       FROM projects p
       LEFT JOIN teams t ON t.id = p.team_id
       LEFT JOIN tracks tr ON tr.id = p.track_id
       WHERE p.event_id = ?
-      ORDER BY p.title ASC
-    `).all(selectedEvent.id);
+    `;
+    const params = [selectedEvent.id];
 
-    return res.render('organizer/projects', { projectList, selectedEvent, session: req.session });
+    if (q) {
+      sql += ` AND (p.title LIKE ? OR t.name LIKE ? OR p.summary LIKE ?)`;
+      params.push(`%${q}%`, `%${q}%`, `%${q}%`);
+    }
+
+    if (statusFilter === 'shortlisted') {
+      sql += ` AND (p.is_shortlisted = 1 OR p.status = 'shortlisted')`;
+    } else if (statusFilter === 'submitted') {
+      sql += ` AND p.status = 'submitted'`;
+    } else if (statusFilter === 'late') {
+      sql += ` AND p.status = 'late'`;
+    } else if (statusFilter === 'draft') {
+      sql += ` AND (p.status = 'draft' OR p.status = 'idea')`;
+    } else if (statusFilter === 'rejected') {
+      sql += ` AND p.status = 'rejected'`;
+    }
+
+    if (trackFilter) {
+      sql += ` AND p.track_id = ?`;
+      params.push(trackFilter);
+    }
+
+    sql += ` ORDER BY p.title ASC`;
+    const projectList = db.prepare(sql).all(...params);
+
+    const allProjects = db.prepare('SELECT status, is_shortlisted FROM projects WHERE event_id = ?').all(selectedEvent.id);
+    const projectStats = {
+      total: allProjects.length,
+      submitted: allProjects.filter(p => p.status === 'submitted').length,
+      shortlisted: allProjects.filter(p => p.is_shortlisted === 1 || p.status === 'shortlisted').length,
+      late: allProjects.filter(p => p.status === 'late').length
+    };
+
+    const tracks = db.prepare('SELECT id, name FROM tracks WHERE event_id = ? ORDER BY name ASC').all(selectedEvent.id);
+
+    return res.render('organizer/projects', {
+      projectList, projectStats, tracks, currentStatus: statusFilter, currentTrack: trackFilter, q, selectedEvent, session: req.session
+    });
   } catch (err) {
     console.error('[organizer:projects GET]', err.message);
     return res.status(500).render('error', { message: 'Failed to load projects', session: req.session });
   }
 });
 
+router.post('/projects/status', requireRole('organizer', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const { project_id, status, event_id } = req.body;
+    const eid = event_id || req.session?.selectedEventId || ACTIVE_EVENT_ID;
+
+    const isShortlisted = status === 'shortlisted' ? 1 : 0;
+    db.prepare('UPDATE projects SET status = ?, is_shortlisted = ? WHERE id = ?').run(status, isShortlisted, project_id);
+
+    db.prepare('INSERT INTO audit_log (id, actor_id, action, target_id, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(`al_${Date.now()}`, req.session.userId, 'project_status_updated', project_id, `Status: ${status}`, new Date().toISOString());
+
+    return res.redirect(`/organizer/projects?event_id=${eid}`);
+  } catch (err) {
+    console.error('[organizer:projects/status POST]', err.message);
+    return res.status(500).render('error', { message: 'Failed to update project status', session: req.session });
+  }
+});
+
+router.post('/projects/bulk', requireRole('organizer', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const { action, event_id } = req.body;
+    let projectIds = req.body.project_ids;
+    if (typeof projectIds === 'string') {
+      projectIds = projectIds.split(',').map(s => s.trim()).filter(Boolean);
+    } else if (!Array.isArray(projectIds)) {
+      projectIds = [];
+    }
+    const eid = event_id || req.session?.selectedEventId || ACTIVE_EVENT_ID;
+
+    if (action === 'shortlist') {
+      for (const pid of projectIds) {
+        db.prepare("UPDATE projects SET is_shortlisted = 1, status = 'shortlisted' WHERE id = ?").run(pid);
+      }
+    } else if (action === 'reject') {
+      for (const pid of projectIds) {
+        db.prepare("UPDATE projects SET status = 'rejected', is_shortlisted = 0 WHERE id = ?").run(pid);
+      }
+    } else if (action === 'restore') {
+      for (const pid of projectIds) {
+        db.prepare("UPDATE projects SET status = 'submitted', is_shortlisted = 0 WHERE id = ?").run(pid);
+      }
+    }
+
+    db.prepare('INSERT INTO audit_log (id, actor_id, action, target_id, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(`al_${Date.now()}`, req.session.userId, `projects_bulk_${action}`, `${projectIds.length} projects`, JSON.stringify(projectIds), new Date().toISOString());
+
+    return res.redirect(`/organizer/projects?event_id=${eid}`);
+  } catch (err) {
+    console.error('[organizer:projects/bulk POST]', err.message);
+    return res.status(500).render('error', { message: 'Failed to perform bulk action', session: req.session });
+  }
+});
+
 /**
- * GET /organizer/judges
+ * ─────────────────────────────────────────────────────────────────────────────
+ * JUDGES & CONFLICTS MANAGEMENT
+ * ─────────────────────────────────────────────────────────────────────────────
  */
 router.get('/judges', requireRole('organizer', 'admin'), (req, res) => {
   try {
@@ -1434,23 +1701,117 @@ router.get('/judges', requireRole('organizer', 'admin'), (req, res) => {
     res.locals._page = 'judges-all';
 
     const judgeList = db.prepare(`
-      SELECT u.id, u.name, u.email,
-        (SELECT COUNT(*) FROM judge_assignments ja WHERE ja.judge_id = u.id) AS assigned,
-        (SELECT COUNT(*) FROM scores s WHERE s.judge_id = u.id) AS completed
+      SELECT u.id, u.name, u.email, u.expertise, u.is_active,
+        (SELECT COUNT(*) FROM judge_assignments ja JOIN projects p ON p.id = ja.project_id WHERE ja.judge_id = u.id AND p.event_id = ?) AS assigned,
+        (SELECT COUNT(*) FROM scores s JOIN projects p ON p.id = s.project_id WHERE s.judge_id = u.id AND p.event_id = ?) AS completed
       FROM users u
       WHERE u.role = 'judge'
       ORDER BY u.name ASC
-    `).all();
+    `).all(selectedEvent.id, selectedEvent.id);
 
-    return res.render('organizer/judges', { judgeList, selectedEvent, session: req.session });
+    const totalAssigned = judgeList.reduce((acc, j) => acc + (j.assigned || 0), 0);
+    const totalCompleted = judgeList.reduce((acc, j) => acc + (j.completed || 0), 0);
+    const judgeStats = {
+      total: judgeList.length,
+      assignments: totalAssigned,
+      avgWorkload: judgeList.length ? (totalAssigned / judgeList.length).toFixed(1) : 0,
+      responseRate: totalAssigned ? Math.round((totalCompleted / totalAssigned) * 100) : 0
+    };
+
+    return res.render('organizer/judges', { judgeList, judgeStats, selectedEvent, session: req.session });
   } catch (err) {
     console.error('[organizer:judges GET]', err.message);
     return res.status(500).render('error', { message: 'Failed to load judges', session: req.session });
   }
 });
 
+router.post('/judges/status', requireRole('organizer', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const { judge_id, is_active, event_id } = req.body;
+    const eid = event_id || req.session?.selectedEventId || ACTIVE_EVENT_ID;
+
+    db.prepare('UPDATE users SET is_active = ? WHERE id = ?').run(is_active ? 1 : 0, judge_id);
+    db.prepare('INSERT INTO audit_log (id, actor_id, action, target_id, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(`al_${Date.now()}`, req.session.userId, 'judge_status_updated', judge_id, `Active: ${is_active}`, new Date().toISOString());
+
+    return res.redirect(`/organizer/judges?event_id=${eid}`);
+  } catch (err) {
+    console.error('[organizer:judges/status POST]', err.message);
+    return res.status(500).render('error', { message: 'Failed to update judge status', session: req.session });
+  }
+});
+
+router.get('/judges/conflicts', requireRole('organizer', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const selectedEvent = resolveSelectedEvent(db, req);
+    res.locals.selectedEvent = selectedEvent;
+    res.locals._page = 'judges-conflicts';
+
+    const conflictsList = db.prepare(`
+      SELECT jc.*, u.name AS judge_name, u.email AS judge_email, p.title AS project_title, t.name AS team_name
+      FROM judge_conflicts jc
+      LEFT JOIN users u ON u.id = jc.judge_id
+      LEFT JOIN projects p ON p.id = jc.project_id
+      LEFT JOIN teams t ON t.id = p.team_id
+      ORDER BY jc.created_at DESC
+    `).all();
+
+    const judges = db.prepare("SELECT id, name FROM users WHERE role = 'judge' ORDER BY name ASC").all();
+    const projects = db.prepare('SELECT id, title FROM projects WHERE event_id = ? ORDER BY title ASC').all(selectedEvent.id);
+
+    return res.render('organizer/conflicts', { conflictsList, judges, projects, selectedEvent, session: req.session });
+  } catch (err) {
+    console.error('[organizer:conflicts GET]', err.message);
+    return res.status(500).render('error', { message: 'Failed to load conflicts', session: req.session });
+  }
+});
+
+router.post('/judges/conflicts', requireRole('organizer', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const { judge_id, project_id, reason, event_id } = req.body;
+    const eid = event_id || req.session?.selectedEventId || ACTIVE_EVENT_ID;
+
+    const conflictId = `cf_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    db.prepare('INSERT INTO judge_conflicts (id, judge_id, project_id, reason, status, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(conflictId, judge_id, project_id, reason || 'Declared Conflict of Interest', 'flagged', new Date().toISOString());
+
+    // Automatically remove any judge assignment between this judge and project
+    db.prepare('DELETE FROM judge_assignments WHERE judge_id = ? AND project_id = ?').run(judge_id, project_id);
+
+    db.prepare('INSERT INTO audit_log (id, actor_id, action, target_id, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(`al_${Date.now()}`, req.session.userId, 'judge_conflict_recorded', conflictId, reason, new Date().toISOString());
+
+    return res.redirect(`/organizer/judges/conflicts?event_id=${eid}`);
+  } catch (err) {
+    console.error('[organizer:conflicts POST]', err.message);
+    return res.status(500).render('error', { message: 'Failed to record conflict', session: req.session });
+  }
+});
+
+router.post('/judges/conflicts/resolve', requireRole('organizer', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const { conflict_id, event_id } = req.body;
+    const eid = event_id || req.session?.selectedEventId || ACTIVE_EVENT_ID;
+
+    db.prepare("UPDATE judge_conflicts SET status = 'resolved' WHERE id = ?").run(conflict_id);
+    db.prepare('INSERT INTO audit_log (id, actor_id, action, target_id, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(`al_${Date.now()}`, req.session.userId, 'judge_conflict_resolved', conflict_id, '', new Date().toISOString());
+
+    return res.redirect(`/organizer/judges/conflicts?event_id=${eid}`);
+  } catch (err) {
+    console.error('[organizer:conflicts/resolve POST]', err.message);
+    return res.status(500).render('error', { message: 'Failed to resolve conflict', session: req.session });
+  }
+});
+
 /**
- * GET /organizer/judging
+ * ─────────────────────────────────────────────────────────────────────────────
+ * JUDGING CENTER, RUBRIC, INTEGRITY & RE-EVALUATION
+ * ─────────────────────────────────────────────────────────────────────────────
  */
 router.get('/judging', requireRole('organizer', 'admin'), (req, res) => {
   try {
@@ -1459,17 +1820,228 @@ router.get('/judging', requireRole('organizer', 'admin'), (req, res) => {
     res.locals.selectedEvent = selectedEvent;
     res.locals._page = 'judging-overview';
 
-    const totalRubrics = db.prepare('SELECT COUNT(*) AS c FROM rubric_criteria WHERE event_id = ?').get(selectedEvent.id)?.c || 0;
+    const rubricCriteria = db.prepare('SELECT * FROM rubric_criteria WHERE event_id = ? ORDER BY id ASC').all(selectedEvent.id);
+    const totalRubrics = rubricCriteria.length;
 
-    return res.render('organizer/judging', { totalRubrics, selectedEvent, session: req.session });
+    const totalJudges = db.prepare("SELECT COUNT(*) AS c FROM users WHERE role = 'judge'").get().c || 0;
+    const assignmentsCount = db.prepare(`
+      SELECT COUNT(*) AS c FROM judge_assignments ja
+      JOIN projects p ON p.id = ja.project_id
+      WHERE p.event_id = ?
+    `).get(selectedEvent.id).c || 0;
+
+    const completedReviews = db.prepare(`
+      SELECT COUNT(*) AS c FROM scores s
+      JOIN projects p ON p.id = s.project_id
+      WHERE p.event_id = ?
+    `).get(selectedEvent.id).c || 0;
+
+    const pendingReviews = Math.max(0, assignmentsCount - completedReviews);
+
+    const judgeStats = {
+      totalJudges,
+      assignmentsCount,
+      completedReviews,
+      pendingReviews
+    };
+
+    const recentReviews = db.prepare(`
+      SELECT s.*, u.name AS judge_name, p.title AS project_title, t.name AS team_name
+      FROM scores s
+      JOIN users u ON u.id = s.judge_id
+      JOIN projects p ON p.id = s.project_id
+      LEFT JOIN teams t ON t.id = p.team_id
+      WHERE p.event_id = ?
+      ORDER BY s.submitted_at DESC
+      LIMIT 10
+    `).all(selectedEvent.id);
+
+    // Platform settings for judging
+    const settingsRows = db.prepare('SELECT key, value FROM platform_settings').all();
+    const settings = {};
+    for (const r of settingsRows) settings[r.key] = r.value;
+
+    return res.render('organizer/judging', {
+      rubricCriteria, totalRubrics, judgeStats, recentReviews, settings, selectedEvent, session: req.session
+    });
   } catch (err) {
     console.error('[organizer:judging GET]', err.message);
     return res.status(500).render('error', { message: 'Failed to load judging center', session: req.session });
   }
 });
 
+router.post('/judging/settings', requireRole('organizer', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const { score_scale, normalization_method, require_feedback, min_reviews, event_id } = req.body;
+    const eid = event_id || req.session?.selectedEventId || ACTIVE_EVENT_ID;
+
+    const upsert = db.prepare(`
+      INSERT INTO platform_settings (key, value) VALUES (?, ?)
+      ON CONFLICT(key) DO UPDATE SET value = excluded.value
+    `);
+    upsert.run('judging_score_scale', score_scale || '1-10');
+    upsert.run('judging_normalization_method', normalization_method || 'z-score');
+    upsert.run('judging_require_feedback', require_feedback ? '1' : '0');
+    upsert.run('judging_min_reviews', min_reviews || '3');
+
+    db.prepare('INSERT INTO audit_log (id, actor_id, action, target_id, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(`al_${Date.now()}`, req.session.userId, 'judging_settings_updated', eid, 'Saved judging configuration', new Date().toISOString());
+
+    return res.redirect(`/organizer/judging?event_id=${eid}&saved=true`);
+  } catch (err) {
+    console.error('[organizer:judging/settings POST]', err.message);
+    return res.status(500).render('error', { message: 'Failed to save judging settings', session: req.session });
+  }
+});
+
+router.get('/integrity', requireRole('organizer', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const selectedEvent = resolveSelectedEvent(db, req);
+    res.locals.selectedEvent = selectedEvent;
+    res.locals._page = 'judging-integrity';
+
+    // Find score anomalies where a judge's score strongly deviates from the project average
+    const projectScores = db.prepare(`
+      SELECT s.project_id, p.title AS project_title, s.judge_id, u.name AS judge_name, s.comment,
+        s.criteria_scores, s.submitted_at
+      FROM scores s
+      JOIN projects p ON p.id = s.project_id
+      JOIN users u ON u.id = s.judge_id
+      WHERE p.event_id = ?
+    `).all(selectedEvent.id);
+
+    // Group scores by project
+    const byProject = {};
+    for (const row of projectScores) {
+      if (!byProject[row.project_id]) byProject[row.project_id] = [];
+      const parsed = JSON.parse(row.criteria_scores || '{}');
+      const vals = Object.values(parsed).filter(v => typeof v === 'number');
+      const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
+      byProject[row.project_id].push({ ...row, avgScore: avg });
+    }
+
+    const anomalies = [];
+    for (const [pid, list] of Object.entries(byProject)) {
+      if (list.length >= 2) {
+        const mean = list.reduce((a, b) => a + b.avgScore, 0) / list.length;
+        for (const item of list) {
+          const diff = Math.abs(item.avgScore - mean);
+          if (diff >= 2.0) {
+            anomalies.push({
+              project_title: item.project_title,
+              judge_name: item.judge_name,
+              score: item.avgScore.toFixed(2),
+              mean: mean.toFixed(2),
+              diff: diff.toFixed(2),
+              submitted_at: item.submitted_at,
+              comment: item.comment || 'No comment provided'
+            });
+          }
+        }
+      }
+    }
+
+    // Check judge scoring bias
+    const judgeBiases = db.prepare(`
+      SELECT u.name AS judge_name, u.email,
+        COUNT(s.id) AS total_reviews,
+        ROUND(AVG(
+          (SELECT AVG(value) FROM json_each(s.criteria_scores))
+        ), 2) AS avg_given_score
+      FROM scores s
+      JOIN users u ON u.id = s.judge_id
+      JOIN projects p ON p.id = s.project_id
+      WHERE p.event_id = ?
+      GROUP BY s.judge_id
+      HAVING total_reviews >= 3
+      ORDER BY avg_given_score DESC
+    `).all(selectedEvent.id);
+
+    return res.render('organizer/integrity', { anomalies, judgeBiases, selectedEvent, session: req.session });
+  } catch (err) {
+    console.error('[organizer:integrity GET]', err.message);
+    return res.status(500).render('error', { message: 'Failed to load integrity analysis', session: req.session });
+  }
+});
+
+router.get('/reevaluation', requireRole('organizer', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const selectedEvent = resolveSelectedEvent(db, req);
+    res.locals.selectedEvent = selectedEvent;
+    res.locals._page = 'judging-reeval';
+
+    const requestsList = db.prepare(`
+      SELECT rr.*, p.title AS project_title, t.name AS team_name, u.name AS judge_name
+      FROM reevaluation_requests rr
+      JOIN projects p ON p.id = rr.project_id
+      LEFT JOIN teams t ON t.id = p.team_id
+      LEFT JOIN users u ON u.id = rr.judge_id
+      WHERE p.event_id = ?
+      ORDER BY rr.created_at DESC
+    `).all(selectedEvent.id);
+
+    const projectsList = db.prepare('SELECT id, title FROM projects WHERE event_id = ? ORDER BY title ASC').all(selectedEvent.id);
+    const judgesList = db.prepare("SELECT id, name FROM users WHERE role = 'judge' ORDER BY name ASC").all();
+
+    return res.render('organizer/reevaluation', { requestsList, projectsList, judgesList, selectedEvent, session: req.session });
+  } catch (err) {
+    console.error('[organizer:reevaluation GET]', err.message);
+    return res.status(500).render('error', { message: 'Failed to load re-evaluations', session: req.session });
+  }
+});
+
+router.post('/reevaluation/request', requireRole('organizer', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const { project_id, judge_id, reason, event_id } = req.body;
+    const eid = event_id || req.session?.selectedEventId || ACTIVE_EVENT_ID;
+
+    const reqId = `re_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    db.prepare(`
+      INSERT INTO reevaluation_requests (id, project_id, judge_id, reason, requested_by, status, created_at)
+      VALUES (?, ?, ?, ?, ?, 'pending', ?)
+    `).run(reqId, project_id, judge_id || null, reason || 'Organizer requested re-evaluation', req.session.userId, new Date().toISOString());
+
+    if (judge_id) {
+      db.prepare('DELETE FROM scores WHERE project_id = ? AND judge_id = ?').run(project_id, judge_id);
+    }
+
+    db.prepare('INSERT INTO audit_log (id, actor_id, action, target_id, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(`al_${Date.now()}`, req.session.userId, 'reevaluation_requested', reqId, reason, new Date().toISOString());
+
+    return res.redirect(`/organizer/reevaluation?event_id=${eid}`);
+  } catch (err) {
+    console.error('[organizer:reevaluation/request POST]', err.message);
+    return res.status(500).render('error', { message: 'Failed to request re-evaluation', session: req.session });
+  }
+});
+
+router.post('/reevaluation/resolve', requireRole('organizer', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const { request_id, event_id } = req.body;
+    const eid = event_id || req.session?.selectedEventId || ACTIVE_EVENT_ID;
+
+    db.prepare("UPDATE reevaluation_requests SET status = 'resolved', resolved_at = ? WHERE id = ?")
+      .run(new Date().toISOString(), request_id);
+
+    db.prepare('INSERT INTO audit_log (id, actor_id, action, target_id, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(`al_${Date.now()}`, req.session.userId, 'reevaluation_resolved', request_id, '', new Date().toISOString());
+
+    return res.redirect(`/organizer/reevaluation?event_id=${eid}`);
+  } catch (err) {
+    console.error('[organizer:reevaluation/resolve POST]', err.message);
+    return res.status(500).render('error', { message: 'Failed to resolve re-evaluation', session: req.session });
+  }
+});
+
 /**
- * GET /organizer/analytics
+ * ─────────────────────────────────────────────────────────────────────────────
+ * ANALYTICS & REPORTING
+ * ─────────────────────────────────────────────────────────────────────────────
  */
 router.get('/analytics', requireRole('organizer', 'admin'), (req, res) => {
   try {
@@ -1477,7 +2049,56 @@ router.get('/analytics', requireRole('organizer', 'admin'), (req, res) => {
     const selectedEvent = resolveSelectedEvent(db, req);
     res.locals.selectedEvent = selectedEvent;
     res.locals._page = 'analytics-overview';
-    return res.render('organizer/analytics', { selectedEvent, session: req.session });
+
+    const totalParticipants = db.prepare("SELECT COUNT(*) AS c FROM users WHERE role = 'participant'").get().c || 0;
+    const totalTeams = db.prepare('SELECT COUNT(*) AS c FROM teams WHERE event_id = ?').get(selectedEvent.id).c || 0;
+    const totalSubmissions = db.prepare("SELECT COUNT(*) AS c FROM projects WHERE event_id = ? AND status = 'submitted'").get(selectedEvent.id).c || 0;
+    const totalViews = db.prepare('SELECT COALESCE(SUM(view_count), 0) AS c FROM projects WHERE event_id = ?').get(selectedEvent.id).c || 0;
+    const totalVotes = db.prepare(`
+      SELECT COUNT(*) AS c FROM project_votes pv
+      JOIN projects p ON p.id = pv.project_id
+      WHERE p.event_id = ?
+    `).get(selectedEvent.id).c || 0;
+
+    const trackBreakdown = db.prepare(`
+      SELECT tr.name, COUNT(p.id) AS count
+      FROM tracks tr
+      LEFT JOIN projects p ON p.track_id = tr.id AND p.event_id = ?
+      WHERE tr.event_id = ?
+      GROUP BY tr.id
+      ORDER BY count DESC
+    `).all(selectedEvent.id, selectedEvent.id);
+
+    const totalAssignments = db.prepare(`
+      SELECT COUNT(*) AS c FROM judge_assignments ja
+      JOIN projects p ON p.id = ja.project_id
+      WHERE p.event_id = ?
+    `).get(selectedEvent.id).c || 0;
+
+    const completedReviews = db.prepare(`
+      SELECT COUNT(*) AS c FROM scores s
+      JOIN projects p ON p.id = s.project_id
+      WHERE p.event_id = ?
+    `).get(selectedEvent.id).c || 0;
+
+    const conversionRate = totalTeams > 0 ? ((totalSubmissions / totalTeams) * 100).toFixed(1) : 0;
+    const judgingRate = totalAssignments > 0 ? Math.round((completedReviews / totalAssignments) * 100) : 0;
+
+    const analyticsData = {
+      totalParticipants,
+      totalTeams,
+      totalSubmissions,
+      totalViews,
+      totalVotes,
+      conversionRate,
+      totalAssignments,
+      completedReviews,
+      pendingReviews: Math.max(0, totalAssignments - completedReviews),
+      judgingRate,
+      trackBreakdown
+    };
+
+    return res.render('organizer/analytics', { stats: analyticsData, selectedEvent, session: req.session });
   } catch (err) {
     console.error('[organizer:analytics GET]', err.message);
     return res.status(500).render('error', { message: 'Failed to load analytics', session: req.session });
@@ -1485,7 +2106,46 @@ router.get('/analytics', requireRole('organizer', 'admin'), (req, res) => {
 });
 
 /**
- * GET /organizer/voting
+ * ─────────────────────────────────────────────────────────────────────────────
+ * RESULTS & PUBLISH / HIDE
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+router.post('/results/publish', requireRole('organizer', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const eid = req.body.event_id || req.session?.selectedEventId || ACTIVE_EVENT_ID;
+
+    db.prepare('UPDATE events SET results_published = 1 WHERE id = ?').run(eid);
+    db.prepare('INSERT INTO audit_log (id, actor_id, action, target_id, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(`al_${Date.now()}`, req.session.userId, 'results_published', eid, 'Published official results', new Date().toISOString());
+
+    return res.redirect(`/organizer/results?event_id=${eid}&published=true`);
+  } catch (err) {
+    console.error('[organizer:results/publish POST]', err.message);
+    return res.status(500).render('error', { message: 'Failed to publish results', session: req.session });
+  }
+});
+
+router.post('/results/hide', requireRole('organizer', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const eid = req.body.event_id || req.session?.selectedEventId || ACTIVE_EVENT_ID;
+
+    db.prepare('UPDATE events SET results_published = 0 WHERE id = ?').run(eid);
+    db.prepare('INSERT INTO audit_log (id, actor_id, action, target_id, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(`al_${Date.now()}`, req.session.userId, 'results_hidden', eid, 'Hid results from public view', new Date().toISOString());
+
+    return res.redirect(`/organizer/results?event_id=${eid}&hidden=true`);
+  } catch (err) {
+    console.error('[organizer:results/hide POST]', err.message);
+    return res.status(500).render('error', { message: 'Failed to hide results', session: req.session });
+  }
+});
+
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * COMMUNITY VOTING
+ * ─────────────────────────────────────────────────────────────────────────────
  */
 router.get('/voting', requireRole('organizer', 'admin'), (req, res) => {
   try {
@@ -1493,15 +2153,99 @@ router.get('/voting', requireRole('organizer', 'admin'), (req, res) => {
     const selectedEvent = resolveSelectedEvent(db, req);
     res.locals.selectedEvent = selectedEvent;
     res.locals._page = 'voting-overview';
-    return res.render('organizer/voting', { selectedEvent, session: req.session });
+
+    const totalVotes = db.prepare(`
+      SELECT COUNT(*) AS c FROM project_votes pv
+      JOIN projects p ON p.id = pv.project_id
+      WHERE p.event_id = ?
+    `).get(selectedEvent.id).c || 0;
+
+    const uniqueVoters = db.prepare(`
+      SELECT COUNT(DISTINCT pv.user_id) AS c FROM project_votes pv
+      JOIN projects p ON p.id = pv.project_id
+      WHERE p.event_id = ?
+    `).get(selectedEvent.id).c || 0;
+
+    const publicComments = db.prepare(`
+      SELECT COUNT(*) AS c FROM project_comments pc
+      JOIN projects p ON p.id = pc.project_id
+      WHERE p.event_id = ?
+    `).get(selectedEvent.id).c || 0;
+
+    const topVotedProjects = db.prepare(`
+      SELECT p.id, p.title, t.name AS team_name, tr.name AS track_name, COUNT(pv.user_id) AS vote_count
+      FROM projects p
+      LEFT JOIN teams t ON t.id = p.team_id
+      LEFT JOIN tracks tr ON tr.id = p.track_id
+      LEFT JOIN project_votes pv ON pv.project_id = p.id
+      WHERE p.event_id = ?
+      GROUP BY p.id
+      ORDER BY vote_count DESC
+      LIMIT 10
+    `).all(selectedEvent.id);
+
+    const votingStats = {
+      totalVotes,
+      uniqueVoters,
+      flaggedAnomalies: 0,
+      publicComments
+    };
+
+    return res.render('organizer/voting', { votingStats, topVotedProjects, selectedEvent, session: req.session });
   } catch (err) {
     console.error('[organizer:voting GET]', err.message);
     return res.status(500).render('error', { message: 'Failed to load voting', session: req.session });
   }
 });
 
+router.post('/voting/toggle', requireRole('organizer', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const eid = req.body.event_id || req.session?.selectedEventId || ACTIVE_EVENT_ID;
+
+    const current = db.prepare('SELECT voting_enabled FROM events WHERE id = ?').get(eid)?.voting_enabled || 0;
+    const next = current ? 0 : 1;
+
+    db.prepare('UPDATE events SET voting_enabled = ? WHERE id = ?').run(next, eid);
+    db.prepare('INSERT INTO audit_log (id, actor_id, action, target_id, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(`al_${Date.now()}`, req.session.userId, 'voting_toggled', eid, `Voting: ${next ? 'enabled' : 'disabled'}`, new Date().toISOString());
+
+    return res.redirect(`/organizer/voting?event_id=${eid}`);
+  } catch (err) {
+    console.error('[organizer:voting/toggle POST]', err.message);
+    return res.status(500).render('error', { message: 'Failed to toggle voting', session: req.session });
+  }
+});
+
+router.post('/voting/settings', requireRole('organizer', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const { voting_open, voting_close, eligibility, event_id } = req.body;
+    const eid = event_id || req.session?.selectedEventId || ACTIVE_EVENT_ID;
+
+    db.prepare('UPDATE events SET voting_open = ?, voting_close = ? WHERE id = ?').run(voting_open || null, voting_close || null, eid);
+
+    if (eligibility) {
+      db.prepare(`
+        INSERT INTO platform_settings (key, value) VALUES ('voting_eligibility', ?)
+        ON CONFLICT(key) DO UPDATE SET value = excluded.value
+      `).run(eligibility);
+    }
+
+    db.prepare('INSERT INTO audit_log (id, actor_id, action, target_id, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(`al_${Date.now()}`, req.session.userId, 'voting_settings_updated', eid, 'Saved voting schedule', new Date().toISOString());
+
+    return res.redirect(`/organizer/voting?event_id=${eid}&saved=true`);
+  } catch (err) {
+    console.error('[organizer:voting/settings POST]', err.message);
+    return res.status(500).render('error', { message: 'Failed to update voting settings', session: req.session });
+  }
+});
+
 /**
- * GET /organizer/communications
+ * ─────────────────────────────────────────────────────────────────────────────
+ * COMMUNICATIONS & ANNOUNCEMENTS
+ * ─────────────────────────────────────────────────────────────────────────────
  */
 router.get('/communications', requireRole('organizer', 'admin'), (req, res) => {
   try {
@@ -1509,15 +2253,80 @@ router.get('/communications', requireRole('organizer', 'admin'), (req, res) => {
     const selectedEvent = resolveSelectedEvent(db, req);
     res.locals.selectedEvent = selectedEvent;
     res.locals._page = 'communications-announcements';
-    return res.render('organizer/communications', { selectedEvent, session: req.session });
+
+    const announcements = db.prepare(`
+      SELECT * FROM announcements WHERE event_id = ? ORDER BY created_at DESC
+    `).all(selectedEvent.id);
+
+    return res.render('organizer/communications', { announcements, selectedEvent, session: req.session });
   } catch (err) {
     console.error('[organizer:communications GET]', err.message);
     return res.status(500).render('error', { message: 'Failed to load communications', session: req.session });
   }
 });
 
+router.post('/communications/announcements', requireRole('organizer', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const { title, content, audience, event_id } = req.body;
+    if (!title || !content) return res.status(400).render('error', { message: 'Title and content are required', session: req.session });
+    const eid = event_id || req.session?.selectedEventId || ACTIVE_EVENT_ID;
+
+    const annId = `ann_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    db.prepare('INSERT INTO announcements (id, event_id, title, content, audience, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(annId, eid, title.trim(), content.trim(), audience || 'all', new Date().toISOString());
+
+    db.prepare('INSERT INTO audit_log (id, actor_id, action, target_id, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(`al_${Date.now()}`, req.session.userId, 'announcement_created', annId, title, new Date().toISOString());
+
+    return res.redirect(`/organizer/communications?event_id=${eid}`);
+  } catch (err) {
+    console.error('[organizer:announcements POST]', err.message);
+    return res.status(500).render('error', { message: 'Failed to create announcement', session: req.session });
+  }
+});
+
+router.post('/communications/campaign', requireRole('organizer', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const { segment, subject, body, channel, event_id } = req.body;
+    const eid = event_id || req.session?.selectedEventId || ACTIVE_EVENT_ID;
+
+    db.prepare('INSERT INTO audit_log (id, actor_id, action, target_id, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(`al_${Date.now()}`, req.session.userId, `campaign_sent_${channel || 'email'}`, segment || 'participants', subject || 'Broadcast Alert', new Date().toISOString());
+
+    return res.redirect(`/organizer/communications?event_id=${eid}&sent=true`);
+  } catch (err) {
+    console.error('[organizer:campaign POST]', err.message);
+    return res.status(500).render('error', { message: 'Failed to send campaign', session: req.session });
+  }
+});
+
+router.get('/notifications', requireRole('organizer', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const selectedEvent = resolveSelectedEvent(db, req);
+    res.locals.selectedEvent = selectedEvent;
+    res.locals._page = 'notifications';
+
+    const notifications = db.prepare(`
+      SELECT al.id, al.action AS type, al.detail AS message, al.created_at, u.name AS actor
+      FROM audit_log al
+      LEFT JOIN users u ON u.id = al.actor_id
+      ORDER BY al.created_at DESC
+      LIMIT 50
+    `).all();
+
+    return res.render('organizer/notifications', { notifications, selectedEvent, session: req.session });
+  } catch (err) {
+    return res.status(500).render('error', { message: 'Failed to load notifications', session: req.session });
+  }
+});
+
 /**
- * GET /organizer/audit
+ * ─────────────────────────────────────────────────────────────────────────────
+ * AUDIT LOG
+ * ─────────────────────────────────────────────────────────────────────────────
  */
 router.get('/audit', requireRole('organizer', 'admin'), (req, res) => {
   try {
@@ -1526,15 +2335,32 @@ router.get('/audit', requireRole('organizer', 'admin'), (req, res) => {
     res.locals.selectedEvent = selectedEvent;
     res.locals._page = 'audit-all';
 
-    const auditLogs = db.prepare(`
-      SELECT al.*, u.name AS actor_name
+    const action = req.query.action || 'all';
+    const q = (req.query.q || '').trim();
+
+    let sql = `
+      SELECT al.*, u.name AS actor_name, u.email AS actor_email
       FROM audit_log al
       LEFT JOIN users u ON u.id = al.actor_id
-      ORDER BY al.created_at DESC
-      LIMIT 100
-    `).all();
+      WHERE 1=1
+    `;
+    const params = [];
 
-    return res.render('organizer/audit', { auditLogs, selectedEvent, session: req.session });
+    if (action !== 'all') {
+      sql += ' AND al.action = ?';
+      params.push(action);
+    }
+    if (q) {
+      sql += ' AND (al.detail LIKE ? OR al.action LIKE ? OR u.name LIKE ?)';
+      params.push(`%${q}%`, `%${q}%`, `%${q}%`);
+    }
+
+    sql += ' ORDER BY al.created_at DESC LIMIT 200';
+    const auditLogs = db.prepare(sql).all(...params);
+
+    const actions = db.prepare('SELECT DISTINCT action FROM audit_log ORDER BY action ASC').all().map(r => r.action);
+
+    return res.render('organizer/audit', { auditLogs, actions, currentAction: action, q, selectedEvent, session: req.session });
   } catch (err) {
     console.error('[organizer:audit GET]', err.message);
     return res.status(500).render('error', { message: 'Failed to load audit log', session: req.session });
@@ -1542,7 +2368,9 @@ router.get('/audit', requireRole('organizer', 'admin'), (req, res) => {
 });
 
 /**
- * GET /organizer/certificates
+ * ─────────────────────────────────────────────────────────────────────────────
+ * CERTIFICATES & CREDENTIALS
+ * ─────────────────────────────────────────────────────────────────────────────
  */
 router.get('/certificates', requireRole('organizer', 'admin'), (req, res) => {
   try {
@@ -1550,15 +2378,97 @@ router.get('/certificates', requireRole('organizer', 'admin'), (req, res) => {
     const selectedEvent = resolveSelectedEvent(db, req);
     res.locals.selectedEvent = selectedEvent;
     res.locals._page = 'certificates-templates';
-    return res.render('organizer/certificates', { selectedEvent, session: req.session });
+
+    const certificates = db.prepare(`
+      SELECT c.*, p.title AS project_title, t.name AS team_name
+      FROM certificates c
+      LEFT JOIN projects p ON p.id = c.project_id
+      LEFT JOIN teams t ON t.id = c.team_id
+      WHERE c.event_id = ?
+      ORDER BY c.issue_date DESC
+    `).all(selectedEvent.id);
+
+    const certStats = {
+      total: certificates.length,
+      participation: certificates.filter(c => c.type === 'participation').length,
+      finalist: certificates.filter(c => c.type === 'finalist').length,
+      winner: certificates.filter(c => c.type === 'winner').length,
+      special: certificates.filter(c => c.type === 'special').length
+    };
+
+    return res.render('organizer/certificates', { certificates, certStats, selectedEvent, session: req.session });
   } catch (err) {
     console.error('[organizer:certificates GET]', err.message);
     return res.status(500).render('error', { message: 'Failed to load certificates', session: req.session });
   }
 });
 
+router.post('/certificates/generate', requireRole('organizer', 'admin'), (req, res) => {
+  try {
+    const db = getDb();
+    const { type, event_id } = req.body;
+    const eid = event_id || req.session?.selectedEventId || ACTIVE_EVENT_ID;
+    const now = new Date().toISOString().slice(0, 10);
+
+    let generatedCount = 0;
+
+    if (type === 'participation' || type === 'all') {
+      const eligibleUsers = db.prepare(`
+        SELECT DISTINCT u.id, u.name, t.id AS team_id, p.id AS project_id
+        FROM users u
+        JOIN team_members tm ON tm.user_id = u.id
+        JOIN teams t ON t.id = tm.team_id
+        JOIN projects p ON p.team_id = t.id
+        WHERE p.event_id = ? AND p.status = 'submitted'
+      `).all(eid);
+
+      for (const u of eligibleUsers) {
+        const certCode = `CERT-2026-DGF-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+        const certId = `crt_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+        db.prepare(`
+          INSERT OR IGNORE INTO certificates (id, event_id, user_id, team_id, project_id, recipient_name, type, title, issue_date, cert_code)
+          VALUES (?, ?, ?, ?, ?, ?, 'participation', 'Certificate of Participation', ?, ?)
+        `).run(certId, eid, u.id, u.team_id, u.project_id, u.name, now, certCode);
+        generatedCount++;
+      }
+    }
+
+    if (type === 'winner' || type === 'all') {
+      // Top 3 projects
+      const winners = db.prepare(`
+        SELECT p.id, p.title, t.id AS team_id, t.name AS team_name
+        FROM projects p
+        JOIN teams t ON t.id = p.team_id
+        WHERE p.event_id = ? AND p.status = 'submitted'
+        LIMIT 3
+      `).all(eid);
+
+      const medals = ['1st Place Grand Winner', '2nd Place Runner-Up', '3rd Place Bronze Winner'];
+      winners.forEach((w, idx) => {
+        const certCode = `CERT-2026-WIN-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+        const certId = `crt_win_${Date.now()}_${idx}`;
+        db.prepare(`
+          INSERT OR IGNORE INTO certificates (id, event_id, user_id, team_id, project_id, recipient_name, type, title, issue_date, cert_code)
+          VALUES (?, ?, NULL, ?, ?, ?, 'winner', ?, ?, ?)
+        `).run(certId, eid, w.team_id, w.id, w.team_name, medals[idx] || 'Winner', now, certCode);
+        generatedCount++;
+      });
+    }
+
+    db.prepare('INSERT INTO audit_log (id, actor_id, action, target_id, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(`al_${Date.now()}`, req.session.userId, 'certificates_generated', eid, `Type: ${type}, Generated: ${generatedCount}`, new Date().toISOString());
+
+    return res.redirect(`/organizer/certificates?event_id=${eid}&generated=true`);
+  } catch (err) {
+    console.error('[organizer:certificates/generate POST]', err.message);
+    return res.status(500).render('error', { message: 'Failed to generate certificates', session: req.session });
+  }
+});
+
 /**
- * GET /organizer/export
+ * ─────────────────────────────────────────────────────────────────────────────
+ * EXPORT CENTER & SETTINGS
+ * ─────────────────────────────────────────────────────────────────────────────
  */
 router.get('/export', requireRole('organizer', 'admin'), (req, res) => {
   try {
@@ -1573,68 +2483,47 @@ router.get('/export', requireRole('organizer', 'admin'), (req, res) => {
   }
 });
 
-/**
- * GET /organizer/settings
- */
 router.get('/settings', requireRole('organizer', 'admin'), (req, res) => {
   try {
     const db = getDb();
     const selectedEvent = resolveSelectedEvent(db, req);
     res.locals.selectedEvent = selectedEvent;
     res.locals._page = 'settings-general';
-    return res.render('organizer/settings', { selectedEvent, session: req.session });
+
+    const rows = db.prepare('SELECT key, value FROM platform_settings').all();
+    const settings = {};
+    for (const r of rows) settings[r.key] = r.value;
+
+    return res.render('organizer/settings', { settings, selectedEvent, session: req.session });
   } catch (err) {
     console.error('[organizer:settings GET]', err.message);
     return res.status(500).render('error', { message: 'Failed to load settings', session: req.session });
   }
 });
 
-// Additional sub-routes for specialized views
-router.get('/judges/conflicts', requireRole('organizer', 'admin'), (req, res) => {
+router.post('/settings', requireRole('organizer', 'admin'), (req, res) => {
   try {
     const db = getDb();
-    const selectedEvent = resolveSelectedEvent(db, req);
-    res.locals.selectedEvent = selectedEvent;
-    res.locals._page = 'judges-conflicts';
-    return res.render('organizer/conflicts', { selectedEvent, session: req.session });
-  } catch (err) {
-    return res.status(500).render('error', { message: 'Failed to load conflicts', session: req.session });
-  }
-});
+    const eid = req.body.event_id || req.session?.selectedEventId || ACTIVE_EVENT_ID;
 
-router.get('/integrity', requireRole('organizer', 'admin'), (req, res) => {
-  try {
-    const db = getDb();
-    const selectedEvent = resolveSelectedEvent(db, req);
-    res.locals.selectedEvent = selectedEvent;
-    res.locals._page = 'judging-integrity';
-    return res.render('organizer/integrity', { selectedEvent, session: req.session });
-  } catch (err) {
-    return res.status(500).render('error', { message: 'Failed to load integrity center', session: req.session });
-  }
-});
+    const upsert = db.prepare(`
+      INSERT INTO platform_settings (key, value) VALUES (?, ?)
+      ON CONFLICT(key) DO UPDATE SET value = excluded.value
+    `);
 
-router.get('/reevaluation', requireRole('organizer', 'admin'), (req, res) => {
-  try {
-    const db = getDb();
-    const selectedEvent = resolveSelectedEvent(db, req);
-    res.locals.selectedEvent = selectedEvent;
-    res.locals._page = 'judging-reeval';
-    return res.render('organizer/reevaluation', { selectedEvent, session: req.session });
-  } catch (err) {
-    return res.status(500).render('error', { message: 'Failed to load re-evaluation', session: req.session });
-  }
-});
+    for (const [k, v] of Object.entries(req.body)) {
+      if (k !== 'event_id') {
+        upsert.run(k, String(v));
+      }
+    }
 
-router.get('/notifications', requireRole('organizer', 'admin'), (req, res) => {
-  try {
-    const db = getDb();
-    const selectedEvent = resolveSelectedEvent(db, req);
-    res.locals.selectedEvent = selectedEvent;
-    res.locals._page = 'notifications';
-    return res.render('organizer/notifications', { selectedEvent, session: req.session });
+    db.prepare('INSERT INTO audit_log (id, actor_id, action, target_id, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(`al_${Date.now()}`, req.session.userId, 'platform_settings_updated', eid, 'Saved global settings', new Date().toISOString());
+
+    return res.redirect(`/organizer/settings?event_id=${eid}&saved=true`);
   } catch (err) {
-    return res.status(500).render('error', { message: 'Failed to load notifications', session: req.session });
+    console.error('[organizer:settings POST]', err.message);
+    return res.status(500).render('error', { message: 'Failed to save settings', session: req.session });
   }
 });
 

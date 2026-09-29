@@ -1,19 +1,55 @@
-﻿<%- include('../layouts/header', { title: 'Notifications', session, selectedEvent }) %>
+<%- include('../layouts/header', { title: 'System Notifications & Alerts', session, selectedEvent }) %>
 <% locals._page = 'notifications'; %>
+<% var eid = (typeof selectedEvent !== 'undefined' && selectedEvent) ? selectedEvent.id : ''; %>
+
 <div class="org-layout">
   <%- include('_sidebar') %>
+
   <main class="org-content">
     <div class="org-page-header">
       <div>
-        <h1 class="org-page-title">🔔 Notifications</h1>
-        <p class="org-page-sub"><%= selectedEvent ? selectedEvent.name : 'Organizer' %></p>
+        <h1 class="org-page-title">🔔 System Notifications & Audit Alerts</h1>
+        <p class="org-page-sub">Live notification stream and automated triggers for <%= selectedEvent ? selectedEvent.name : 'Hackathon' %></p>
+      </div>
+
+      <div style="display:flex;gap:10px;">
+        <a href="/organizer/communications<%= eid ? '?event_id=' + eid : '' %>" class="org-action-btn">+ Broadcast New Alert</a>
+        <a href="/organizer/audit<%= eid ? '?event_id=' + eid : '' %>" class="org-action-btn org-action-btn-outline">Audit Log</a>
       </div>
     </div>
-    <div class="org-stub">
-      <div class="org-stub-icon">🔔</div>
-      <p class="org-stub-title">Notifications</p>
-      <p class="org-stub-msg">Send and manage participant/judge notifications. — Coming soon.</p>
+
+    <!-- Sub-navigation tabs -->
+    <nav class="org-tabs">
+      <a href="/organizer/communications<%= eid ? '?event_id=' + eid : '' %>" class="org-tab-item">Communications Center</a>
+      <a href="/organizer/notifications<%= eid ? '?event_id=' + eid : '' %>" class="org-tab-item active">System Notifications</a>
+      <a href="/organizer/audit<%= eid ? '?event_id=' + eid : '' %>" class="org-tab-item">Audit Stream</a>
+    </nav>
+
+    <!-- Notification Feed -->
+    <div class="org-card">
+      <div class="org-card-header">
+        <h3 class="org-card-title">Live Event Stream (<%= (typeof notifications !== 'undefined' && notifications) ? notifications.length : 0 %> events)</h3>
+      </div>
+
+      <% var notifs = (typeof notifications !== 'undefined' && notifications) ? notifications : []; %>
+      <% if (notifs.length === 0) { %>
+        <p class="org-empty">No recent notifications logged.</p>
+      <% } else { %>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <% notifs.forEach(function(n) { %>
+            <div style="padding:12px 16px;border:1px solid #f0f0f0;border-radius:6px;background:#fafafa;display:flex;justify-content:space-between;align-items:center;">
+              <div>
+                <span class="badge" style="background:#e8f0fe;color:#1a73e8;margin-right:8px;"><%= n.type %></span>
+                <strong><%= n.actor || 'System' %></strong>:
+                <span style="color:#444;font-size:0.88rem;margin-left:4px;"><%= n.message %></span>
+              </div>
+              <span style="font-size:0.75rem;color:#888;"><%= n.created_at ? n.created_at.slice(0, 16).replace('T', ' ') : '' %></span>
+            </div>
+          <% }); %>
+        </div>
+      <% } %>
     </div>
   </main>
 </div>
+
 <%- include('../layouts/footer') %>

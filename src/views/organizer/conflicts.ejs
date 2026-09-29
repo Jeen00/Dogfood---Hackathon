@@ -1,19 +1,127 @@
-﻿<%- include('../layouts/header', { title: 'Conflicts', session, selectedEvent }) %>
+<%- include('../layouts/header', { title: 'Judge Conflicts of Interest', session, selectedEvent }) %>
 <% locals._page = 'judges-conflicts'; %>
+<% var eid = (typeof selectedEvent !== 'undefined' && selectedEvent) ? selectedEvent.id : ''; %>
+
 <div class="org-layout">
   <%- include('_sidebar') %>
+
   <main class="org-content">
     <div class="org-page-header">
       <div>
-        <h1 class="org-page-title">⚠️ Conflicts</h1>
-        <p class="org-page-sub"><%= selectedEvent ? selectedEvent.name : 'Organizer' %></p>
+        <h1 class="org-page-title">⚠️ Conflicts of Interest</h1>
+        <p class="org-page-sub">Prevent biased evaluations by tracking, declaring, and resolving judge-project affiliations for <%= selectedEvent ? selectedEvent.name : 'Hackathon' %></p>
+      </div>
+
+      <div style="display:flex;gap:10px;">
+        <button class="org-action-btn" onclick="document.getElementById('declareConflictModal').style.display='flex'">+ Declare Conflict</button>
+        <a href="/organizer/judges<%= eid ? '?event_id=' + eid : '' %>" class="org-action-btn org-action-btn-outline">← Back to Judges</a>
       </div>
     </div>
-    <div class="org-stub">
-      <div class="org-stub-icon">⚠️</div>
-      <p class="org-stub-title">Conflicts</p>
-      <p class="org-stub-msg">Review and resolve judging conflicts. — Coming soon.</p>
+
+    <!-- Sub-navigation tabs -->
+    <nav class="org-tabs">
+      <a href="/organizer/judges<%= eid ? '?event_id=' + eid : '' %>" class="org-tab-item">All Judges</a>
+      <a href="/organizer/assignments<%= eid ? '?event_id=' + eid : '' %>" class="org-tab-item">Assignments Matrix</a>
+      <a href="/organizer/judges/conflicts<%= eid ? '?event_id=' + eid : '' %>" class="org-tab-item active">Conflicts of Interest</a>
+      <a href="javascript:void(0)" onclick="document.getElementById('declareConflictModal').style.display='flex'" class="org-tab-item">+ Declare Conflict</a>
+      <a href="/organizer/integrity<%= eid ? '?event_id=' + eid : '' %>" class="org-tab-item">Integrity Center</a>
+    </nav>
+
+    <!-- Conflicts List Card -->
+    <div class="org-card">
+      <div class="org-card-header">
+        <h3 class="org-card-title">Flagged Conflicts (<%= (typeof conflictsList !== 'undefined' && conflictsList) ? conflictsList.length : 0 %>)</h3>
+      </div>
+
+      <% var cList = (typeof conflictsList !== 'undefined' && conflictsList) ? conflictsList : []; %>
+      <% if (cList.length === 0) { %>
+        <p class="org-empty">No conflicts currently recorded. All judges are free of declared project biases.</p>
+      <% } else { %>
+        <table class="org-table">
+          <thead>
+            <tr>
+              <th>Judge</th>
+              <th>Conflicted Project</th>
+              <th>Team</th>
+              <th>Reason / Affiliation</th>
+              <th>Status</th>
+              <th>Logged Date</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% cList.forEach(function(cf) { %>
+              <tr>
+                <td><strong><%= cf.judge_name || 'Judge' %></strong><br><span style="font-size:0.75rem;color:#888;"><%= cf.judge_email || '' %></span></td>
+                <td><a href="/projects/<%= cf.project_id %>" target="_blank" style="font-weight:600;color:#1a73e8;"><%= cf.project_title || 'Project' %></a></td>
+                <td><%= cf.team_name || 'Team' %></td>
+                <td><%= cf.reason %></td>
+                <td>
+                  <% if (cf.status === 'resolved') { %>
+                    <span class="org-status-chip org-status-done">Resolved</span>
+                  <% } else { %>
+                    <span class="org-status-chip org-status-pending">Flagged</span>
+                  <% } %>
+                </td>
+                <td><%= cf.created_at ? cf.created_at.slice(0, 10) : 'Recent' %></td>
+                <td>
+                  <% if (cf.status !== 'resolved') { %>
+                    <form method="POST" action="/organizer/judges/conflicts/resolve" style="display:inline;">
+                      <input type="hidden" name="conflict_id" value="<%= cf.id %>">
+                      <input type="hidden" name="event_id" value="<%= eid %>">
+                      <button type="submit" class="org-action-btn org-btn-success org-btn-sm">Resolve</button>
+                    </form>
+                  <% } else { %>
+                    <span style="font-size:0.8rem;color:#666;">Cleared</span>
+                  <% } %>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      <% } %>
     </div>
   </main>
 </div>
+
+<!-- Modal for Declare Conflict -->
+<div id="declareConflictModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:8px;padding:24px;max-width:500px;width:90%;box-shadow:0 8px 30px rgba(0,0,0,0.2);">
+    <h3 style="margin:0 0 14px;">Declare Judge Conflict of Interest</h3>
+    <form method="POST" action="/organizer/judges/conflicts">
+      <input type="hidden" name="event_id" value="<%= eid %>">
+      <div class="org-form-group">
+        <label class="org-form-label">Select Judge *</label>
+        <select name="judge_id" class="org-select" required>
+          <option value="">Choose Judge...</option>
+          <% if (typeof judges !== 'undefined') { %>
+            <% judges.forEach(function(j) { %>
+              <option value="<%= j.id %>"><%= j.name %></option>
+            <% }); %>
+          <% } %>
+        </select>
+      </div>
+      <div class="org-form-group">
+        <label class="org-form-label">Select Project *</label>
+        <select name="project_id" class="org-select" required>
+          <option value="">Choose Project...</option>
+          <% if (typeof projects !== 'undefined') { %>
+            <% projects.forEach(function(p) { %>
+              <option value="<%= p.id %>"><%= p.title %></option>
+            <% }); %>
+          <% } %>
+        </select>
+      </div>
+      <div class="org-form-group">
+        <label class="org-form-label">Reason for Conflict *</label>
+        <textarea name="reason" class="org-textarea" rows="3" required placeholder="e.g. Previous colleague, mentor to team member, direct affiliation"></textarea>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;">
+        <button type="button" class="org-action-btn org-action-btn-outline" onclick="document.getElementById('declareConflictModal').style.display='none'">Cancel</button>
+        <button type="submit" class="org-action-btn">Record Conflict</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <%- include('../layouts/footer') %>

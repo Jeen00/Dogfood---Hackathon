@@ -58,6 +58,22 @@ app.use('/api/normalization',     normalizationRouter);
 app.use('/api',                   invitesRouter);
 app.use('/',                      githubRouter);
 
+// ─── Public Certificate Verification ──────────────────────────────────────────
+app.get('/verify', (req, res) => {
+  return res.render('verify', { cert: null, code: null, session: req.session });
+});
+app.get('/verify/:code', (req, res) => {
+  const { getDb } = require('./db/db');
+  const db = getDb();
+  const cert = db.prepare(`
+    SELECT c.*, e.name AS event_name
+    FROM certificates c
+    LEFT JOIN events e ON e.id = c.event_id
+    WHERE c.cert_code = ?
+  `).get(req.params.code);
+  return res.render('verify', { cert, code: req.params.code, session: req.session });
+});
+
 // ─── Login convenience route ──────────────────────────────────────────────
 // /login renders the login page; actual form posts go to /auth/login
 app.get('/login', (req, res) => {

@@ -13,55 +13,78 @@
       </div>
 
       <div style="display:flex;gap:10px;align-items:center;">
-        <button class="org-action-btn org-btn-success" id="publish" onclick="alert('Results published to public gallery!')">
-          📢 Publish Results
-        </button>
-        <button class="org-action-btn org-action-btn-outline" id="hide" onclick="alert('Results hidden from public')">
-          🔒 Hide Results
-        </button>
+        <% if (selectedEvent && selectedEvent.results_published) { %>
+          <span class="org-status-chip org-status-done" style="font-size:0.85rem;padding:6px 12px;">📢 Published</span>
+          <form method="POST" action="/organizer/results/hide" style="display:inline;">
+            <input type="hidden" name="event_id" value="<%= eid %>">
+            <button type="submit" class="org-action-btn org-action-btn-outline" id="hide">
+              🔒 Hide Results
+            </button>
+          </form>
+        <% } else { %>
+          <span class="org-status-chip org-status-pending" style="font-size:0.85rem;padding:6px 12px;">Draft (Unpublished)</span>
+          <form method="POST" action="/organizer/results/publish" style="display:inline;">
+            <input type="hidden" name="event_id" value="<%= eid %>">
+            <button type="submit" class="org-action-btn org-btn-success" id="publish">
+              📢 Publish Results
+            </button>
+          </form>
+        <% } %>
         <a href="/api/export.csv<%= eid ? '?event_id=' + eid : '' %>" class="org-action-btn">
           📥 Download CSV Export
         </a>
       </div>
     </div>
 
-    <!-- Horizontal sub-navbar tabs for all 11 Results sub-items -->
+    <!-- Horizontal sub-navbar tabs for all Results sub-items -->
     <nav class="org-tabs">
       <a href="#overview" class="org-tab-item active">Results Overview</a>
-      <a href="#shortlist" class="org-tab-item">Shortlisted Projects</a>
+      <a href="/organizer/normalization<%= eid ? '?event_id=' + eid : '' %>" class="org-tab-item">Score Normalization</a>
       <a href="#rankings" class="org-tab-item">Final Rankings</a>
       <a href="#winners" class="org-tab-item">Winners</a>
-      <a href="#categories" class="org-tab-item">Award Categories</a>
-      <a href="#special" class="org-tab-item">Special Awards</a>
-      <a href="#track-winners" class="org-tab-item">Track Winners</a>
-      <a href="#runner-ups" class="org-tab-item">Runner-ups</a>
-      <a href="#history" class="org-tab-item">Result History</a>
+      <a href="/organizer/certificates<%= eid ? '?event_id=' + eid : '' %>" class="org-tab-item">Award Certificates</a>
+      <a href="/api/export.csv<%= eid ? '?event_id=' + eid : '' %>" class="org-tab-item">Export Results</a>
     </nav>
 
     <!-- Podium Winners Display -->
+    <% var top1 = (typeof leaderboard !== 'undefined' && leaderboard[0]) ? leaderboard[0] : null; %>
+    <% var top2 = (typeof leaderboard !== 'undefined' && leaderboard[1]) ? leaderboard[1] : null; %>
+    <% var top3 = (typeof leaderboard !== 'undefined' && leaderboard[2]) ? leaderboard[2] : null; %>
     <div class="org-stat-grid" id="winners" style="grid-template-columns:repeat(3, 1fr);margin-bottom:24px;">
       <div class="org-card" style="border:2px solid #ffd700;background:#fffdf0;text-align:center;">
         <div style="font-size:2.5rem;margin-bottom:4px;">🥇</div>
         <div style="font-weight:700;font-size:1.1rem;color:#b45309;">1st Place Winner</div>
-        <div style="font-size:1rem;font-weight:600;margin:6px 0;">Autonomous Drone Delivery</div>
-        <span class="badge badge-tech">Robotics & Cloud</span>
-        <div style="margin-top:10px;font-size:0.9rem;font-weight:700;color:#137333;">Score: +2.140 Z-score ($15,000)</div>
+        <div style="font-size:1rem;font-weight:600;margin:6px 0;">
+          <%= top1 ? top1.project_title : 'Pending Final Review' %>
+        </div>
+        <span class="badge badge-tech"><%= top1 ? top1.track_name : 'Track' %></span>
+        <div style="margin-top:10px;font-size:0.9rem;font-weight:700;color:#137333;">
+          <%= top1 ? 'Norm Score: ' + top1.final_normalized_score : 'Score Pending' %> ($15,000)
+        </div>
       </div>
 
       <div class="org-card" style="border:2px solid #c0c0c0;background:#fafafa;text-align:center;">
         <div style="font-size:2.5rem;margin-bottom:4px;">🥈</div>
         <div style="font-weight:700;font-size:1.1rem;color:#64748b;">2nd Place Winner</div>
-        <div style="font-size:1rem;font-weight:600;margin:6px 0;">EcoRoute EV Charging Planner</div>
-        <span class="badge badge-tech">Web Development</span>
-        <div style="margin-top:10px;font-size:0.9rem;font-weight:700;color:#137333;">Score: +1.890 Z-score ($8,000)</div>
+        <div style="font-size:1rem;font-weight:600;margin:6px 0;">
+          <%= top2 ? top2.project_title : 'Pending Final Review' %>
+        </div>
+        <span class="badge badge-tech"><%= top2 ? top2.track_name : 'Track' %></span>
+        <div style="margin-top:10px;font-size:0.9rem;font-weight:700;color:#137333;">
+          <%= top2 ? 'Norm Score: ' + top2.final_normalized_score : 'Score Pending' %> ($8,000)
+        </div>
       </div>
 
       <div class="org-card" id="runner-ups" style="border:2px solid #cd7f32;background:#fffaf5;text-align:center;">
         <div style="font-size:2.5rem;margin-bottom:4px;">🥉</div>
         <div style="font-weight:700;font-size:1.1rem;color:#b45309;">3rd Place Winner</div>
-        <div style="font-size:1rem;font-weight:600;margin:6px 0;">AI Healthcare Triage Assistant</div>
-        <span class="badge badge-tech">AI / ML</span>
-        <div style="margin-top:10px;font-size:0.9rem;font-weight:700;color:#137333;">Score: +1.640 Z-score ($4,000)</div>
+        <div style="font-size:1rem;font-weight:600;margin:6px 0;">
+          <%= top3 ? top3.project_title : 'Pending Final Review' %>
+        </div>
+        <span class="badge badge-tech"><%= top3 ? top3.track_name : 'Track' %></span>
+        <div style="margin-top:10px;font-size:0.9rem;font-weight:700;color:#137333;">
+          <%= top3 ? 'Norm Score: ' + top3.final_normalized_score : 'Score Pending' %> ($4,000)
+        </div>
       </div>
     </div>
 

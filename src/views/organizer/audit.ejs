@@ -12,7 +12,7 @@
         <p class="org-page-sub">Tamper-evident system activity log tracking administrative decisions, judge scoring, and system events</p>
       </div>
 
-      <a href="/organizer/audit#export" class="org-action-btn org-action-btn-outline" onclick="alert('Exporting audit log...')">
+      <a href="/api/export.csv?type=audit<%= eid ? '&event_id=' + eid : '' %>" class="org-action-btn org-action-btn-outline">
         📥 Export Audit Log (CSV)
       </a>
     </div>
@@ -20,21 +20,21 @@
     <!-- Tabs matching user's tree -->
     <nav class="org-tabs">
       <a href="/organizer/audit<%= eid ? '?event_id=' + eid : '' %>" class="org-tab-item active">All Activities</a>
-      <a href="/organizer/audit?filter=user<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item">User Activities</a>
-      <a href="/organizer/audit?filter=admin<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item">Admin Activities</a>
-      <a href="/organizer/audit?filter=judge<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item">Judge Activities</a>
-      <a href="/organizer/audit?filter=submission<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item">Submission History</a>
-      <a href="/organizer/audit?filter=score<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item">Score Changes</a>
-      <a href="/organizer/audit?filter=assignment<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item">Assignment Changes</a>
-      <a href="/organizer/audit?filter=login<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item">Login History</a>
-      <a href="/organizer/audit?filter=security<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item">Security Events</a>
+      <a href="/api/export.csv?type=audit<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item">Export Audit Log</a>
     </nav>
 
     <!-- Activity Log Table -->
     <div class="org-card">
       <div class="org-card-header">
         <h3 class="org-card-title">Recent System Events</h3>
-        <input type="text" placeholder="Search audit trail..." class="org-input" style="padding:4px 10px;font-size:0.82rem;width:200px;">
+        <form method="GET" action="/organizer/audit" style="display:flex;gap:6px;">
+          <% if (eid) { %><input type="hidden" name="event_id" value="<%= eid %>"><% } %>
+          <input type="text" name="q" value="<%= typeof q !== 'undefined' ? q : '' %>" placeholder="Search audit trail..." class="org-input" style="padding:4px 10px;font-size:0.82rem;width:200px;">
+          <button type="submit" class="org-action-btn org-btn-sm">Search</button>
+          <% if (typeof q !== 'undefined' && q) { %>
+            <a href="/organizer/audit<%= eid ? '?event_id=' + eid : '' %>" class="org-action-btn org-action-btn-outline org-btn-sm">Clear</a>
+          <% } %>
+        </form>
       </div>
 
       <%

@@ -1,19 +1,117 @@
-﻿<%- include('../layouts/header', { title: 'Integrity Center', session, selectedEvent }) %>
+<%- include('../layouts/header', { title: 'Judging Integrity & Anomaly Detection', session, selectedEvent }) %>
 <% locals._page = 'judging-integrity'; %>
+<% var eid = (typeof selectedEvent !== 'undefined' && selectedEvent) ? selectedEvent.id : ''; %>
+
 <div class="org-layout">
   <%- include('_sidebar') %>
+
   <main class="org-content">
     <div class="org-page-header">
       <div>
-        <h1 class="org-page-title">🔒 Integrity Center</h1>
-        <p class="org-page-sub"><%= selectedEvent ? selectedEvent.name : 'Organizer' %></p>
+        <h1 class="org-page-title">🔒 Judging Integrity & Outlier Detection</h1>
+        <p class="org-page-sub">Algorithmic monitoring of scoring deviations, judge biases, and rubric integrity for <%= selectedEvent ? selectedEvent.name : 'Hackathon' %></p>
+      </div>
+
+      <div style="display:flex;gap:10px;">
+        <a href="/organizer/reevaluation<%= eid ? '?event_id=' + eid : '' %>" class="org-action-btn">Re-evaluation Requests →</a>
+        <a href="/organizer/judging<%= eid ? '?event_id=' + eid : '' %>" class="org-action-btn org-action-btn-outline">Judging Center</a>
       </div>
     </div>
-    <div class="org-stub">
-      <div class="org-stub-icon">🔒</div>
-      <p class="org-stub-title">Integrity Center</p>
-      <p class="org-stub-msg">Monitor judging integrity and flag anomalies. — Coming soon.</p>
+
+    <!-- Sub-navigation tabs -->
+    <nav class="org-tabs">
+      <a href="/organizer/judging<%= eid ? '?event_id=' + eid : '' %>" class="org-tab-item">Judging Center</a>
+      <a href="/organizer/normalization<%= eid ? '?event_id=' + eid : '' %>" class="org-tab-item">Score Normalization</a>
+      <a href="/organizer/integrity<%= eid ? '?event_id=' + eid : '' %>" class="org-tab-item active">Integrity & Anomalies</a>
+      <a href="/organizer/reevaluation<%= eid ? '?event_id=' + eid : '' %>" class="org-tab-item">Re-evaluations</a>
+      <a href="/organizer/judges/conflicts<%= eid ? '?event_id=' + eid : '' %>" class="org-tab-item">Conflicts of Interest</a>
+    </nav>
+
+    <!-- Outlier Score Deviations Table -->
+    <div class="org-card" style="margin-bottom:24px;">
+      <div class="org-card-header">
+        <h3 class="org-card-title">⚠️ Statistical Score Deviations (Variance &gt; 2.0 pts)</h3>
+        <span style="font-size:0.82rem;color:#888;">Detected by comparing individual judge scores against project consensus</span>
+      </div>
+
+      <% var anomList = (typeof anomalies !== 'undefined' && anomalies) ? anomalies : []; %>
+      <% if (anomList.length === 0) { %>
+        <p class="org-empty">No severe score deviations detected. All evaluations fall within standard variance tolerances.</p>
+      <% } else { %>
+        <table class="org-table">
+          <thead>
+            <tr>
+              <th>Project Title</th>
+              <th>Judge</th>
+              <th>Given Score</th>
+              <th>Consensus Mean</th>
+              <th>Deviation</th>
+              <th>Comment Provided</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% anomList.forEach(function(a) { %>
+              <tr>
+                <td><strong><%= a.project_title %></strong></td>
+                <td><%= a.judge_name %></td>
+                <td><strong style="color:<%= a.diff > 2 ? '#c62828' : '#e37400' %>;"><%= a.score %></strong></td>
+                <td><%= a.mean %></td>
+                <td><span class="badge" style="background:#fce8e6;color:#c62828;">± <%= a.diff %> pts</span></td>
+                <td style="max-width:280px;font-size:0.82rem;color:#555;">"<%= a.comment %>"</td>
+                <td>
+                  <a href="/organizer/reevaluation<%= eid ? '?event_id=' + eid : '' %>" class="org-action-btn org-btn-sm org-action-btn-outline">Request Re-eval</a>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      <% } %>
     </div>
+
+    <!-- Judge Bias & Calibration Analysis -->
+    <div class="org-card">
+      <div class="org-card-header">
+        <h3 class="org-card-title">⚖️ Judge Scoring Bias Distribution</h3>
+      </div>
+      <p style="font-size:0.84rem;color:#666;">Identifies systematically harsh or generous judges to calibrate normalization algorithms.</p>
+
+      <% var bias = (typeof judgeBiases !== 'undefined' && judgeBiases) ? judgeBiases : []; %>
+      <% if (bias.length === 0) { %>
+        <p class="org-empty">Insufficient review volume to calculate statistical bias distributions.</p>
+      <% } else { %>
+        <table class="org-table">
+          <thead>
+            <tr>
+              <th>Judge Name</th>
+              <th>Total Reviews Submitted</th>
+              <th>Average Score Awarded</th>
+              <th>Bias Assessment</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% bias.forEach(function(b) { %>
+              <tr>
+                <td><strong><%= b.judge_name %></strong></td>
+                <td><%= b.total_reviews %> projects</td>
+                <td><strong><%= b.avg_given_score %> / 10</strong></td>
+                <td>
+                  <% if (b.avg_given_score >= 8.5) { %>
+                    <span class="badge" style="background:#e6f4ea;color:#137333;">Generous Judge (Normalized)</span>
+                  <% } else if (b.avg_given_score <= 5.5) { %>
+                    <span class="badge" style="background:#fff3e0;color:#e37400;">Harsh Judge (Normalized)</span>
+                  <% } else { %>
+                    <span class="badge" style="background:#e8f0fe;color:#1a73e8;">Balanced</span>
+                  <% } %>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      <% } %>
+    </div>
+
   </main>
 </div>
+
 <%- include('../layouts/footer') %>

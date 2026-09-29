@@ -37,10 +37,11 @@
         </div>
         <h3 class="org-card-title">Certificate of Participation</h3>
         <p style="font-size:0.83rem;color:#666;margin:6px 0 14px;">Issued to all registered builders who submitted a valid project.</p>
-        <div style="display:flex;gap:8px;">
-          <button class="org-action-btn org-btn-sm" onclick="alert('Generated preview for Participation')">Preview</button>
-          <button class="org-action-btn org-action-btn-outline org-btn-sm" onclick="alert('Issuing 124 participation certificates')">Issue to All (124)</button>
-        </div>
+        <form method="POST" action="/organizer/certificates/generate">
+          <input type="hidden" name="event_id" value="<%= eid %>">
+          <input type="hidden" name="type" value="participation">
+          <button type="submit" class="org-action-btn org-btn-sm">Issue Participation Certificates</button>
+        </form>
       </div>
 
       <!-- Finalist -->
@@ -50,10 +51,11 @@
         </div>
         <h3 class="org-card-title">Finalist Certificate</h3>
         <p style="font-size:0.83rem;color:#666;margin:6px 0 14px;">Issued to top 10 ranked teams after normalized score evaluation.</p>
-        <div style="display:flex;gap:8px;">
-          <button class="org-action-btn org-btn-sm" onclick="alert('Generated preview for Finalist')">Preview</button>
-          <button class="org-action-btn org-action-btn-outline org-btn-sm" onclick="alert('Issuing finalist certificates')">Issue to Top 10</button>
-        </div>
+        <form method="POST" action="/organizer/certificates/generate">
+          <input type="hidden" name="event_id" value="<%= eid %>">
+          <input type="hidden" name="type" value="finalist">
+          <button type="submit" class="org-action-btn org-btn-sm">Issue Finalist Certificates</button>
+        </form>
       </div>
 
       <!-- Winner -->
@@ -63,10 +65,11 @@
         </div>
         <h3 class="org-card-title">Winner Certificate</h3>
         <p style="font-size:0.83rem;color:#666;margin:6px 0 14px;">Grand Prize 1st, 2nd, and 3rd place credentials with prize endorsements.</p>
-        <div style="display:flex;gap:8px;">
-          <button class="org-action-btn org-btn-sm" onclick="alert('Generated preview for Winner')">Preview</button>
-          <button class="org-action-btn org-action-btn-outline org-btn-sm" onclick="alert('Issuing winners certificates')">Issue to Winners (3)</button>
-        </div>
+        <form method="POST" action="/organizer/certificates/generate">
+          <input type="hidden" name="event_id" value="<%= eid %>">
+          <input type="hidden" name="type" value="winner">
+          <button type="submit" class="org-action-btn org-btn-sm">Issue Winner Certificates</button>
+        </form>
       </div>
 
       <!-- Special Award -->
@@ -76,12 +79,53 @@
         </div>
         <h3 class="org-card-title">Special Track Award</h3>
         <p style="font-size:0.83rem;color:#666;margin:6px 0 14px;">Custom badge for Best AI, Most Innovative, Best Design, and Sponsor challenges.</p>
-        <div style="display:flex;gap:8px;">
-          <button class="org-action-btn org-btn-sm" onclick="alert('Generated preview for Special Award')">Preview</button>
-          <button class="org-action-btn org-action-btn-outline org-btn-sm" onclick="alert('Issuing track awards')">Issue Track Awards</button>
-        </div>
+        <form method="POST" action="/organizer/certificates/generate">
+          <input type="hidden" name="event_id" value="<%= eid %>">
+          <input type="hidden" name="type" value="all">
+          <button type="submit" class="org-action-btn org-btn-sm">Issue Track Awards</button>
+        </form>
       </div>
 
+    </div>
+
+    <!-- Issued Certificates Table -->
+    <div class="org-card" id="history" style="margin-bottom:24px;">
+      <div class="org-card-header">
+        <h3 class="org-card-title">Issued Certificates (<%= (typeof certificates !== 'undefined' && certificates) ? certificates.length : 0 %>)</h3>
+        <a href="/api/export.csv?type=certificates<%= eid ? '&event_id=' + eid : '' %>" class="org-card-link">Export Certificates CSV →</a>
+      </div>
+
+      <% var certs = (typeof certificates !== 'undefined' && certificates) ? certificates : []; %>
+      <% if (certs.length === 0) { %>
+        <p class="org-empty">No certificates generated yet. Choose a template above to generate credentials.</p>
+      <% } else { %>
+        <table class="org-table">
+          <thead>
+            <tr>
+              <th>Recipient Name</th>
+              <th>Certificate Title</th>
+              <th>Type</th>
+              <th>Verification Code</th>
+              <th>Issue Date</th>
+              <th>Verification</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% certs.forEach(function(c) { %>
+              <tr>
+                <td><strong><%= c.recipient_name %></strong></td>
+                <td><%= c.title %></td>
+                <td><span class="badge badge-tech"><%= c.type %></span></td>
+                <td><code><%= c.cert_code %></code></td>
+                <td><%= c.issue_date %></td>
+                <td>
+                  <a href="/verify/<%= c.cert_code %>" target="_blank" class="org-action-btn org-action-btn-outline org-btn-sm">Verify ↗</a>
+                </td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      <% } %>
     </div>
 
     <!-- Verify Certificate Search -->
@@ -89,11 +133,11 @@
       <div class="org-card-header">
         <h3 class="org-card-title">🔍 Verification Portal Check</h3>
       </div>
-      <p style="font-size:0.85rem;color:#666;">Validate authenticity of a certificate ID.</p>
-      <div style="display:flex;gap:10px;max-width:500px;">
-        <input type="text" class="org-input" placeholder="e.g. CERT-2026-DGF-8841A">
-        <button class="org-action-btn" onclick="alert('Certificate verified: Issued to Priya Sharma on Sept 28, 2026.')">Verify</button>
-      </div>
+      <p style="font-size:0.85rem;color:#666;">Validate authenticity of any certificate code issued by this hackathon.</p>
+      <form onsubmit="event.preventDefault(); var code = document.getElementById('verifyInput').value.trim(); if(code) window.open('/verify/' + encodeURIComponent(code), '_blank');" style="display:flex;gap:10px;max-width:500px;">
+        <input type="text" id="verifyInput" class="org-input" placeholder="e.g. CERT-2026-DGF-8841A" required>
+        <button type="submit" class="org-action-btn">Verify Credential</button>
+      </form>
     </div>
   </main>
 </div>

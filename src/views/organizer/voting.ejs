@@ -13,7 +13,12 @@
       </div>
 
       <div style="display:flex;gap:10px;">
-        <button class="org-action-btn org-btn-success" id="toggle" onclick="alert('Voting status updated')">🟢 Voting Active</button>
+        <form method="POST" action="/organizer/voting/toggle" style="display:inline;">
+          <input type="hidden" name="event_id" value="<%= eid %>">
+          <button type="submit" class="org-action-btn <%= (selectedEvent && selectedEvent.voting_enabled !== 0) ? 'org-btn-success' : 'org-action-btn-outline' %>" id="toggle">
+            <%= (selectedEvent && selectedEvent.voting_enabled !== 0) ? '🟢 Voting Active' : '⚪ Voting Paused' %>
+          </button>
+        </form>
         <a href="/api/export.csv?type=voting<%= eid ? '&event_id=' + eid : '' %>" class="org-action-btn org-action-btn-outline">Export Votes CSV</a>
       </div>
     </div>
@@ -23,43 +28,38 @@
       <a href="#overview" class="org-tab-item active">Voting Overview</a>
       <a href="#rules" class="org-tab-item">Voting Rules</a>
       <a href="#period" class="org-tab-item">Voting Period</a>
-      <a href="#eligibility" class="org-tab-item">Eligible Voters</a>
-      <a href="#stats" class="org-tab-item">Vote Statistics</a>
-      <a href="#distribution" class="org-tab-item">Vote Distribution</a>
-      <a href="#suspicious" class="org-tab-item">Suspicious Detection</a>
-      <a href="#ratelimits" class="org-tab-item">Rate Limits</a>
-      <a href="#ballots" class="org-tab-item">Random Ballot</a>
-      <a href="#comments" class="org-tab-item">Comments</a>
       <a href="#results" class="org-tab-item">Voting Results</a>
+      <a href="/api/export.csv?type=voting<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item">Export Votes</a>
     </nav>
 
     <!-- Vote Stats Overview -->
+    <% var vstats = (typeof votingStats !== 'undefined' && votingStats) ? votingStats : { totalVotes: 0, uniqueVoters: 0, flaggedAnomalies: 0, publicComments: 0 }; %>
     <div class="org-stat-grid" id="stats" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px;">
       <div class="org-stat-card">
         <div class="org-stat-icon" style="background:#e8f0fe">🗳️</div>
         <div class="org-stat-body">
-          <div class="org-stat-value">482</div>
+          <div class="org-stat-value"><%= vstats.totalVotes %></div>
           <div class="org-stat-label">Total Votes Cast</div>
         </div>
       </div>
       <div class="org-stat-card">
         <div class="org-stat-icon" style="background:#e6f4ea">🙋</div>
         <div class="org-stat-body">
-          <div class="org-stat-value">216</div>
+          <div class="org-stat-value"><%= vstats.uniqueVoters %></div>
           <div class="org-stat-label">Unique Voters</div>
         </div>
       </div>
       <div class="org-stat-card">
         <div class="org-stat-icon" style="background:#fff3e0">🛡️</div>
         <div class="org-stat-body">
-          <div class="org-stat-value" id="suspicious">0</div>
+          <div class="org-stat-value" id="suspicious"><%= vstats.flaggedAnomalies %></div>
           <div class="org-stat-label">Flagged Anomalies</div>
         </div>
       </div>
       <div class="org-stat-card">
         <div class="org-stat-icon" style="background:#fce8e6">💬</div>
         <div class="org-stat-body">
-          <div class="org-stat-value" id="comments">84</div>
+          <div class="org-stat-value" id="comments"><%= vstats.publicComments %></div>
           <div class="org-stat-label">Public Comments</div>
         </div>
       </div>
@@ -77,7 +77,7 @@
           <label><input type="checkbox" checked id="duplicates"> Deduplicate votes by authenticated session ID</label>
           <label><input type="checkbox" checked> Rate limit: Max 20 votes per minute per IP</label>
           <label><input type="checkbox" checked id="ballots"> Randomize project order in gallery to prevent bias</label>
-          <label><input type="checkbox"> Require verified phone number to vote</label>
+          <label><input type="checkbox" checked> Require authenticated account to vote</label>
         </div>
       </div>
 
@@ -85,22 +85,26 @@
         <div class="org-card-header">
           <h3 class="org-card-title">📅 Voting Window & Eligibility</h3>
         </div>
-        <div class="org-form-group">
-          <label class="org-form-label">Voting Start</label>
-          <input type="datetime-local" class="org-input" value="<%= selectedEvent && selectedEvent.voting_open ? selectedEvent.voting_open.slice(0,16) : '' %>">
-        </div>
-        <div class="org-form-group">
-          <label class="org-form-label">Voting End</label>
-          <input type="datetime-local" class="org-input" value="<%= selectedEvent && selectedEvent.voting_close ? selectedEvent.voting_close.slice(0,16) : '' %>">
-        </div>
-        <div class="org-form-group" id="eligibility">
-          <label class="org-form-label">Who Can Vote?</label>
-          <select class="org-select">
-            <option>All Registered & Logged-In Users</option>
-            <option>Participants & Judges Only</option>
-            <option>Public (Email Magic Link)</option>
-          </select>
-        </div>
+        <form method="POST" action="/organizer/voting/settings">
+          <input type="hidden" name="event_id" value="<%= eid %>">
+          <div class="org-form-group">
+            <label class="org-form-label">Voting Start</label>
+            <input type="datetime-local" name="voting_open" class="org-input" value="<%= selectedEvent && selectedEvent.voting_open ? selectedEvent.voting_open.slice(0,16) : '' %>">
+          </div>
+          <div class="org-form-group">
+            <label class="org-form-label">Voting End</label>
+            <input type="datetime-local" name="voting_close" class="org-input" value="<%= selectedEvent && selectedEvent.voting_close ? selectedEvent.voting_close.slice(0,16) : '' %>">
+          </div>
+          <div class="org-form-group" id="eligibility">
+            <label class="org-form-label">Who Can Vote?</label>
+            <select name="eligibility" class="org-select">
+              <option value="authenticated">All Registered & Logged-In Users</option>
+              <option value="participants_judges">Participants & Judges Only</option>
+              <option value="all">Public Visitors</option>
+            </select>
+          </div>
+          <button type="submit" class="org-action-btn org-btn-sm" style="margin-top:6px;">Save Voting Schedule</button>
+        </form>
       </div>
 
     </div>
@@ -111,23 +115,35 @@
         <h3 class="org-card-title">🏆 Top Voted Projects (Community Choice)</h3>
         <span style="font-size:0.8rem;color:#666;">Live leaderboard from project_votes table</span>
       </div>
-      <table class="org-table">
-        <thead>
-          <tr>
-            <th>Rank</th>
-            <th>Project Title</th>
-            <th>Track</th>
-            <th>Total Votes</th>
-            <th>Saved Count</th>
-            <th>Comments</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr><td><strong>#1</strong></td><td><a href="/projects/prj_01" style="color:#1a73e8;font-weight:600;">Autonomous Drone Delivery</a></td><td><span class="org-track-chip">Robotics & Cloud</span></td><td><strong>48 👍</strong></td><td>24 🔖</td><td>12 💬</td></tr>
-          <tr><td><strong>#2</strong></td><td><a href="/projects/prj_02" style="color:#1a73e8;font-weight:600;">EcoRoute EV Charging Planner</a></td><td><span class="org-track-chip">Web Development</span></td><td><strong>42 👍</strong></td><td>18 🔖</td><td>9 💬</td></tr>
-          <tr><td><strong>#3</strong></td><td><a href="/projects/prj_03" style="color:#1a73e8;font-weight:600;">AI Healthcare Triage Assistant</a></td><td><span class="org-track-chip">AI/ML</span></td><td><strong>39 👍</strong></td><td>15 🔖</td><td>7 💬</td></tr>
-        </tbody>
-      </table>
+      <% var topList = (typeof topProjects !== 'undefined' && topProjects) ? topProjects : []; %>
+      <% if (topList.length === 0) { %>
+        <p class="org-empty">No community votes recorded yet.</p>
+      <% } else { %>
+        <table class="org-table">
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Project Title</th>
+              <th>Team</th>
+              <th>Track</th>
+              <th>Total Votes</th>
+              <th>Gallery Link</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% topList.forEach(function(tp, idx) { %>
+              <tr>
+                <td><strong>#<%= idx + 1 %></strong></td>
+                <td><a href="/projects/<%= tp.id %>" target="_blank" style="color:#1a73e8;font-weight:600;"><%= tp.title %></a></td>
+                <td><%= tp.team_name || 'Team' %></td>
+                <td><span class="org-track-chip"><%= tp.track_name || 'General' %></span></td>
+                <td><strong><%= tp.vote_count || 0 %> 👍</strong></td>
+                <td><a href="/projects/<%= tp.id %>" target="_blank" class="org-action-btn org-action-btn-outline org-btn-sm">View</a></td>
+              </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      <% } %>
     </div>
   </main>
 </div>

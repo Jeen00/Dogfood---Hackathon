@@ -1,0 +1,54 @@
+<%- include('layouts/header', { title: 'Certificate Verification', session: (typeof session !== 'undefined' ? session : null) }) %>
+
+<div style="max-width:680px;margin:40px auto;padding:0 16px;">
+  <% if (typeof cert !== 'undefined' && cert) { %>
+    <div style="background:#fff;border:2px solid #137333;border-radius:12px;padding:36px;box-shadow:0 8px 30px rgba(0,0,0,0.08);text-align:center;">
+      <div style="font-size:3rem;margin-bottom:8px;">🎓</div>
+      <span class="badge" style="background:#e6f4ea;color:#137333;font-size:0.9rem;padding:4px 14px;border-radius:20px;font-weight:600;">
+        ✓ Authenticated Credential
+      </span>
+      <h1 style="font-size:1.6rem;margin:18px 0 6px;"><%= cert.title %></h1>
+      <p style="color:#666;font-size:0.95rem;margin:0 0 24px;">Issued for <%= cert.event_name || 'DOGFOOD Hackathon' %></p>
+
+      <div style="background:#f8f9fa;border-radius:8px;padding:20px;text-align:left;display:flex;flex-direction:column;gap:12px;margin-bottom:24px;">
+        <div style="display:flex;justify-content:space-between;border-bottom:1px solid #eee;padding-bottom:8px;">
+          <span style="color:#666;font-size:0.85rem;">Recipient</span>
+          <strong style="font-size:1rem;color:#1a73e8;"><%= cert.recipient_name %></strong>
+        </div>
+        <div style="display:flex;justify-content:space-between;border-bottom:1px solid #eee;padding-bottom:8px;">
+          <span style="color:#666;font-size:0.85rem;">Award Category</span>
+          <span class="badge badge-tech"><%= cert.type.toUpperCase() %></span>
+        </div>
+        <div style="display:flex;justify-content:space-between;border-bottom:1px solid #eee;padding-bottom:8px;">
+          <span style="color:#666;font-size:0.85rem;">Verification Code</span>
+          <code><%= cert.cert_code %></code>
+        </div>
+        <div style="display:flex;justify-content:space-between;">
+          <span style="color:#666;font-size:0.85rem;">Issue Date</span>
+          <span><%= cert.issue_date %></span>
+        </div>
+      </div>
+
+      <a href="/projects" class="org-action-btn">Browse Project Gallery</a>
+    </div>
+  <% } else { %>
+    <div style="background:#fff;border:1px solid #e0e0e0;border-radius:12px;padding:36px;box-shadow:0 8px 30px rgba(0,0,0,0.06);text-align:center;">
+      <div style="font-size:3rem;margin-bottom:8px;">🔍</div>
+      <h1 style="font-size:1.4rem;margin:12px 0 6px;">Certificate Verification</h1>
+      <p style="color:#666;font-size:0.9rem;margin:0 0 20px;">
+        <% if (typeof code !== 'undefined' && code) { %>
+          No valid certificate found for code: <code><%= code %></code>
+        <% } else { %>
+          Enter a certificate code below to verify its authenticity.
+        <% } %>
+      </p>
+
+      <form onsubmit="event.preventDefault(); var c = document.getElementById('searchCode').value.trim(); if(c) window.location.href='/verify/' + encodeURIComponent(c);" style="display:flex;gap:8px;max-width:440px;margin:0 auto;">
+        <input type="text" id="searchCode" class="org-input" placeholder="e.g. CERT-2026-DGF-8841A" required style="text-align:center;">
+        <button type="submit" class="org-action-btn">Verify</button>
+      </form>
+    </div>
+  <% } %>
+</div>
+
+<%- include('layouts/footer') %>

@@ -1,6 +1,8 @@
 <%- include('../layouts/header', { title: 'Teams Management', session, selectedEvent }) %>
 <% locals._page = 'teams-all'; %>
 <% var eid = (typeof selectedEvent !== 'undefined' && selectedEvent) ? selectedEvent.id : ''; %>
+<% var curF = (typeof currentFilter !== 'undefined') ? currentFilter : 'all'; %>
+<% var queryStr = (typeof q !== 'undefined') ? q : ''; %>
 
 <div class="org-layout">
   <%- include('_sidebar') %>
@@ -18,31 +20,76 @@
       </div>
     </div>
 
-    <!-- Sub-navigation tabs for all 11 Teams items -->
+    <!-- Sub-navigation tabs for all Teams items -->
     <nav class="org-tabs">
-      <a href="/organizer/teams<%= eid ? '?event_id=' + eid : '' %>" class="org-tab-item active">All Teams</a>
+      <a href="/organizer/teams<%= eid ? '?event_id=' + eid : '' %>" class="org-tab-item <%= curF === 'all' ? 'active' : '' %>">All Teams</a>
       <a href="javascript:void(0)" onclick="document.getElementById('createTeamModal').style.display='flex'" class="org-tab-item">+ Create Team</a>
-      <a href="/organizer/teams?filter=leaders<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item">Team Leaders</a>
-      <a href="/organizer/teams?filter=members<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item">Team Members</a>
-      <a href="/organizer/teams?filter=invites<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item">Pending Invitations</a>
-      <a href="/organizer/teams?filter=size<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item">Team Size</a>
-      <a href="/organizer/teams?filter=incomplete<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item">Incomplete Teams</a>
-      <a href="/organizer/teams?filter=eligible<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item">Eligible Teams</a>
-      <a href="/organizer/teams?filter=disqualified<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item">Disqualified Teams</a>
-      <a href="#changes" class="org-tab-item">Team Changes</a>
+      <a href="/organizer/teams?filter=leaders<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item <%= curF === 'leaders' ? 'active' : '' %>">Team Leaders</a>
+      <a href="/organizer/teams?filter=size<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item <%= curF === 'size' ? 'active' : '' %>">Team Size</a>
+      <a href="/organizer/teams?filter=incomplete<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item <%= curF === 'incomplete' ? 'active' : '' %>">Incomplete Teams</a>
+      <a href="/organizer/teams?filter=eligible<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item <%= curF === 'eligible' ? 'active' : '' %>">Eligible Teams</a>
+      <a href="/organizer/teams?filter=disqualified<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item <%= curF === 'disqualified' ? 'active' : '' %>">Disqualified Teams</a>
       <a href="/api/export.csv?type=teams<%= eid ? '&event_id=' + eid : '' %>" class="org-tab-item">Export Teams</a>
     </nav>
+
+    <!-- Teams KPI Stats Grid -->
+    <% var stats = (typeof teamStats !== 'undefined' && teamStats) ? teamStats : { total: 0, solo: 0, complete: 0, disqualified: 0, withSubmissions: 0 }; %>
+    <div class="org-stat-grid" style="grid-template-columns:repeat(5, 1fr);margin-bottom:24px;">
+      <div class="org-stat-card">
+        <div class="org-stat-icon" style="background:#e8f0fe">👥</div>
+        <div class="org-stat-body">
+          <div class="org-stat-value"><%= stats.total %></div>
+          <div class="org-stat-label">Total Teams</div>
+        </div>
+      </div>
+      <div class="org-stat-card">
+        <div class="org-stat-icon" style="background:#fff3e0">👤</div>
+        <div class="org-stat-body">
+          <div class="org-stat-value"><%= stats.solo %></div>
+          <div class="org-stat-label">Solo Builders</div>
+        </div>
+      </div>
+      <div class="org-stat-card">
+        <div class="org-stat-icon" style="background:#e6f4ea">🤝</div>
+        <div class="org-stat-body">
+          <div class="org-stat-value"><%= stats.complete %></div>
+          <div class="org-stat-label">Full Teams (2+)</div>
+        </div>
+      </div>
+      <div class="org-stat-card">
+        <div class="org-stat-icon" style="background:#e8f5e9">📁</div>
+        <div class="org-stat-body">
+          <div class="org-stat-value"><%= stats.withSubmissions %></div>
+          <div class="org-stat-label">Submitted Projects</div>
+        </div>
+      </div>
+      <div class="org-stat-card">
+        <div class="org-stat-icon" style="background:#fce8e6">🚫</div>
+        <div class="org-stat-body">
+          <div class="org-stat-value"><%= stats.disqualified %></div>
+          <div class="org-stat-label">Disqualified</div>
+        </div>
+      </div>
+    </div>
 
     <!-- Teams Table -->
     <div class="org-card">
       <div class="org-card-header">
-        <h3 class="org-card-title">Participating Teams (<%= (typeof teamList !== 'undefined' && teamList) ? teamList.length : 42 %>)</h3>
-        <input type="text" placeholder="Filter teams..." class="org-input" style="padding:4px 10px;font-size:0.82rem;width:180px;">
+        <h3 class="org-card-title">Participating Teams (<%= (typeof teamList !== 'undefined' && teamList) ? teamList.length : 0 %>)</h3>
+        <form method="GET" action="/organizer/teams" style="display:flex;gap:6px;">
+          <% if (eid) { %><input type="hidden" name="event_id" value="<%= eid %>"><% } %>
+          <% if (curF !== 'all') { %><input type="hidden" name="filter" value="<%= curF %>"><% } %>
+          <input type="text" name="q" value="<%= queryStr %>" placeholder="Search team or code..." class="org-input" style="padding:4px 10px;font-size:0.82rem;width:200px;">
+          <button type="submit" class="org-action-btn org-btn-sm">Search</button>
+          <% if (queryStr) { %>
+            <a href="/organizer/teams<%= eid ? '?event_id=' + eid : '' %>" class="org-action-btn org-action-btn-outline org-btn-sm">Clear</a>
+          <% } %>
+        </form>
       </div>
 
       <% var teams = (typeof teamList !== 'undefined' && teamList) ? teamList : []; %>
       <% if (teams.length === 0) { %>
-        <p class="org-empty">No teams found for this event.</p>
+        <p class="org-empty">No teams match this filter or search.</p>
       <% } else { %>
         <table class="org-table">
           <thead>
@@ -61,18 +108,39 @@
               <tr>
                 <td><strong><%= tm.name %></strong></td>
                 <td><code><%= tm.invite_code %></code></td>
-                <td><%= tm.leader_name || 'Assigned' %></td>
+                <td><%= tm.leader_name || tm.leader_email || 'Assigned' %></td>
                 <td><span class="badge badge-tech"><%= tm.member_count || 1 %> members</span></td>
                 <td>
                   <% if (tm.project_title) { %>
-                    <span class="org-status-chip org-status-done">Submitted</span>
+                    <span class="org-status-chip org-status-done"><%= tm.project_status || 'Submitted' %></span>
                   <% } else { %>
                     <span class="org-status-chip org-status-pending">No Project</span>
                   <% } %>
                 </td>
-                <td><span class="org-status-chip org-status-done">Eligible</span></td>
                 <td>
-                  <a href="/team/<%= tm.id %>" class="org-action-btn org-action-btn-outline org-btn-sm">Manage</a>
+                  <% if (tm.team_status === 'disqualified') { %>
+                    <span class="org-status-chip org-status-rejected">Disqualified</span>
+                  <% } else { %>
+                    <span class="org-status-chip org-status-done">Eligible</span>
+                  <% } %>
+                </td>
+                <td>
+                  <div style="display:flex;gap:6px;align-items:center;">
+                    <a href="/team/<%= tm.id %>" class="org-action-btn org-action-btn-outline org-btn-sm">Manage</a>
+                    <form method="POST" action="/organizer/teams/status" style="display:inline;">
+                      <input type="hidden" name="team_id" value="<%= tm.id %>">
+                      <input type="hidden" name="status" value="<%= tm.team_status === 'disqualified' ? 'active' : 'disqualified' %>">
+                      <input type="hidden" name="event_id" value="<%= eid %>">
+                      <button type="submit" class="org-action-btn <%= tm.team_status === 'disqualified' ? 'org-btn-success' : 'org-action-btn-outline' %> org-btn-sm">
+                        <%= tm.team_status === 'disqualified' ? 'Reinstate' : 'Disqualify' %>
+                      </button>
+                    </form>
+                    <form method="POST" action="/organizer/teams/delete" style="display:inline;" onsubmit="return confirm('Permanently remove team <%= tm.name.replace(/'/g, "\\'") %>?');">
+                      <input type="hidden" name="team_id" value="<%= tm.id %>">
+                      <input type="hidden" name="event_id" value="<%= eid %>">
+                      <button type="submit" class="org-action-btn org-btn-danger org-btn-sm" title="Delete Team">✕</button>
+                    </form>
+                  </div>
                 </td>
               </tr>
             <% }); %>
@@ -87,7 +155,8 @@
 <div id="createTeamModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;align-items:center;justify-content:center;">
   <div style="background:#fff;border-radius:8px;padding:24px;max-width:480px;width:90%;box-shadow:0 8px 30px rgba(0,0,0,0.2);">
     <h3 style="margin:0 0 14px;">Create New Team</h3>
-    <form method="POST" action="/team/create">
+    <form method="POST" action="/organizer/teams/create">
+      <input type="hidden" name="event_id" value="<%= eid %>">
       <div class="org-form-group">
         <label class="org-form-label">Team Name *</label>
         <input type="text" name="name" class="org-input" required placeholder="e.g. CyberSentinels">
