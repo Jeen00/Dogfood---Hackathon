@@ -41,12 +41,13 @@ The `.dogfood.toml` file configures the external checker that validates this pla
 
 ### Fixed Session Credentials
 
-| Role        | Cookie Header                        | User           |
-|-------------|--------------------------------------|----------------|
-| Organizer   | `Cookie: session=org_7f2a`           | organizer@example.org |
-| Judge A     | `Cookie: session=jdg_a_91bc`         | Tomas Varga (jdg_01) |
-| Judge B     | `Cookie: session=jdg_b_44de`         | Wei Lindqvist (jdg_02) |
-| Participant | `Cookie: session=prt_2e88`           | priya1@example.org |
+| Role          | Cookie Header                        | User           |
+|---------------|--------------------------------------|----------------|
+| Organizer     | `Cookie: session=org_7f2a`           | organizer@example.org |
+| Judge A       | `Cookie: session=jdg_a_91bc`         | Tomas Varga (jdg_01) |
+| Judge B       | `Cookie: session=jdg_b_44de`         | Wei Lindqvist (jdg_02) |
+| Participant A | `Cookie: session=prt_2e88`           | priya1@example.org |
+| Participant B | `Cookie: session=prt_b3f1`           | demo2@example.org |
 
 These session IDs are hard-coded into the seed script and will always be present after startup.
 

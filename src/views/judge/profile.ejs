@@ -1,0 +1,60 @@
+<%- include('../layouts/header', { title: 'My Profile', session, selectedJudgeEvent: null }) %>
+
+<div style="max-width: 800px; margin: 0 auto; padding: 24px;">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+    <h1 style="margin: 0; padding: 0; border: none;">Judge Profile</h1>
+    <a href="/judge/dashboard" style="text-decoration: none; color: #1a73e8; font-weight: bold;">← Dashboard</a>
+  </div>
+
+  <div style="background: #fff; border: 2px solid #1a1a1a; padding: 24px; margin-bottom: 24px;">
+    <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
+      <div style="width: 64px; height: 64px; background: #1a73e8; color: #fff; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 24px; font-weight: bold;">
+        <%= (judge.name || 'J').charAt(0).toUpperCase() %>
+      </div>
+      <div>
+        <h2 style="margin: 0 0 4px 0;"><%= judge.name %></h2>
+        <div style="color: #666;"><%= judge.email %></div>
+      </div>
+    </div>
+
+    <h3>Overall Statistics</h3>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin-bottom: 24px;">
+      <div style="background: #f8f9fa; border: 1px solid #ddd; padding: 16px; text-align: center;">
+        <div style="font-size: 2rem; font-weight: bold; color: #1a73e8;"><%= stats.total_assignments || 0 %></div>
+        <div style="font-size: 0.85rem; color: #555; text-transform: uppercase;">Total Assignments</div>
+      </div>
+      <div style="background: #f0fdf4; border: 1px solid #bbf7d0; padding: 16px; text-align: center;">
+        <div style="font-size: 2rem; font-weight: bold; color: #15803d;"><%= stats.completed_evaluations || 0 %></div>
+        <div style="font-size: 0.85rem; color: #555; text-transform: uppercase;">Completed Evals</div>
+      </div>
+      <div style="background: #fef2f2; border: 1px solid #fecaca; padding: 16px; text-align: center;">
+        <div style="font-size: 2rem; font-weight: bold; color: #b91c1c;"><%= stats.conflicts_declared || 0 %></div>
+        <div style="font-size: 0.85rem; color: #555; text-transform: uppercase;">Conflicts Declared</div>
+      </div>
+    </div>
+
+    <h3>Assigned Tracks</h3>
+    <% if (tracks && tracks.length > 0) { %>
+      <table class="detail-table" style="width: 100%;">
+        <thead>
+          <tr>
+            <th style="text-align: left; padding: 8px;">Event</th>
+            <th style="text-align: left; padding: 8px;">Track</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% tracks.forEach(t => { %>
+          <tr>
+            <td style="padding: 8px;"><%= t.event_name %></td>
+            <td style="padding: 8px; font-weight: bold;"><%= t.track_name %></td>
+          </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    <% } else { %>
+      <p style="color: #666;">You are not assigned to any specific tracks yet.</p>
+    <% } %>
+  </div>
+</div>
+
+<%- include('../layouts/footer') %>

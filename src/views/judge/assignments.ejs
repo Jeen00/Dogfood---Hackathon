@@ -1,0 +1,183 @@
+<%- include('../layouts/header', {
+  title: (selectedEvent ? selectedEvent.name + ' — My Assignments' : 'My Assignments'),
+  session,
+  selectedJudgeEvent: selectedEvent || null
+}) %>
+
+<%
+  const eventParam = selectedEvent ? ('?event_id=' + selectedEvent.id) : '';
+  const tabs = [
+    { key: 'all',          label: 'All Projects',  count: tabCounts.all,         icon: '📋' },
+    { key: 'pending',      label: 'Pending',        count: tabCounts.pending,     icon: '⏳' },
+    { key: 'in_progress',  label: 'In Progress',    count: tabCounts.in_progress, icon: '🔵' },
+    { key: 'completed',    label: 'Completed',      count: tabCounts.completed,   icon: '✅' },
+    { key: 'needs_review', label: 'Re-evaluation',  count: tabCounts.needs_review,icon: '🔄' },
+    { key: 'conflict',     label: 'Conflicts',      count: tabCounts.conflict,    icon: '⚠️' }
+  ];
+%>
+
+<!-- Page Header -->
+<div style="margin-bottom: 20px;">
+  <div style="margin-bottom: 6px;">
+    <a href="/judge/dashboard<%= eventParam %>" style="text-decoration: none; font-size: 0.9rem; font-weight: bold; color: #1a73e8;">← Dashboard</a>
+  </div>
+  <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+    <div>
+      <h1 style="margin: 0 0 4px 0; padding: 0; border: none;">My Assignments</h1>
+      <% if (selectedEvent) { %>
+        <div style="font-size: 0.9rem; color: #666;"><%= selectedEvent.name %></div>
+      <% } %>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+      <% if (statusInfo) { %>
+        <span class="status-badge <%= statusInfo.badgeClass %>"><%= statusInfo.label %></span>
+        <span style="font-weight: bold; font-size: 0.9rem; color: <%= statusInfo.status === 'running' ? '#137333' : '#555' %>;">
+          ⏱ <%= statusInfo.timeText %>
+        </span>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<!-- ===== TAB BAR ===== -->
+<div style="display: flex; border-bottom: 2px solid #1A1A1A; margin-bottom: 20px; overflow-x: auto; gap: 0;">
+  <% for (const t of tabs) { %>
+    <%
+      const isActive = tab === t.key;
+      const hasItems = t.count > 0;
+    %>
+    <a href="/judge/assignments<%= eventParam %><%= eventParam ? '&' : '?' %>tab=<%= t.key %>"
+      style="
+        display: flex; align-items: center; gap: 6px;
+        padding: 10px 18px;
+        font-weight: bold;
+        font-size: 0.88rem;
+        text-decoration: none;
+        white-space: nowrap;
+        border-bottom: 3px solid transparent;
+        margin-bottom: -2px;
+        transition: all 0.15s;
+        <%= isActive
+          ? 'background: #1A1A1A; color: #fff; border-bottom-color: #1A1A1A;'
+          : 'background: #f8f9fa; color: #555; border-bottom-color: transparent;'
+        %>
+      ">
+      <%= t.icon %> <%= t.label %>
+      <span style="
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 20px; height: 20px;
+        background: <%= isActive ? 'rgba(255,255,255,0.25)' : (hasItems ? '#1A1A1A' : '#e5e7eb') %>;
+        color: <%= isActive ? '#fff' : (hasItems ? '#fff' : '#999') %>;
+        font-size: 0.7rem; font-weight: bold;
+      "><%= t.count %></span>
+    </a>
+  <% } %>
+</div>
+
+<!-- ===== ASSIGNMENT LIST ===== -->
+<% if (assignments.length === 0) { %>
+  <div style="padding: 40px; text-align: center; border: 2px dashed #ddd; color: #888;">
+    <% if (tab === 'all') { %>
+      <div style="font-size: 2rem; margin-bottom: 12px;">📭</div>
+      <p>No projects have been assigned to you for this event yet.</p>
+      <a href="/judge/events" style="color: #1a73e8;">← Back to All Events</a>
+    <% } else if (tab === 'pending') { %>
+      <div style="font-size: 2rem; margin-bottom: 12px;">🎉</div>
+      <p>No pending evaluations! You're all caught up.</p>
+    <% } else if (tab === 'in_progress') { %>
+      <div style="font-size: 2rem; margin-bottom: 12px;">✨</div>
+      <p>No evaluations currently in progress.</p>
+    <% } else if (tab === 'completed') { %>
+      <div style="font-size: 2rem; margin-bottom: 12px;">⏳</div>
+      <p>No completed evaluations yet. Start scoring your assigned projects!</p>
+      <a href="/judge/assignments<%= eventParam %>" style="color: #1a73e8;">View all assignments</a>
+    <% } else if (tab === 'needs_review') { %>
+      <div style="font-size: 2rem; margin-bottom: 12px;">✅</div>
+      <p>No projects flagged for re-evaluation.</p>
+    <% } %>
+  </div>
+<% } else { %>
+  <div style="display: flex; flex-direction: column; gap: 10px;">
+    <% for (const a of assignments) { %>
+      <%- include('./partials/assignment-card', { a, eventId: selectedEvent ? selectedEvent.id : '' }) %>
+    <% } %>
+  </div>
+<% } %>
+
+<!-- Inline JS for AJAX start/flag actions -->
+<script>
+function markStart(projectId, btn) {
+  btn.disabled = true;
+  btn.textContent = '…';
+  fetch('/judge/assignments/' + projectId + '/start', { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.error) {
+        btn.disabled = false;
+        btn.textContent = '▶ Start Review';
+        if (window.showToast) window.showToast(d.error, 'error');
+        return;
+      }
+      if (window.showToast) window.showToast('Marked as In Progress!', 'info');
+      // Update the card's appearance without reload
+      var card = document.getElementById('acard-' + projectId);
+      if (card) {
+        card.style.borderLeftColor = '#93c5fd';
+        // Update status badge
+        var badge = card.querySelector('span[style*="fef9c3"]') || card.querySelector('span[style*="fde047"]');
+        if (badge) {
+          badge.style.background = '#EFF6FF';
+          badge.style.borderColor = '#93c5fd';
+          badge.style.color = '#1d4ed8';
+          badge.textContent = '🔵 In Progress';
+        }
+        // Replace Start button with Continue Scoring link
+        btn.parentElement.removeChild(btn);
+        // Update Score button text
+        var scoreLink = card.querySelector('a[href*="/judge/score/"]');
+        if (scoreLink) scoreLink.textContent = '✏️ Continue Scoring';
+      }
+    })
+    .catch(function() {
+      btn.disabled = false;
+      btn.textContent = '▶ Start Review';
+      if (window.showToast) window.showToast('Network error. Try again.', 'error');
+    });
+}
+
+function flagReview(projectId, btn) {
+  if (!confirm('Flag this project for re-evaluation? This will mark it as needing review.')) return;
+  btn.disabled = true;
+  btn.textContent = '…';
+  fetch('/judge/assignments/' + projectId + '/flag', { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (d.error) {
+        btn.disabled = false;
+        btn.textContent = '🔄 Flag Re-eval';
+        if (window.showToast) window.showToast(d.error, 'error');
+        return;
+      }
+      if (window.showToast) window.showToast('Flagged for re-evaluation.', 'info');
+      var card = document.getElementById('acard-' + projectId);
+      if (card) {
+        card.style.borderLeftColor = '#fed7aa';
+        var badge = card.querySelector('span[style*="f0fdf4"]') || card.querySelector('span[style*="bbf7d0"]');
+        if (badge) {
+          badge.style.background = '#fff7ed';
+          badge.style.borderColor = '#fed7aa';
+          badge.style.color = '#c2410c';
+          badge.textContent = '🔄 Re-evaluation';
+        }
+        btn.parentElement.removeChild(btn);
+      }
+    })
+    .catch(function() {
+      btn.disabled = false;
+      btn.textContent = '🔄 Flag Re-eval';
+      if (window.showToast) window.showToast('Network error. Try again.', 'error');
+    });
+}
+</script>
+
+<%- include('../layouts/footer') %>

@@ -215,6 +215,11 @@ router.post('/scores', requireRole('judge'), (req, res) => {
         submitted_at    = excluded.submitted_at
     `).run(scoreId, judgeId, project_id, csJson, comment || '', now);
 
+    // Mark assignment as completed
+    db.prepare("UPDATE judge_assignments SET status = 'completed' WHERE judge_id = ? AND project_id = ?")
+      .run(judgeId, project_id);
+
+
     // Audit log
     db.prepare(
       'INSERT INTO audit_log (id, actor_id, action, target_id, detail, created_at) VALUES (?, ?, ?, ?, ?, ?)'

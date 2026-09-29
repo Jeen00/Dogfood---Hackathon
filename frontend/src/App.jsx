@@ -16,7 +16,7 @@ import RulesPage from './pages/RulesPage'
 import FAQPage from './pages/FAQPage'
 import GalleryPage from './pages/GalleryPage'
 
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || 'dummy-client-id'
 
 export default function App() {
   return (

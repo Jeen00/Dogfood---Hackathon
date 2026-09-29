@@ -1,0 +1,111 @@
+<%
+  // Determine status badge for this assignment card
+  let cardBorderColor = '#ddd';
+  let statusLabel = 'Pending';
+  let statusBg = '#fef9c3';
+  let statusColor = '#854d0e';
+  let statusBorder = '#fde047';
+
+  if (a.scored) {
+    cardBorderColor = '#bbf7d0';
+    statusLabel = '✅ Scored';
+    statusBg = '#f0fdf4';
+    statusColor = '#15803d';
+    statusBorder = '#bbf7d0';
+  } else if (a.assignment_status === 'in_progress') {
+    cardBorderColor = '#93c5fd';
+    statusLabel = '🔵 In Progress';
+    statusBg = '#EFF6FF';
+    statusColor = '#1d4ed8';
+    statusBorder = '#93c5fd';
+  } else if (a.assignment_status === 'needs_review') {
+    cardBorderColor = '#fed7aa';
+    statusLabel = '🔄 Re-evaluation';
+    statusBg = '#fff7ed';
+    statusColor = '#c2410c';
+    statusBorder = '#fed7aa';
+  } else if (a.assignment_status === 'conflict') {
+    cardBorderColor = '#fecaca';
+    statusLabel = '⚠️ Conflict';
+    statusBg = '#fef2f2';
+    statusColor = '#b91c1c';
+    statusBorder = '#fecaca';
+  } else {
+    cardBorderColor = '#fde047';
+  }
+%>
+<div id="acard-<%= a.id %>" style="
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-left: 5px solid <%= cardBorderColor %>;
+  padding: 16px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+">
+  <!-- Left: Project info -->
+  <div style="flex: 1; min-width: 200px;">
+    <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px;">
+      <a href="/projects/<%= a.id %>" style="font-weight: bold; font-size: 1rem; color: #1A1A1A; text-decoration: none;">
+        <%= a.title %>
+      </a>
+      <span style="
+        background: <%= statusBg %>;
+        border: 1px solid <%= statusBorder %>;
+        color: <%= statusColor %>;
+        font-size: 0.75rem;
+        font-weight: bold;
+        padding: 2px 8px;
+      ">
+        <%= statusLabel %>
+      </span>
+    </div>
+    <div style="font-size: 0.85rem; color: #666; display: flex; gap: 16px; flex-wrap: wrap;">
+      <span>👥 <%= a.team_name %></span>
+      <span>🏷️ <%= a.track_name %></span>
+      <% if (a.submitted_at) { %>
+        <span>📅 Submitted: <%= a.submitted_at.slice(0, 10) %></span>
+      <% } %>
+      <% if (a.scored && a.scored_at) { %>
+        <span>✓ Scored: <%= a.scored_at.slice(0, 10) %></span>
+      <% } %>
+    </div>
+    <% if (a.summary) { %>
+    <div style="margin-top: 6px; font-size: 0.83rem; color: #555; max-width: 520px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+      <%= a.summary %>
+    </div>
+    <% } %>
+  </div>
+
+  <!-- Right: Action buttons -->
+  <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; flex-shrink: 0;">
+    <% if (!a.scored) { %>
+      <!-- Start reviewing (marks in_progress) -->
+      <% if (a.assignment_status === 'pending') { %>
+        <button
+          onclick="markStart('<%= a.id %>', this)"
+          style="background: #EFF6FF; border: 1.5px solid #93c5fd; color: #1d4ed8; font-weight: bold; font-size: 0.82rem; padding: 7px 14px; cursor: pointer;">
+          ▶ Start Review
+        </button>
+      <% } %>
+      <a href="/judge/score/<%= a.id %>"
+        style="background: #1A1A1A; color: #fff; border: none; font-weight: bold; font-size: 0.85rem; padding: 8px 16px; text-decoration: none; display: inline-block;">
+        <%= a.assignment_status === 'in_progress' ? '✏️ Continue Scoring' : 'Score' %>
+      </a>
+    <% } else { %>
+      <a href="/judge/score/<%= a.id %>"
+        style="background: #f0fdf4; color: #15803d; border: 1.5px solid #bbf7d0; font-weight: bold; font-size: 0.82rem; padding: 7px 14px; text-decoration: none; display: inline-block;">
+        ✏️ Edit Score
+      </a>
+      <% if (a.assignment_status !== 'needs_review') { %>
+        <button
+          onclick="flagReview('<%= a.id %>', this)"
+          style="background: #fff7ed; border: 1.5px solid #fed7aa; color: #c2410c; font-weight: bold; font-size: 0.82rem; padding: 7px 14px; cursor: pointer;">
+          🔄 Flag Re-eval
+        </button>
+      <% } %>
+    <% } %>
+  </div>
+</div>
